@@ -737,7 +737,7 @@
   <header class="app-header">
     <div class="header-row">
       <div class="brand">
-        <div class="brand-title">PDF Text Jump Viewer <span style="font-size:10px;opacity:.65">v3.0</span></div>
+        <div class="brand-title">PDF Text Jump Viewer <span style="font-size:10px;opacity:.65">v3.0.1</span></div>
         <div class="brand-sub">複数PDFを横断検索し、ヒットページだけを連続表示</div>
       </div>
 
@@ -1985,17 +1985,20 @@
 
       const openSerial = ++state.viewerOpenSerial;
       const key = `${result.file}::${result.pageNumber}`;
+      const targetPage = result.pageNumber;
+      const targetOccurrence = 1;
+
       state.activeResultKey = key;
       renderResults();
 
       const sameFile = state.currentPdf && state.currentFile === result.file;
-      state.currentTargetPage = result.pageNumber;
-      state.currentTargetOccurrence = 1;
-      state.currentPage = result.pageNumber;
-      updateViewerToolbar();
 
       try {
         if (!sameFile) {
+          /*
+            destroyCurrentPdf() は表示ページを1ページ目へ初期化するため、
+            ヒットページの設定は新しいPDFを読み込んだ後に行う。
+          */
           await destroyCurrentPdf();
           if (openSerial !== state.viewerOpenSerial) return;
 
@@ -2015,6 +2018,16 @@
           state.currentFile = result.file;
           state.currentFileLabel = result.label;
         }
+
+        if (openSerial !== state.viewerOpenSerial || !state.currentPdf) return;
+
+        state.currentTargetPage = targetPage;
+        state.currentTargetOccurrence = targetOccurrence;
+        state.currentPage = Math.min(
+          state.currentPdf.numPages,
+          Math.max(1, targetPage)
+        );
+        updateViewerToolbar();
 
         elements.emptyGuide.hidden = true;
         elements.pageWrap.hidden = false;
