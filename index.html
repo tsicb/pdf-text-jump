@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PDF Text Jump Viewer v2.1</title>
+  <title>PDF Text Jump Viewer v3.0</title>
   <style>
     :root {
       --navy: #17365f;
@@ -471,7 +471,8 @@
     }
 
     .viewer-stage {
-      min-height: 72vh;
+      height: calc(100vh - 190px);
+      min-height: 520px;
       padding: 20px;
       overflow: auto;
       background:
@@ -545,6 +546,174 @@
       color: var(--blue-dark);
     }
 
+
+    .mode-switch {
+      display: inline-flex;
+      overflow: hidden;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      background: #f8fafc;
+    }
+
+    .mode-btn {
+      min-height: 30px;
+      border: 0;
+      border-right: 1px solid #cbd5e1;
+      padding: 0 10px;
+      background: transparent;
+      color: #475569;
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .mode-btn:last-child { border-right: 0; }
+    .mode-btn:hover { background: #eef5ff; color: var(--blue-dark); }
+    .mode-btn.active { background: var(--blue); color: #fff; }
+
+    .single-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .continuous-summary {
+      min-width: 120px;
+      color: #475569;
+      font-size: 11px;
+      font-weight: 800;
+      text-align: center;
+    }
+
+    .continuous-wrap {
+      width: min(100%, 1100px);
+      margin: 0 auto;
+      padding-bottom: 30px;
+    }
+
+    .continuous-limit-note {
+      margin: 0 0 14px;
+      border: 1px solid #f5c97a;
+      border-radius: 9px;
+      padding: 10px 12px;
+      background: #fff8e8;
+      color: #9a5c00;
+      font-size: 11px;
+      line-height: 1.6;
+    }
+
+    .continuous-page-card {
+      margin: 0 auto 18px;
+      overflow: hidden;
+      border: 1px solid #cfd9e5;
+      border-radius: 11px;
+      background: #fff;
+      box-shadow: 0 4px 18px rgba(15, 23, 42, .13);
+    }
+
+    .continuous-page-card.active {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 2px rgba(37, 99, 235, .18),
+        0 5px 20px rgba(15, 23, 42, .15);
+    }
+
+    .continuous-page-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 48px;
+      padding: 8px 11px;
+      border-bottom: 1px solid var(--line);
+      background: #f8fafc;
+    }
+
+    .continuous-page-title-wrap {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .continuous-page-title {
+      color: #334155;
+      font-size: 12px;
+      font-weight: 800;
+      overflow-wrap: anywhere;
+    }
+
+    .continuous-page-meta {
+      margin-top: 2px;
+      color: #64748b;
+      font-size: 10px;
+      line-height: 1.4;
+    }
+
+    .continuous-open-single {
+      flex: 0 0 auto;
+      min-height: 29px;
+      border: 1px solid #cbd5e1;
+      border-radius: 7px;
+      padding: 0 9px;
+      background: #fff;
+      color: #475569;
+      font-size: 10px;
+      font-weight: 800;
+    }
+
+    .continuous-open-single:hover {
+      border-color: #93b4dd;
+      background: var(--blue-soft);
+      color: var(--blue-dark);
+    }
+
+    .continuous-page-body {
+      position: relative;
+      min-height: 520px;
+      padding: 14px;
+      overflow: auto;
+      background: #e8edf3;
+    }
+
+    .continuous-page-surface {
+      position: relative;
+      width: fit-content;
+      min-width: 360px;
+      min-height: 490px;
+      margin: 0 auto;
+      background: #fff;
+      box-shadow: 0 3px 15px rgba(15, 23, 42, .18);
+    }
+
+    .continuous-page-surface canvas { display: block; }
+
+    .continuous-render-status {
+      position: absolute;
+      inset: 0;
+      z-index: 5;
+      display: grid;
+      place-items: center;
+      min-height: 490px;
+      padding: 20px;
+      background: rgba(255,255,255,.92);
+      color: #64748b;
+      font-size: 12px;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .continuous-render-status[data-kind="error"] {
+      color: var(--error);
+    }
+
+    .continuous-page-index {
+      display: inline-block;
+      margin-right: 6px;
+      border-radius: 999px;
+      padding: 2px 7px;
+      background: var(--blue-soft);
+      color: var(--blue-dark);
+      font-size: 10px;
+      font-weight: 800;
+    }
+
     @media (max-width: 980px) {
       .main-grid { grid-template-columns: 1fr; }
       .results-list { max-height: 360px; }
@@ -555,7 +724,12 @@
       .toolbar { top: 0; }
       #text-input { width: 70vw; }
       .catalog-trigger { width: 70vw; max-width: none; }
-      .viewer-stage { padding: 8px; }
+      .viewer-stage { height: 70vh; min-height: 480px; padding: 8px; }
+      .continuous-page-body { min-height: 420px; padding: 6px; }
+      .continuous-page-surface,
+      .continuous-render-status { min-height: 390px; }
+      .continuous-page-head { align-items: flex-start; }
+      .continuous-open-single { white-space: nowrap; }
     }
   </style>
 </head>
@@ -563,8 +737,8 @@
   <header class="app-header">
     <div class="header-row">
       <div class="brand">
-        <div class="brand-title">PDF Text Jump Viewer <span style="font-size:10px;opacity:.65">v2.1</span></div>
-        <div class="brand-sub">複数PDFを横断検索して、ヒットしたページを一覧化</div>
+        <div class="brand-title">PDF Text Jump Viewer <span style="font-size:10px;opacity:.65">v3.0</span></div>
+        <div class="brand-sub">複数PDFを横断検索し、ヒットページだけを連続表示</div>
       </div>
 
       <div class="field">
@@ -619,14 +793,29 @@
 
       <section class="viewer-card">
         <div class="toolbar">
-          <span id="current-file-label" class="current-file-label">PDF未選択</span>
-          <button id="prev-btn" class="tool-btn" type="button" disabled>◀ 前ページ</button>
-          <div class="page-control">
-            <input id="page-input" type="number" min="1" value="1" disabled>
-            <span>/</span>
-            <span id="page-count">0</span>
+          <div class="mode-switch" aria-label="表示方法">
+            <button id="continuous-mode-btn" class="mode-btn active" type="button">
+              ヒットページ連続表示
+            </button>
+            <button id="single-mode-btn" class="mode-btn" type="button">
+              1ページ表示
+            </button>
           </div>
-          <button id="next-btn" class="tool-btn" type="button" disabled>次ページ ▶</button>
+
+          <span id="current-file-label" class="current-file-label">検索結果未表示</span>
+
+          <div id="single-controls" class="single-controls" hidden>
+            <button id="prev-btn" class="tool-btn" type="button" disabled>◀ 前ページ</button>
+            <div class="page-control">
+              <input id="page-input" type="number" min="1" value="1" disabled>
+              <span>/</span>
+              <span id="page-count">0</span>
+            </div>
+            <button id="next-btn" class="tool-btn" type="button" disabled>次ページ ▶</button>
+          </div>
+
+          <span id="continuous-summary" class="continuous-summary">0ページ</span>
+
           <button id="zoom-out-btn" class="tool-btn" type="button" disabled>－</button>
           <span id="zoom-label" class="zoom-label">120%</span>
           <button id="zoom-in-btn" class="tool-btn" type="button" disabled>＋</button>
@@ -634,16 +823,14 @@
 
         <div id="viewer-stage" class="viewer-stage">
           <div id="empty-guide" class="empty-guide">
-            <strong>今回の改修で追加した機能</strong><br>
-            ・GitHub内のPDF一覧を選択肢として表示<br>
-            ・複数PDFをチェックボックスで選択<br>
-            ・選択したPDFを横断検索<br>
-            ・ヒットしたページをPDF別に一覧化<br>
-            ・結果をクリックすると、そのPDF・ページを表示して検索語を強調<br><br>
-            PDF一覧は、最初に <code>pdfs.json</code> を読み込みます。<br>
-            空または未設置の場合は、GitHub APIから
-            <code>indeedmarketreports/</code> 内のPDFを自動取得します。
+            <strong>ヒットページ連続表示</strong><br>
+            選択した複数PDFを横断検索し、検索語が見つかったページだけを
+            1本のスクロール資料として表示します。<br><br>
+            検索結果左側のページをクリックすると、連続表示内の該当ページへ移動します。<br>
+            各ページの「1ページ表示」を押すと、元PDFの前後ページも確認できます。
           </div>
+
+          <div id="continuous-wrap" class="continuous-wrap" hidden></div>
 
           <div id="page-wrap" hidden>
             <canvas id="pdf-canvas"></canvas>
@@ -667,6 +854,8 @@
     const MIN_SCALE = 0.7;
     const MAX_SCALE = 2.5;
     const SCALE_STEP = 0.15;
+    const MAX_CONTINUOUS_PAGES = 100;
+    const CONTINUOUS_RENDER_MARGIN = 900;
 
     const elements = {
       catalogTrigger: document.getElementById('catalog-trigger'),
@@ -682,7 +871,13 @@
       progressBar: document.getElementById('progress-bar'),
       resultCount: document.getElementById('result-count'),
       resultsList: document.getElementById('results-list'),
+      continuousModeBtn: document.getElementById('continuous-mode-btn'),
+      singleModeBtn: document.getElementById('single-mode-btn'),
       currentFileLabel: document.getElementById('current-file-label'),
+      singleControls: document.getElementById('single-controls'),
+      continuousSummary: document.getElementById('continuous-summary'),
+      continuousWrap: document.getElementById('continuous-wrap'),
+      viewerStage: document.getElementById('viewer-stage'),
       prevBtn: document.getElementById('prev-btn'),
       nextBtn: document.getElementById('next-btn'),
       pageInput: document.getElementById('page-input'),
@@ -718,6 +913,11 @@
       viewerOpenSerial: 0,
       searchSerial: 0,
       activeResultKey: '',
+      viewerMode: 'continuous',
+      continuousObserver: null,
+      continuousItems: new Map(),
+      continuousPdfCache: new Map(),
+      continuousGeneration: 0,
     };
 
     function setStatus(message, kind = '') {
@@ -1089,14 +1289,20 @@
         return;
       }
 
+      elements.searchBtn.disabled = true;
+      elements.catalogTrigger.disabled = true;
+
+      await disposeContinuousViewer();
+      await destroyCurrentPdf();
+
       state.searchText = searchText;
       state.results = [];
       state.activeResultKey = '';
+      state.viewerMode = 'continuous';
       const query = normalizeForSearch(searchText);
       const serial = ++state.searchSerial;
 
-      elements.searchBtn.disabled = true;
-      elements.catalogTrigger.disabled = true;
+      renderViewerMode();
       renderResults();
       setProgress(0, true);
       updateUrlState();
@@ -1132,13 +1338,16 @@
         setProgress(100, true);
 
         if (pageResults.length) {
+          buildContinuousViewer();
+          renderViewerMode();
           setStatus(
             `検索完了：「${state.searchText}」を${selectedEntries.length}件のPDFから検索し、` +
-            `${pageResults.length}ページで見つけました。` +
+            `${pageResults.length}ページで見つけました。ヒットページだけを連続表示しています。` +
             `${errorCount ? ` 読込失敗：${errorCount}件。` : ''}`,
             errorCount ? 'warning' : 'success'
           );
         } else {
+          renderViewerMode();
           setStatus(
             `検索完了：「${state.searchText}」は選択したPDF内で見つかりませんでした。` +
             `${errorCount ? ` 読込失敗：${errorCount}件。` : ''}`,
@@ -1241,6 +1450,462 @@
       }
     }
 
+
+    function getPageResults() {
+      return state.results.filter(item => !item.error);
+    }
+
+    function resultKey(result) {
+      return `${result.file}::${result.pageNumber}`;
+    }
+
+    function renderViewerMode() {
+      const pageResults = getPageResults();
+      const isContinuous = state.viewerMode === 'continuous';
+
+      elements.continuousModeBtn.classList.toggle('active', isContinuous);
+      elements.singleModeBtn.classList.toggle('active', !isContinuous);
+      elements.singleControls.hidden = isContinuous;
+      elements.continuousSummary.hidden = !isContinuous;
+      elements.continuousWrap.hidden = !isContinuous || !pageResults.length;
+      elements.pageWrap.hidden = isContinuous || !state.currentPdf;
+      elements.emptyGuide.hidden = Boolean(pageResults.length || state.currentPdf);
+
+      if (isContinuous) {
+        elements.currentFileLabel.textContent = pageResults.length
+          ? `ヒットページ：${pageResults.length}ページ`
+          : '検索結果未表示';
+        elements.currentFileLabel.title = elements.currentFileLabel.textContent;
+        elements.continuousSummary.textContent = `${Math.min(pageResults.length, MAX_CONTINUOUS_PAGES)}ページ表示`;
+      }
+
+      updateViewerToolbar();
+    }
+
+    async function setViewerMode(mode) {
+      if (!['continuous', 'single'].includes(mode)) return;
+      state.viewerMode = mode;
+
+      if (mode === 'continuous') {
+        if (getPageResults().length && !state.continuousItems.size) {
+          buildContinuousViewer();
+        }
+        renderViewerMode();
+        scheduleVisibleContinuousPages();
+        return;
+      }
+
+      renderViewerMode();
+
+      if (!state.currentPdf) {
+        const active = getPageResults().find(item => resultKey(item) === state.activeResultKey);
+        const first = active || getPageResults()[0];
+        if (first) await openSingleSearchResult(first);
+      }
+    }
+
+    function buildContinuousViewer() {
+      const pageResults = getPageResults();
+      state.continuousGeneration += 1;
+      const generation = state.continuousGeneration;
+
+      if (state.continuousObserver) {
+        state.continuousObserver.disconnect();
+      }
+
+      state.continuousItems.clear();
+      elements.continuousWrap.replaceChildren();
+
+      const displayedResults = pageResults.slice(0, MAX_CONTINUOUS_PAGES);
+
+      if (pageResults.length > MAX_CONTINUOUS_PAGES) {
+        const note = document.createElement('div');
+        note.className = 'continuous-limit-note';
+        note.textContent =
+          `検索結果は${pageResults.length}ページあります。ブラウザ負荷を抑えるため、` +
+          `連続表示は先頭${MAX_CONTINUOUS_PAGES}ページまでです。左側の検索結果一覧から、` +
+          'それ以降のページも1ページ表示で確認できます。';
+        elements.continuousWrap.appendChild(note);
+      }
+
+      state.continuousObserver = new IntersectionObserver(entries => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          const key = entry.target.dataset.resultKey;
+          const item = state.continuousItems.get(key);
+          if (item) requestContinuousItemRender(item);
+        }
+      }, {
+        root: elements.viewerStage,
+        rootMargin: `${CONTINUOUS_RENDER_MARGIN}px 0px`,
+        threshold: 0.01,
+      });
+
+      displayedResults.forEach((result, index) => {
+        const key = resultKey(result);
+        const card = document.createElement('article');
+        card.className = 'continuous-page-card';
+        card.dataset.resultKey = key;
+
+        const head = document.createElement('div');
+        head.className = 'continuous-page-head';
+
+        const titleWrap = document.createElement('div');
+        titleWrap.className = 'continuous-page-title-wrap';
+
+        const title = document.createElement('div');
+        title.className = 'continuous-page-title';
+
+        const indexChip = document.createElement('span');
+        indexChip.className = 'continuous-page-index';
+        indexChip.textContent = `${index + 1}`;
+
+        const titleText = document.createElement('span');
+        titleText.textContent = result.label;
+        title.append(indexChip, titleText);
+
+        const meta = document.createElement('div');
+        meta.className = 'continuous-page-meta';
+        meta.textContent =
+          `元PDF：${result.file} ／ ${result.pageNumber}ページ ／ ${result.hitCount}件一致`;
+
+        titleWrap.append(title, meta);
+
+        const singleButton = document.createElement('button');
+        singleButton.type = 'button';
+        singleButton.className = 'continuous-open-single';
+        singleButton.textContent = '1ページ表示';
+        singleButton.addEventListener('click', async event => {
+          event.stopPropagation();
+          state.viewerMode = 'single';
+          renderViewerMode();
+          await openSingleSearchResult(result);
+        });
+
+        head.append(titleWrap, singleButton);
+
+        const body = document.createElement('div');
+        body.className = 'continuous-page-body';
+
+        const surface = document.createElement('div');
+        surface.className = 'continuous-page-surface';
+
+        const canvas = document.createElement('canvas');
+        const textLayer = document.createElement('div');
+        textLayer.className = 'textLayer';
+
+        const status = document.createElement('div');
+        status.className = 'continuous-render-status';
+        status.textContent = '画面に近づくとページを読み込みます。';
+
+        surface.append(canvas, textLayer, status);
+        body.appendChild(surface);
+        card.append(head, body);
+        elements.continuousWrap.appendChild(card);
+
+        const item = {
+          key,
+          result,
+          card,
+          body,
+          surface,
+          canvas,
+          textLayer,
+          status,
+          renderedScale: null,
+          requestToken: 0,
+          pending: false,
+          renderTask: null,
+          loopPromise: null,
+          generation,
+        };
+
+        state.continuousItems.set(key, item);
+        state.continuousObserver.observe(card);
+      });
+
+      elements.continuousWrap.hidden = !displayedResults.length;
+      elements.emptyGuide.hidden = Boolean(displayedResults.length);
+      scheduleVisibleContinuousPages();
+    }
+
+    function isContinuousItemNearViewport(item) {
+      if (!item?.card?.isConnected) return false;
+      const rootRect = elements.viewerStage.getBoundingClientRect();
+      const itemRect = item.card.getBoundingClientRect();
+      return (
+        itemRect.bottom >= rootRect.top - CONTINUOUS_RENDER_MARGIN &&
+        itemRect.top <= rootRect.bottom + CONTINUOUS_RENDER_MARGIN
+      );
+    }
+
+    function scheduleVisibleContinuousPages() {
+      if (state.viewerMode !== 'continuous') return;
+      for (const item of state.continuousItems.values()) {
+        if (isContinuousItemNearViewport(item)) {
+          requestContinuousItemRender(item);
+        }
+      }
+    }
+
+    function requestContinuousItemRender(item) {
+      if (
+        !item ||
+        item.generation !== state.continuousGeneration ||
+        item.renderedScale === state.scale
+      ) {
+        return item?.loopPromise || Promise.resolve();
+      }
+
+      item.requestToken += 1;
+      item.pending = true;
+
+      if (item.renderTask) {
+        try { item.renderTask.cancel(); } catch (error) { console.warn(error); }
+      }
+
+      if (!item.loopPromise) {
+        item.loopPromise = runContinuousItemRenderLoop(item)
+          .catch(error => {
+            if (!isRenderingCancelledError(error)) {
+              console.error(error);
+              item.status.hidden = false;
+              item.status.dataset.kind = 'error';
+              item.status.textContent = `ページを表示できませんでした：${error.message}`;
+            }
+          })
+          .finally(() => {
+            item.loopPromise = null;
+          });
+      }
+
+      return item.loopPromise;
+    }
+
+    async function runContinuousItemRenderLoop(item) {
+      while (
+        item.pending &&
+        item.generation === state.continuousGeneration &&
+        item.card.isConnected
+      ) {
+        item.pending = false;
+        const token = item.requestToken;
+        const scale = state.scale;
+        await renderContinuousItemSnapshot(item, token, scale);
+      }
+    }
+
+    async function getContinuousPdf(file) {
+      let record = state.continuousPdfCache.get(file);
+      if (record) return record.promise;
+
+      const loadingTask = pdfjsLib.getDocument({
+        url: buildPdfPath(file),
+        enableXfa: true,
+      });
+
+      record = {
+        loadingTask,
+        pdf: null,
+        promise: null,
+      };
+
+      record.promise = loadingTask.promise.then(pdf => {
+        record.pdf = pdf;
+        return pdf;
+      });
+
+      state.continuousPdfCache.set(file, record);
+      return record.promise;
+    }
+
+    async function renderContinuousItemSnapshot(item, token, scale) {
+      item.status.hidden = false;
+      item.status.dataset.kind = '';
+      item.status.textContent = `${item.result.pageNumber}ページを読み込んでいます。`;
+
+      const pdf = await getContinuousPdf(item.result.file);
+      if (!isCurrentContinuousRequest(item, token)) return;
+
+      const page = await pdf.getPage(item.result.pageNumber);
+      if (!isCurrentContinuousRequest(item, token)) return;
+
+      const viewport = page.getViewport({ scale });
+      const outputScale = window.devicePixelRatio || 1;
+      const context = item.canvas.getContext('2d', { alpha: false });
+
+      item.canvas.width = Math.floor(viewport.width * outputScale);
+      item.canvas.height = Math.floor(viewport.height * outputScale);
+      item.canvas.style.width = `${viewport.width}px`;
+      item.canvas.style.height = `${viewport.height}px`;
+      item.surface.style.width = `${viewport.width}px`;
+      item.surface.style.height = `${viewport.height}px`;
+      item.surface.style.minWidth = '0';
+      item.surface.style.minHeight = '0';
+
+      item.textLayer.replaceChildren();
+      item.textLayer.style.width = `${viewport.width}px`;
+      item.textLayer.style.height = `${viewport.height}px`;
+      item.textLayer.style.setProperty('--scale-factor', String(scale));
+
+      const renderTask = page.render({
+        canvasContext: context,
+        viewport,
+        transform: outputScale === 1
+          ? null
+          : [outputScale, 0, 0, outputScale, 0, 0],
+      });
+      item.renderTask = renderTask;
+
+      try {
+        await renderTask.promise;
+      } catch (error) {
+        if (isRenderingCancelledError(error)) return;
+        throw error;
+      } finally {
+        if (item.renderTask === renderTask) item.renderTask = null;
+      }
+
+      if (!isCurrentContinuousRequest(item, token)) return;
+
+      const textContent = await page.getTextContent();
+      if (!isCurrentContinuousRequest(item, token)) return;
+
+      const textLayer = new pdfjsLib.TextLayer({
+        textContentSource: textContent,
+        container: item.textLayer,
+        viewport,
+      });
+      await textLayer.render();
+
+      if (!isCurrentContinuousRequest(item, token)) return;
+
+      highlightAllOccurrencesInLayer(item.textLayer, state.searchText);
+      item.renderedScale = scale;
+      item.status.hidden = true;
+      item.status.dataset.kind = '';
+    }
+
+    function isCurrentContinuousRequest(item, token) {
+      return Boolean(
+        item &&
+        item.card.isConnected &&
+        item.generation === state.continuousGeneration &&
+        token === item.requestToken
+      );
+    }
+
+    function highlightAllOccurrencesInLayer(textLayerElement, searchText) {
+      const spans = Array.from(textLayerElement.querySelectorAll('span'));
+      spans.forEach(span => span.classList.remove('search-hit'));
+
+      const query = normalizeForSearch(searchText);
+      if (!query || !spans.length) return;
+
+      let joined = '';
+      const ranges = [];
+
+      spans.forEach(span => {
+        const normalized = normalizeForSearch(span.textContent);
+        const start = joined.length;
+        joined += normalized;
+        ranges.push({ span, start, end: joined.length });
+      });
+
+      let from = 0;
+      const hitSpans = new Set();
+
+      while (from <= joined.length - query.length) {
+        const start = joined.indexOf(query, from);
+        if (start === -1) break;
+        const end = start + query.length;
+
+        ranges
+          .filter(range => range.end > start && range.start < end)
+          .forEach(range => hitSpans.add(range.span));
+
+        from = start + Math.max(1, query.length);
+      }
+
+      hitSpans.forEach(span => span.classList.add('search-hit'));
+    }
+
+    async function refreshContinuousScale() {
+      state.continuousGeneration += 1;
+      const generation = state.continuousGeneration;
+
+      for (const item of state.continuousItems.values()) {
+        item.generation = generation;
+        item.renderedScale = null;
+        item.requestToken += 1;
+        item.pending = false;
+        if (item.renderTask) {
+          try { item.renderTask.cancel(); } catch (error) { console.warn(error); }
+        }
+        item.textLayer.replaceChildren();
+        item.status.hidden = false;
+        item.status.dataset.kind = '';
+        item.status.textContent = '表示倍率を更新しています。';
+      }
+
+      scheduleVisibleContinuousPages();
+    }
+
+    async function scrollToContinuousResult(result) {
+      const key = resultKey(result);
+      state.activeResultKey = key;
+      renderResults();
+
+      const item = state.continuousItems.get(key);
+      if (!item) {
+        state.viewerMode = 'single';
+        renderViewerMode();
+        await openSingleSearchResult(result);
+        return;
+      }
+
+      for (const candidate of state.continuousItems.values()) {
+        candidate.card.classList.toggle('active', candidate.key === key);
+      }
+
+      await requestContinuousItemRender(item);
+      item.card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    async function disposeContinuousViewer() {
+      state.continuousGeneration += 1;
+
+      if (state.continuousObserver) {
+        state.continuousObserver.disconnect();
+        state.continuousObserver = null;
+      }
+
+      const loopPromises = [];
+      for (const item of state.continuousItems.values()) {
+        item.pending = false;
+        item.requestToken += 1;
+        if (item.renderTask) {
+          try { item.renderTask.cancel(); } catch (error) { console.warn(error); }
+        }
+        if (item.loopPromise) loopPromises.push(item.loopPromise.catch(() => {}));
+      }
+
+      await Promise.allSettled(loopPromises);
+      state.continuousItems.clear();
+      elements.continuousWrap.replaceChildren();
+
+      const destroyPromises = [];
+      for (const record of state.continuousPdfCache.values()) {
+        if (record.pdf) {
+          destroyPromises.push(record.pdf.destroy().catch(() => {}));
+        } else if (record.loadingTask?.destroy) {
+          destroyPromises.push(Promise.resolve(record.loadingTask.destroy()).catch(() => {}));
+        }
+      }
+      state.continuousPdfCache.clear();
+      await Promise.allSettled(destroyPromises);
+    }
+
     function isRenderingCancelledError(error) {
       return Boolean(
         error && (
@@ -1298,9 +1963,26 @@
       if (pdf) {
         try { await pdf.destroy(); } catch (error) { console.warn(error); }
       }
+
+      state.currentFile = '';
+      state.currentFileLabel = '';
+      state.currentPage = 1;
+      state.currentTargetPage = null;
+      elements.pageWrap.hidden = true;
+      updateViewerToolbar();
     }
 
     async function openSearchResult(result) {
+      if (state.viewerMode === 'continuous') {
+        return scrollToContinuousResult(result);
+      }
+      return openSingleSearchResult(result);
+    }
+
+    async function openSingleSearchResult(result) {
+      state.viewerMode = 'single';
+      renderViewerMode();
+
       const openSerial = ++state.viewerOpenSerial;
       const key = `${result.file}::${result.pageNumber}`;
       state.activeResultKey = key;
@@ -1336,6 +2018,7 @@
 
         elements.emptyGuide.hidden = true;
         elements.pageWrap.hidden = false;
+        renderViewerMode();
         await requestViewerRender();
 
         if (openSerial !== state.viewerOpenSerial) return;
@@ -1360,18 +2043,26 @@
 
     function updateViewerToolbar() {
       const total = state.currentPdf?.numPages || 0;
-      elements.currentFileLabel.textContent = state.currentFileLabel || 'PDF未選択';
-      elements.currentFileLabel.title = state.currentFileLabel || '';
+      const pageResults = getPageResults();
+      const isContinuous = state.viewerMode === 'continuous';
+
+      if (!isContinuous) {
+        elements.currentFileLabel.textContent = state.currentFileLabel || 'PDF未選択';
+        elements.currentFileLabel.title = state.currentFileLabel || '';
+      }
+
       elements.pageInput.value = String(state.currentPage);
       elements.pageInput.max = String(total || 1);
       elements.pageCount.textContent = String(total);
       elements.zoomLabel.textContent = `${Math.round(state.scale * 100)}%`;
 
-      elements.prevBtn.disabled = !state.currentPdf || state.currentPage <= 1;
-      elements.nextBtn.disabled = !state.currentPdf || state.currentPage >= total;
-      elements.pageInput.disabled = !state.currentPdf;
-      elements.zoomOutBtn.disabled = !state.currentPdf || state.scale <= MIN_SCALE;
-      elements.zoomInBtn.disabled = !state.currentPdf || state.scale >= MAX_SCALE;
+      elements.prevBtn.disabled = isContinuous || !state.currentPdf || state.currentPage <= 1;
+      elements.nextBtn.disabled = isContinuous || !state.currentPdf || state.currentPage >= total;
+      elements.pageInput.disabled = isContinuous || !state.currentPdf;
+
+      const zoomAvailable = isContinuous ? pageResults.length > 0 : Boolean(state.currentPdf);
+      elements.zoomOutBtn.disabled = !zoomAvailable || state.scale <= MIN_SCALE;
+      elements.zoomInBtn.disabled = !zoomAvailable || state.scale >= MAX_SCALE;
     }
 
     function requestViewerRender() {
@@ -1572,6 +2263,11 @@
     function changeScale(nextScale) {
       state.scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, nextScale));
       updateViewerToolbar();
+
+      if (state.viewerMode === 'continuous') {
+        return refreshContinuousScale();
+      }
+
       return requestViewerRender();
     }
 
@@ -1605,12 +2301,31 @@
       if (event.key === 'Enter') runCrossSearch();
     });
 
+    elements.continuousModeBtn.addEventListener('click', () => setViewerMode('continuous'));
+    elements.singleModeBtn.addEventListener('click', () => setViewerMode('single'));
+
     elements.prevBtn.addEventListener('click', () => changePage(state.currentPage - 1));
     elements.nextBtn.addEventListener('click', () => changePage(state.currentPage + 1));
     elements.pageInput.addEventListener('change', () => changePage(elements.pageInput.value));
     elements.zoomOutBtn.addEventListener('click', () => changeScale(state.scale - SCALE_STEP));
     elements.zoomInBtn.addEventListener('click', () => changeScale(state.scale + SCALE_STEP));
 
+    elements.viewerStage.addEventListener('scroll', () => {
+      if (state.viewerMode === 'continuous') scheduleVisibleContinuousPages();
+    }, { passive: true });
+
+    window.addEventListener('beforeunload', () => {
+      if (state.renderTask) {
+        try { state.renderTask.cancel(); } catch {}
+      }
+      for (const item of state.continuousItems.values()) {
+        if (item.renderTask) {
+          try { item.renderTask.cancel(); } catch {}
+        }
+      }
+    });
+
+    renderViewerMode();
     loadCatalog();
   </script>
 </body>
