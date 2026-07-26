@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PDF Text Jump Viewer</title>
+  <title>PDF Text Jump Viewer v2.1</title>
   <style>
     :root {
       --navy: #17365f;
@@ -563,7 +563,7 @@
   <header class="app-header">
     <div class="header-row">
       <div class="brand">
-        <div class="brand-title">PDF Text Jump Viewer</div>
+        <div class="brand-title">PDF Text Jump Viewer <span style="font-size:10px;opacity:.65">v2.1</span></div>
         <div class="brand-sub">複数PDFを横断検索して、ヒットしたページを一覧化</div>
       </div>
 
@@ -711,6 +711,11 @@
       currentTargetOccurrence: 1,
       scale: 1.2,
       renderSerial: 0,
+      renderRequestSerial: 0,
+      renderPending: false,
+      renderTask: null,
+      renderLoopPromise: null,
+      viewerOpenSerial: 0,
       searchSerial: 0,
       activeResultKey: '',
     };
@@ -1236,14 +1241,67 @@
       }
     }
 
-    async function destroyCurrentPdf() {
-      if (state.currentPdf) {
-        try { await state.currentPdf.destroy(); } catch (error) { console.warn(error); }
+    function isRenderingCancelledError(error) {
+      return Boolean(
+        error && (
+          error.name === 'RenderingCancelledException' ||
+          String(error.message || '').includes('Rendering cancelled')
+        )
+      );
+    }
+
+    async function waitForActiveRenderToStop() {
+      const task = state.renderTask;
+      if (!task) return;
+
+      try {
+        task.cancel();
+      } catch (error) {
+        console.warn('描画キャンセル要求に失敗しました。', error);
       }
+
+      try {
+        await task.promise;
+      } catch (error) {
+        if (!isRenderingCancelledError(error)) {
+          console.warn('描画停止待機中にエラーが発生しました。', error);
+        }
+      } finally {
+        if (state.renderTask === task) {
+          state.renderTask = null;
+        }
+      }
+    }
+
+    async function destroyCurrentPdf() {
+      const pdf = state.currentPdf;
+
+      // 先に参照を外し、進行中の描画ループへ終了を通知する。
       state.currentPdf = null;
+      state.renderPending = false;
+      state.renderRequestSerial += 1;
+
+      if (state.renderTask) {
+        try { state.renderTask.cancel(); } catch (error) { console.warn(error); }
+      }
+
+      if (state.renderLoopPromise) {
+        try { await state.renderLoopPromise; } catch (error) { console.warn(error); }
+      }
+
+      await waitForActiveRenderToStop();
+
+      elements.textLayer.replaceChildren();
+      elements.canvas.width = 1;
+      elements.canvas.height = 1;
+
+      if (pdf) {
+        try { await pdf.destroy(); } catch (error) { console.warn(error); }
+      }
     }
 
     async function openSearchResult(result) {
+      const openSerial = ++state.viewerOpenSerial;
       const key = `${result.file}::${result.pageNumber}`;
       state.activeResultKey = key;
       renderResults();
@@ -1252,29 +1310,46 @@
       state.currentTargetPage = result.pageNumber;
       state.currentTargetOccurrence = 1;
       state.currentPage = result.pageNumber;
+      updateViewerToolbar();
 
       try {
         if (!sameFile) {
           await destroyCurrentPdf();
+          if (openSerial !== state.viewerOpenSerial) return;
+
           setStatus(`PDFを表示しています：${result.label}`);
           const loadingTask = pdfjsLib.getDocument({
             url: buildPdfPath(result.file),
             enableXfa: true,
           });
-          state.currentPdf = await loadingTask.promise;
+          const loadedPdf = await loadingTask.promise;
+
+          if (openSerial !== state.viewerOpenSerial) {
+            try { await loadedPdf.destroy(); } catch (error) { console.warn(error); }
+            return;
+          }
+
+          state.currentPdf = loadedPdf;
           state.currentFile = result.file;
           state.currentFileLabel = result.label;
         }
 
         elements.emptyGuide.hidden = true;
         elements.pageWrap.hidden = false;
-        await renderCurrentPage();
+        await requestViewerRender();
+
+        if (openSerial !== state.viewerOpenSerial) return;
+
         setStatus(
           `${result.label} の${result.pageNumber}ページを表示しました。` +
           `「${state.searchText}」はこのページに${result.hitCount}件あります。`,
           'success'
         );
       } catch (error) {
+        if (openSerial !== state.viewerOpenSerial || isRenderingCancelledError(error)) {
+          return;
+        }
+
         console.error(error);
         await destroyCurrentPdf();
         elements.pageWrap.hidden = true;
@@ -1299,14 +1374,65 @@
       elements.zoomInBtn.disabled = !state.currentPdf || state.scale >= MAX_SCALE;
     }
 
-    async function renderCurrentPage() {
-      if (!state.currentPdf) return;
+    function requestViewerRender() {
+      if (!state.currentPdf) return Promise.resolve();
 
-      const serial = ++state.renderSerial;
+      state.renderRequestSerial += 1;
+      state.renderPending = true;
       updateViewerToolbar();
 
-      const page = await state.currentPdf.getPage(state.currentPage);
-      const viewport = page.getViewport({ scale: state.scale });
+      // 連続操作時は、途中のCanvas描画を即座に中止する。
+      if (state.renderTask) {
+        try { state.renderTask.cancel(); } catch (error) { console.warn(error); }
+      }
+
+      if (!state.renderLoopPromise) {
+        state.renderLoopPromise = runViewerRenderLoop()
+          .catch(error => {
+            if (!isRenderingCancelledError(error)) {
+              console.error(error);
+              setStatus(`PDFページの描画に失敗しました：${error.message}`, 'error');
+            }
+          })
+          .finally(() => {
+            state.renderLoopPromise = null;
+          });
+      }
+
+      return state.renderLoopPromise;
+    }
+
+    async function runViewerRenderLoop() {
+      while (state.renderPending && state.currentPdf) {
+        state.renderPending = false;
+
+        const requestSerial = state.renderRequestSerial;
+        const pdf = state.currentPdf;
+        const pageNumber = state.currentPage;
+        const scale = state.scale;
+
+        await renderPageSnapshot({
+          pdf,
+          pageNumber,
+          scale,
+          requestSerial,
+        });
+      }
+    }
+
+    async function renderPageSnapshot({ pdf, pageNumber, scale, requestSerial }) {
+      const serial = ++state.renderSerial;
+      const page = await pdf.getPage(pageNumber);
+
+      // getPage中に別ページが要求された場合は、Canvasを触らず終了する。
+      if (
+        requestSerial !== state.renderRequestSerial ||
+        pdf !== state.currentPdf
+      ) {
+        return;
+      }
+
+      const viewport = page.getViewport({ scale });
       const outputScale = window.devicePixelRatio || 1;
       const context = elements.canvas.getContext('2d', { alpha: false });
 
@@ -1321,17 +1447,45 @@
       elements.textLayer.replaceChildren();
       elements.textLayer.style.width = `${viewport.width}px`;
       elements.textLayer.style.height = `${viewport.height}px`;
-      elements.textLayer.style.setProperty('--scale-factor', String(state.scale));
+      elements.textLayer.style.setProperty('--scale-factor', String(scale));
 
-      await page.render({
+      const renderTask = page.render({
         canvasContext: context,
         viewport,
-        transform: outputScale === 1 ? null : [outputScale, 0, 0, outputScale, 0, 0],
-      }).promise;
+        transform: outputScale === 1
+          ? null
+          : [outputScale, 0, 0, outputScale, 0, 0],
+      });
+      state.renderTask = renderTask;
 
-      if (serial !== state.renderSerial) return;
+      try {
+        await renderTask.promise;
+      } catch (error) {
+        if (isRenderingCancelledError(error)) return;
+        throw error;
+      } finally {
+        if (state.renderTask === renderTask) {
+          state.renderTask = null;
+        }
+      }
+
+      if (
+        serial !== state.renderSerial ||
+        requestSerial !== state.renderRequestSerial ||
+        pdf !== state.currentPdf
+      ) {
+        return;
+      }
 
       const textContent = await page.getTextContent();
+
+      if (
+        requestSerial !== state.renderRequestSerial ||
+        pdf !== state.currentPdf
+      ) {
+        return;
+      }
+
       const textLayer = new pdfjsLib.TextLayer({
         textContentSource: textContent,
         container: elements.textLayer,
@@ -1339,11 +1493,26 @@
       });
       await textLayer.render();
 
-      if (state.searchText && state.currentTargetPage === state.currentPage) {
-        highlightOccurrenceOnRenderedPage(state.searchText, state.currentTargetOccurrence);
+      if (
+        requestSerial !== state.renderRequestSerial ||
+        pdf !== state.currentPdf
+      ) {
+        return;
+      }
+
+      if (state.searchText && state.currentTargetPage === pageNumber) {
+        highlightOccurrenceOnRenderedPage(
+          state.searchText,
+          state.currentTargetOccurrence
+        );
       }
 
       updateViewerToolbar();
+    }
+
+    // 既存の呼び出し元との互換用。
+    function renderCurrentPage() {
+      return requestViewerRender();
     }
 
     function highlightOccurrenceOnRenderedPage(searchText, occurrenceOnPage = 1) {
@@ -1388,18 +1557,22 @@
       hitSpans[0]?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
     }
 
-    async function changePage(nextPage) {
-      if (!state.currentPdf) return;
+    function changePage(nextPage) {
+      if (!state.currentPdf) return Promise.resolve();
+
       state.currentPage = Math.min(
         state.currentPdf.numPages,
         Math.max(1, Number.parseInt(nextPage, 10) || 1)
       );
-      await renderCurrentPage();
+
+      updateViewerToolbar();
+      return requestViewerRender();
     }
 
-    async function changeScale(nextScale) {
+    function changeScale(nextScale) {
       state.scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, nextScale));
-      await renderCurrentPage();
+      updateViewerToolbar();
+      return requestViewerRender();
     }
 
     elements.catalogTrigger.addEventListener('click', event => {
