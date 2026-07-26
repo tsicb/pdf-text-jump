@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PDF Text Jump Viewer</title>
+  <style>
+    :root {
+      --navy: #17365f;
+      --blue: #2563eb;
+      --blue-soft: #eaf2ff;
+      --line: #d8e0ea;
+      --text: #1f2937;
+      --muted: #64748b;
+      --bg: #eef2f7;
+      --hit: rgba(255, 225, 70, 0.72);
+      --hit-border: #f59e0b;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { min-height: 100%; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+        "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif;
+    }
+
+    button, input { font: inherit; }
+
+    .app-header {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      padding: 12px 16px;
+      color: #fff;
+      background: linear-gradient(135deg, #1b4f8a, #0f2a56);
+      box-shadow: 0 2px 12px rgba(15, 42, 86, 0.25);
+    }
+
+    .header-row {
+      max-width: 1320px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .brand { margin-right: 10px; white-space: nowrap; }
+    .brand-title { font-size: 18px; font-weight: 800; letter-spacing: .02em; }
+    .brand-sub { margin-top: 2px; font-size: 10px; opacity: .75; }
+
+    .field {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .field label {
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+      opacity: .9;
+    }
+
+    .field input {
+      height: 32px;
+      border: 1px solid rgba(255,255,255,.55);
+      border-radius: 7px;
+      padding: 0 9px;
+      background: rgba(255,255,255,.98);
+      color: #1f2937;
+      outline: none;
+    }
+
+    #file-input { width: min(350px, 42vw); }
+    #text-input { width: min(300px, 36vw); }
+    #occurrence-input { width: 64px; }
+
+    .primary-btn, .tool-btn {
+      min-height: 32px;
+      border-radius: 7px;
+      cursor: pointer;
+      transition: .15s ease;
+    }
+
+    .primary-btn {
+      border: 1px solid #93c5fd;
+      padding: 0 14px;
+      background: #fff;
+      color: #1d4ed8;
+      font-weight: 800;
+    }
+
+    .primary-btn:hover { background: #eff6ff; }
+
+    .layout {
+      max-width: 1320px;
+      margin: 0 auto;
+      padding: 14px;
+    }
+
+    .status-panel {
+      margin-bottom: 12px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px 13px;
+      background: #fff;
+      box-shadow: 0 1px 4px rgba(15, 23, 42, .07);
+    }
+
+    #status {
+      font-size: 12px;
+      line-height: 1.6;
+      color: var(--muted);
+    }
+
+    #status[data-kind="success"] { color: #047857; }
+    #status[data-kind="warning"] { color: #b45309; }
+    #status[data-kind="error"] { color: #b91c1c; }
+
+    .viewer-card {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+      box-shadow: 0 2px 10px rgba(15, 23, 42, .08);
+    }
+
+    .toolbar {
+      position: sticky;
+      top: 70px;
+      z-index: 10;
+      min-height: 45px;
+      padding: 7px 10px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255,255,255,.96);
+      backdrop-filter: blur(6px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .tool-btn {
+      border: 1px solid #cbd5e1;
+      padding: 0 11px;
+      background: #f8fafc;
+      color: #334155;
+      font-weight: 700;
+    }
+
+    .tool-btn:hover:not(:disabled) {
+      border-color: #93b4dd;
+      background: var(--blue-soft);
+      color: #1d4ed8;
+    }
+
+    .tool-btn:disabled { opacity: .45; cursor: default; }
+
+    .page-control {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      color: #475569;
+      font-size: 12px;
+    }
+
+    #page-input {
+      width: 58px;
+      height: 30px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      text-align: center;
+    }
+
+    .zoom-label {
+      min-width: 54px;
+      text-align: center;
+      color: #475569;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .viewer-stage {
+      min-height: 72vh;
+      padding: 20px;
+      overflow: auto;
+      background:
+        linear-gradient(45deg, #e8edf3 25%, transparent 25%) 0 0 / 18px 18px,
+        linear-gradient(-45deg, #e8edf3 25%, transparent 25%) 0 0 / 18px 18px,
+        linear-gradient(45deg, transparent 75%, #e8edf3 75%) 0 0 / 18px 18px,
+        linear-gradient(-45deg, transparent 75%, #e8edf3 75%) 0 0 / 18px 18px,
+        #f2f5f8;
+    }
+
+    #page-wrap {
+      position: relative;
+      width: fit-content;
+      margin: 0 auto;
+      background: #fff;
+      box-shadow: 0 5px 24px rgba(15, 23, 42, .2);
+    }
+
+    #pdf-canvas { display: block; }
+
+    .textLayer {
+      position: absolute;
+      inset: 0;
+      overflow: clip;
+      opacity: 1;
+      line-height: 1;
+      text-align: initial;
+      text-size-adjust: none;
+      forced-color-adjust: none;
+      transform-origin: 0 0;
+      z-index: 2;
+    }
+
+    .textLayer :is(span, br) {
+      position: absolute;
+      color: transparent;
+      white-space: pre;
+      cursor: text;
+      transform-origin: 0 0;
+    }
+
+    .textLayer span::selection { background: rgba(37, 99, 235, .28); }
+
+    .textLayer span.search-hit {
+      background: var(--hit);
+      outline: 2px solid var(--hit-border);
+      outline-offset: -1px;
+      border-radius: 2px;
+    }
+
+    .empty-guide {
+      max-width: 760px;
+      margin: 55px auto;
+      padding: 24px;
+      border: 1px dashed #9fb0c5;
+      border-radius: 12px;
+      background: rgba(255,255,255,.93);
+      color: #475569;
+      line-height: 1.8;
+    }
+
+    .empty-guide strong { color: #1e3a5f; }
+
+    .empty-guide code {
+      display: inline-block;
+      max-width: 100%;
+      overflow-wrap: anywhere;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: #eaf2ff;
+      color: #1d4ed8;
+    }
+
+    @media (max-width: 800px) {
+      .app-header { position: static; }
+      .toolbar { top: 0; }
+      #file-input, #text-input { width: 72vw; }
+      .viewer-stage { padding: 8px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-row">
+      <div class="brand">
+        <div class="brand-title">PDF Text Jump Viewer</div>
+        <div class="brand-sub">PDF内の指定テキストを検索して該当ページへ移動</div>
+      </div>
+
+      <div class="field">
+        <label for="file-input">PDF</label>
+        <input id="file-input" type="text" placeholder="例：report.pdf" autocomplete="off">
+      </div>
+
+      <div class="field">
+        <label for="text-input">検索語</label>
+        <input id="text-input" type="text" placeholder="例：有効求人倍率" autocomplete="off">
+      </div>
+
+      <div class="field">
+        <label for="occurrence-input">一致順</label>
+        <input id="occurrence-input" type="number" min="1" step="1" value="1">
+      </div>
+
+      <button id="open-btn" class="primary-btn" type="button">PDFを開いて検索</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="status-panel">
+      <div id="status">URLパラメータ、または上部入力欄からPDFを指定してください。</div>
+    </section>
+
+    <section class="viewer-card">
+      <div class="toolbar">
+        <button id="prev-btn" class="tool-btn" type="button" disabled>◀ 前ページ</button>
+
+        <div class="page-control">
+          <input id="page-input" type="number" min="1" value="1" disabled>
+          <span>/</span>
+          <span id="page-count">0</span>
+        </div>
+
+        <button id="next-btn" class="tool-btn" type="button" disabled>次ページ ▶</button>
+        <button id="zoom-out-btn" class="tool-btn" type="button" disabled>－</button>
+        <span id="zoom-label" class="zoom-label">100%</span>
+        <button id="zoom-in-btn" class="tool-btn" type="button" disabled>＋</button>
+        <button id="search-again-btn" class="tool-btn" type="button" disabled>検索し直す</button>
+      </div>
+
+      <div id="viewer-stage" class="viewer-stage">
+        <div id="empty-guide" class="empty-guide">
+          <strong>設置後のテストURL例</strong><br>
+          PDFが <code>indeedmarketreports/report.pdf</code> の場合：<br>
+          <code>?file=report.pdf&amp;text=有効求人倍率</code><br><br>
+          <strong>file</strong> にファイル名だけを渡すと、
+          自動的に <code>indeedmarketreports/</code> を補います。
+        </div>
+
+        <div id="page-wrap" hidden>
+          <canvas id="pdf-canvas"></canvas>
+          <div id="text-layer" class="textLayer"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script type="module">
+    import * as pdfjsLib from
+      'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.6.205/build/pdf.min.mjs';
+
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.6.205/build/pdf.worker.min.mjs';
+
+    const PDF_BASE_DIR = 'indeedmarketreports/';
+    const MIN_SCALE = 0.7;
+    const MAX_SCALE = 2.5;
+    const SCALE_STEP = 0.15;
+
+    const elements = {
+      fileInput: document.getElementById('file-input'),
+      textInput: document.getElementById('text-input'),
+      occurrenceInput: document.getElementById('occurrence-input'),
+      openBtn: document.getElementById('open-btn'),
+      status: document.getElementById('status'),
+      prevBtn: document.getElementById('prev-btn'),
+      nextBtn: document.getElementById('next-btn'),
+      pageInput: document.getElementById('page-input'),
+      pageCount: document.getElementById('page-count'),
+      zoomOutBtn: document.getElementById('zoom-out-btn'),
+      zoomInBtn: document.getElementById('zoom-in-btn'),
+      zoomLabel: document.getElementById('zoom-label'),
+      searchAgainBtn: document.getElementById('search-again-btn'),
+      emptyGuide: document.getElementById('empty-guide'),
+      pageWrap: document.getElementById('page-wrap'),
+      canvas: document.getElementById('pdf-canvas'),
+      textLayer: document.getElementById('text-layer'),
+    };
+
+    const state = {
+      pdf: null,
+      currentPage: 1,
+      scale: 1.2,
+      filePath: '',
+      searchText: '',
+      occurrence: 1,
+      targetPage: null,
+      targetMatchIndexOnPage: 0,
+      renderSerial: 0,
+    };
+
+    function setStatus(message, kind = '') {
+      elements.status.textContent = message;
+      elements.status.dataset.kind = kind;
+    }
+
+    function normalizeForSearch(value) {
+      return String(value ?? '')
+        .normalize('NFKC')
+        .replace(/[\s\u00A0\u2000-\u200B\u3000]+/g, '')
+        .toLocaleLowerCase('ja-JP');
+    }
+
+    function sanitizeRelativePdfPath(rawValue) {
+      let value = String(rawValue ?? '').trim();
+
+      if (!value) {
+        throw new Error('PDFファイル名が指定されていません。');
+      }
+
+      value = value.replaceAll('\\', '/');
+
+      if (
+        value.startsWith('/') ||
+        /^[a-z][a-z0-9+.-]*:/i.test(value) ||
+        value.includes('..')
+      ) {
+        throw new Error('PDFには同じGitHub Pages内の相対パスだけを指定してください。');
+      }
+
+      if (!value.toLowerCase().endsWith('.pdf')) {
+        throw new Error('PDFファイルは「.pdf」で終わる名前を指定してください。');
+      }
+
+      if (!value.includes('/')) {
+        value = PDF_BASE_DIR + value;
+      }
+
+      return value;
+    }
+
+    function buildUrlFromInputs() {
+      const url = new URL(window.location.href);
+      const file = elements.fileInput.value.trim();
+      const text = elements.textInput.value.trim();
+      const occurrence = Math.max(
+        1,
+        Number.parseInt(elements.occurrenceInput.value, 10) || 1
+      );
+
+      url.search = '';
+      url.searchParams.set('file', file);
+
+      if (text) {
+        url.searchParams.set('text', text);
+        url.searchParams.set('occurrence', String(occurrence));
+      }
+
+      return url;
+    }
+
+    function readUrlParams() {
+      const params = new URLSearchParams(window.location.search);
+
+      return {
+        file: params.get('file') ?? '',
+        text: params.get('text') ?? '',
+        occurrence: Math.max(
+          1,
+          Number.parseInt(params.get('occurrence') ?? '1', 10) || 1
+        ),
+      };
+    }
+
+    function setControlsEnabled(enabled) {
+      elements.prevBtn.disabled = !enabled;
+      elements.nextBtn.disabled = !enabled;
+      elements.pageInput.disabled = !enabled;
+      elements.zoomOutBtn.disabled = !enabled;
+      elements.zoomInBtn.disabled = !enabled;
+      elements.searchAgainBtn.disabled = !enabled;
+    }
+
+    function updateToolbar() {
+      const total = state.pdf?.numPages ?? 0;
+
+      elements.pageInput.value = String(state.currentPage);
+      elements.pageInput.max = String(total || 1);
+      elements.pageCount.textContent = String(total);
+      elements.zoomLabel.textContent = `${Math.round(state.scale * 100)}%`;
+
+      elements.prevBtn.disabled = !state.pdf || state.currentPage <= 1;
+      elements.nextBtn.disabled = !state.pdf || state.currentPage >= total;
+      elements.zoomOutBtn.disabled = !state.pdf || state.scale <= MIN_SCALE;
+      elements.zoomInBtn.disabled = !state.pdf || state.scale >= MAX_SCALE;
+      elements.pageInput.disabled = !state.pdf;
+      elements.searchAgainBtn.disabled = !state.pdf;
+    }
+
+    async function loadPdfAndSearch({ file, text, occurrence }) {
+      const filePath = sanitizeRelativePdfPath(file);
+
+      state.filePath = filePath;
+      state.searchText = text.trim();
+      state.occurrence = occurrence;
+      state.targetPage = null;
+      state.targetMatchIndexOnPage = 0;
+
+      setControlsEnabled(false);
+      elements.emptyGuide.hidden = true;
+      elements.pageWrap.hidden = true;
+      setStatus(`PDFを読み込んでいます：${filePath}`);
+
+      try {
+        const loadingTask = pdfjsLib.getDocument({
+          url: filePath,
+          enableXfa: true,
+        });
+
+        state.pdf = await loadingTask.promise;
+        state.currentPage = 1;
+        elements.pageCount.textContent = String(state.pdf.numPages);
+
+        if (state.searchText) {
+          const result = await findOccurrence(state.searchText, state.occurrence);
+
+          if (result) {
+            state.currentPage = result.pageNumber;
+            state.targetPage = result.pageNumber;
+            state.targetMatchIndexOnPage = result.matchIndexOnPage;
+
+            setStatus(
+              `「${state.searchText}」の${state.occurrence}件目を` +
+              `${result.pageNumber}ページで見つけました。`,
+              'success'
+            );
+          } else {
+            setStatus(
+              `「${state.searchText}」はPDF内で見つかりませんでした。` +
+              '1ページ目を表示します。',
+              'warning'
+            );
+          }
+        } else {
+          setStatus(`PDFを読み込みました。全${state.pdf.numPages}ページです。`, 'success');
+        }
+
+        setControlsEnabled(true);
+        await renderCurrentPage();
+      } catch (error) {
+        console.error(error);
+        state.pdf = null;
+        setControlsEnabled(false);
+        elements.emptyGuide.hidden = false;
+        elements.pageWrap.hidden = true;
+        setStatus(`PDFの読み込みに失敗しました：${error.message}`, 'error');
+      }
+    }
+
+    async function findOccurrence(searchText, occurrence) {
+      const query = normalizeForSearch(searchText);
+      if (!query) return null;
+
+      let globalCount = 0;
+
+      for (let pageNumber = 1; pageNumber <= state.pdf.numPages; pageNumber++) {
+        setStatus(`PDF内を検索しています：${pageNumber} / ${state.pdf.numPages}ページ`);
+
+        const page = await state.pdf.getPage(pageNumber);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items.map(item => item.str ?? '').join(' ');
+        const normalizedPageText = normalizeForSearch(pageText);
+        let fromIndex = 0;
+        let matchIndexOnPage = 0;
+
+        while (fromIndex <= normalizedPageText.length - query.length) {
+          const foundAt = normalizedPageText.indexOf(query, fromIndex);
+          if (foundAt === -1) break;
+
+          globalCount += 1;
+          matchIndexOnPage += 1;
+
+          if (globalCount === occurrence) {
+            return { pageNumber, matchIndexOnPage };
+          }
+
+          fromIndex = foundAt + Math.max(1, query.length);
+        }
+      }
+
+      return null;
+    }
+
+    async function renderCurrentPage() {
+      if (!state.pdf) return;
+
+      const serial = ++state.renderSerial;
+      updateToolbar();
+
+      const page = await state.pdf.getPage(state.currentPage);
+      const viewport = page.getViewport({ scale: state.scale });
+      const outputScale = window.devicePixelRatio || 1;
+      const context = elements.canvas.getContext('2d', { alpha: false });
+
+      elements.pageWrap.hidden = false;
+      elements.canvas.width = Math.floor(viewport.width * outputScale);
+      elements.canvas.height = Math.floor(viewport.height * outputScale);
+      elements.canvas.style.width = `${viewport.width}px`;
+      elements.canvas.style.height = `${viewport.height}px`;
+      elements.pageWrap.style.width = `${viewport.width}px`;
+      elements.pageWrap.style.height = `${viewport.height}px`;
+
+      elements.textLayer.replaceChildren();
+      elements.textLayer.style.width = `${viewport.width}px`;
+      elements.textLayer.style.height = `${viewport.height}px`;
+      elements.textLayer.style.setProperty('--scale-factor', String(state.scale));
+
+      const renderTask = page.render({
+        canvasContext: context,
+        viewport,
+        transform: outputScale === 1 ? null : [outputScale, 0, 0, outputScale, 0, 0],
+      });
+
+      await renderTask.promise;
+      if (serial !== state.renderSerial) return;
+
+      const textContent = await page.getTextContent();
+      const textLayer = new pdfjsLib.TextLayer({
+        textContentSource: textContent,
+        container: elements.textLayer,
+        viewport,
+      });
+
+      await textLayer.render();
+
+      if (state.searchText && state.targetPage === state.currentPage) {
+        highlightOccurrenceOnRenderedPage(
+          state.searchText,
+          state.targetMatchIndexOnPage
+        );
+      }
+
+      updateToolbar();
+    }
+
+    function highlightOccurrenceOnRenderedPage(searchText, occurrenceOnPage) {
+      const spans = Array.from(elements.textLayer.querySelectorAll('span'));
+      spans.forEach(span => span.classList.remove('search-hit'));
+
+      const query = normalizeForSearch(searchText);
+      if (!query || spans.length === 0) return;
+
+      let joined = '';
+      const ranges = [];
+
+      spans.forEach(span => {
+        const normalized = normalizeForSearch(span.textContent);
+        const start = joined.length;
+        joined += normalized;
+        const end = joined.length;
+        ranges.push({ span, start, end });
+      });
+
+      let fromIndex = 0;
+      let currentOccurrence = 0;
+      let foundStart = -1;
+
+      while (fromIndex <= joined.length - query.length) {
+        const index = joined.indexOf(query, fromIndex);
+        if (index === -1) break;
+
+        currentOccurrence += 1;
+        if (currentOccurrence === occurrenceOnPage) {
+          foundStart = index;
+          break;
+        }
+
+        fromIndex = index + Math.max(1, query.length);
+      }
+
+      if (foundStart === -1) {
+        setStatus(
+          `「${state.searchText}」を${state.currentPage}ページで見つけました。` +
+          'ページ内ハイライトはPDFの文字分割により表示できませんでした。',
+          'warning'
+        );
+        return;
+      }
+
+      const foundEnd = foundStart + query.length;
+      const hitSpans = ranges
+        .filter(range => range.end > foundStart && range.start < foundEnd)
+        .map(range => range.span);
+
+      hitSpans.forEach(span => span.classList.add('search-hit'));
+
+      const firstHit = hitSpans[0];
+      if (firstHit) {
+        requestAnimationFrame(() => {
+          firstHit.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center',
+            inline: 'center',
+          });
+        });
+      }
+    }
+
+    async function changePage(nextPage) {
+      if (!state.pdf) return;
+
+      state.currentPage = Math.min(
+        state.pdf.numPages,
+        Math.max(1, Number.parseInt(nextPage, 10) || 1)
+      );
+
+      await renderCurrentPage();
+    }
+
+    async function changeScale(nextScale) {
+      state.scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, nextScale));
+      await renderCurrentPage();
+    }
+
+    elements.openBtn.addEventListener('click', () => {
+      try {
+        const url = buildUrlFromInputs();
+        window.history.replaceState(null, '', url);
+
+        loadPdfAndSearch({
+          file: elements.fileInput.value,
+          text: elements.textInput.value,
+          occurrence: Math.max(
+            1,
+            Number.parseInt(elements.occurrenceInput.value, 10) || 1
+          ),
+        });
+      } catch (error) {
+        setStatus(error.message, 'error');
+      }
+    });
+
+    elements.fileInput.addEventListener('keydown', event => {
+      if (event.key === 'Enter') elements.openBtn.click();
+    });
+
+    elements.textInput.addEventListener('keydown', event => {
+      if (event.key === 'Enter') elements.openBtn.click();
+    });
+
+    elements.prevBtn.addEventListener('click', () => changePage(state.currentPage - 1));
+    elements.nextBtn.addEventListener('click', () => changePage(state.currentPage + 1));
+    elements.pageInput.addEventListener('change', () => changePage(elements.pageInput.value));
+    elements.zoomOutBtn.addEventListener('click', () => changeScale(state.scale - SCALE_STEP));
+    elements.zoomInBtn.addEventListener('click', () => changeScale(state.scale + SCALE_STEP));
+    elements.searchAgainBtn.addEventListener('click', () => elements.openBtn.click());
+
+    const initial = readUrlParams();
+    elements.fileInput.value = initial.file;
+    elements.textInput.value = initial.text;
+    elements.occurrenceInput.value = String(initial.occurrence);
+
+    if (initial.file) loadPdfAndSearch(initial);
+  </script>
+</body>
+</html>
