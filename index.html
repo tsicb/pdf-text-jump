@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PDF Text Jump Viewer v3.0</title>
+  <title>PDF Text Jump Viewer v3.1</title>
   <style>
     :root {
       --navy: #17365f;
@@ -731,13 +731,404 @@
       .continuous-page-head { align-items: flex-start; }
       .continuous-open-single { white-space: nowrap; }
     }
+
+
+    /* ===== v3.1：横長PDFを主役にしたワイドレイアウト ===== */
+    :root {
+      --app-header-height: 64px;
+      --sidebar-width: 330px;
+      --toolbar-height: 46px;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .app-header {
+      position: relative;
+      top: auto;
+      flex: 0 0 auto;
+      z-index: 50;
+      padding: 9px 12px 10px;
+    }
+
+    .header-row {
+      width: 100%;
+      max-width: none;
+      margin: 0;
+      gap: 8px;
+      flex-wrap: nowrap;
+    }
+
+    .header-icon-btn {
+      position: relative;
+      flex: 0 0 auto;
+      width: 38px;
+      height: 36px;
+      border: 1px solid rgba(255,255,255,.38);
+      border-radius: 8px;
+      background: rgba(255,255,255,.12);
+      color: #fff;
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    .header-icon-btn:hover {
+      background: rgba(255,255,255,.22);
+    }
+
+    .header-icon-count {
+      position: absolute;
+      right: -5px;
+      top: -6px;
+      min-width: 18px;
+      height: 18px;
+      padding: 0 4px;
+      border: 2px solid #17365f;
+      border-radius: 999px;
+      background: #fff;
+      color: var(--blue-dark);
+      font-size: 9px;
+      font-weight: 900;
+      line-height: 14px;
+      text-align: center;
+    }
+
+    .brand {
+      margin-right: 4px;
+    }
+
+    .brand-title {
+      font-size: 16px;
+    }
+
+    .brand-sub {
+      display: none;
+    }
+
+    .header-spacer {
+      flex: 1 1 auto;
+      min-width: 8px;
+    }
+
+    .header-status-area {
+      flex: 0 1 430px;
+      min-width: 190px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 7px;
+    }
+
+    .header-badge {
+      flex: 0 0 auto;
+      min-height: 27px;
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid rgba(255,255,255,.28);
+      border-radius: 999px;
+      padding: 0 9px;
+      background: rgba(255,255,255,.12);
+      color: rgba(255,255,255,.92);
+      font-size: 10px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    #status {
+      min-width: 0;
+      max-width: 270px;
+      overflow: hidden;
+      color: rgba(255,255,255,.86);
+      font-size: 10px;
+      line-height: 1.35;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    #status[data-kind="success"] { color: #bbf7d0; }
+    #status[data-kind="warning"] { color: #fde68a; }
+    #status[data-kind="error"] { color: #fecaca; }
+
+    .progress-track {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 3px;
+      margin: 0;
+      border-radius: 0;
+      background: rgba(255,255,255,.14);
+    }
+
+    .layout {
+      flex: 1 1 auto;
+      width: 100%;
+      max-width: none;
+      min-height: 0;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .main-grid {
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+      gap: 0;
+      align-items: stretch;
+      transition: grid-template-columns .2s ease;
+    }
+
+    .main-grid.sidebar-collapsed {
+      grid-template-columns: 0 minmax(0, 1fr);
+    }
+
+    .results-sidebar {
+      min-width: 0;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      border-width: 0 1px 0 0;
+      border-radius: 0;
+      box-shadow: none;
+      transition: opacity .16s ease;
+    }
+
+    .main-grid.sidebar-collapsed .results-sidebar {
+      opacity: 0;
+      pointer-events: none;
+      border-right-width: 0;
+    }
+
+    .panel-head {
+      flex: 0 0 auto;
+      min-height: 42px;
+      padding: 7px 10px;
+    }
+
+    .sidebar-close-btn {
+      flex: 0 0 auto;
+      width: 28px;
+      height: 28px;
+      border: 1px solid #cbd5e1;
+      border-radius: 7px;
+      background: #fff;
+      color: #64748b;
+      font-size: 16px;
+      line-height: 1;
+    }
+
+    .sidebar-close-btn:hover {
+      border-color: #93b4dd;
+      background: var(--blue-soft);
+      color: var(--blue-dark);
+    }
+
+    .results-list {
+      flex: 1 1 auto;
+      max-height: none;
+      min-height: 0;
+      padding: 7px;
+      overflow: auto;
+    }
+
+    .viewer-card {
+      min-width: 0;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      border: 0;
+      border-radius: 0;
+      box-shadow: none;
+    }
+
+    .toolbar {
+      position: relative;
+      top: auto;
+      z-index: 12;
+      flex: 0 0 auto;
+      min-height: var(--toolbar-height);
+      padding: 6px 9px;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      gap: 10px;
+      justify-content: stretch;
+      flex-wrap: nowrap;
+    }
+
+    .toolbar-left,
+    .toolbar-center,
+    .toolbar-right {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .toolbar-center {
+      justify-content: center;
+    }
+
+    .toolbar-right {
+      justify-content: flex-end;
+    }
+
+    .current-file-label {
+      max-width: min(38vw, 560px);
+    }
+
+    .fit-width-btn.active {
+      border-color: var(--blue);
+      background: var(--blue);
+      color: #fff;
+    }
+
+    .viewer-stage {
+      flex: 1 1 auto;
+      width: 100%;
+      height: auto;
+      min-height: 0;
+      padding: 6px;
+      overflow: auto;
+      overscroll-behavior: contain;
+    }
+
+    .continuous-wrap {
+      width: 100%;
+      max-width: none;
+      margin: 0;
+      padding: 0 0 14px;
+    }
+
+    .continuous-page-card {
+      width: 100%;
+      margin: 0 0 9px;
+      border-radius: 6px;
+      box-shadow: 0 2px 8px rgba(15,23,42,.12);
+    }
+
+    .continuous-page-head {
+      min-height: 35px;
+      padding: 5px 8px;
+      gap: 7px;
+    }
+
+    .continuous-page-title {
+      font-size: 11px;
+    }
+
+    .continuous-page-meta {
+      display: inline;
+      margin-left: 8px;
+      font-size: 9px;
+    }
+
+    .continuous-page-title-wrap {
+      display: flex;
+      align-items: center;
+      min-width: 0;
+    }
+
+    .continuous-open-single {
+      min-height: 26px;
+      padding: 0 8px;
+    }
+
+    .continuous-page-body {
+      min-height: 320px;
+      padding: 5px;
+      overflow: auto;
+    }
+
+    .continuous-page-surface {
+      min-width: 0;
+      min-height: 290px;
+      margin: 0 auto;
+    }
+
+    .continuous-render-status {
+      min-height: 290px;
+    }
+
+    #page-wrap {
+      max-width: 100%;
+    }
+
+    .empty-guide {
+      margin: 28px auto;
+    }
+
+    @media (max-width: 1180px) {
+      .brand { display: none; }
+      .header-status-area { flex-basis: 300px; }
+      #status { max-width: 170px; }
+    }
+
+    @media (max-width: 900px) {
+      html, body { overflow: auto; }
+      body { display: block; }
+      .app-header { position: sticky; top: 0; }
+      .header-row { flex-wrap: wrap; }
+      .header-status-area { flex: 1 1 100%; justify-content: flex-start; }
+      .layout { height: auto; min-height: calc(100vh - var(--app-header-height)); overflow: visible; }
+      .main-grid,
+      .main-grid.sidebar-collapsed {
+        height: auto;
+        min-height: calc(100vh - var(--app-header-height));
+        grid-template-columns: 1fr;
+      }
+      .results-sidebar {
+        position: fixed;
+        inset: var(--app-header-height) auto 0 0;
+        z-index: 45;
+        width: min(340px, 88vw);
+        background: #fff;
+        box-shadow: 8px 0 24px rgba(15,23,42,.22);
+        transform: translateX(0);
+        transition: transform .2s ease;
+      }
+      .main-grid.sidebar-collapsed .results-sidebar {
+        opacity: 1;
+        transform: translateX(-105%);
+      }
+      .viewer-card { min-height: calc(100vh - var(--app-header-height)); }
+      .viewer-stage { min-height: 70vh; }
+      .toolbar { grid-template-columns: 1fr; }
+      .toolbar-left, .toolbar-center, .toolbar-right { justify-content: center; flex-wrap: wrap; }
+    }
+
   </style>
 </head>
 <body>
-  <header class="app-header">
+  <header id="app-header" class="app-header">
     <div class="header-row">
+      <button
+        id="sidebar-toggle"
+        class="header-icon-btn"
+        type="button"
+        aria-controls="results-sidebar"
+        aria-expanded="true"
+        title="検索結果を開閉"
+      >
+        ☰
+        <span id="sidebar-toggle-count" class="header-icon-count">0</span>
+      </button>
+
       <div class="brand">
-        <div class="brand-title">PDF Text Jump Viewer <span style="font-size:10px;opacity:.65">v3.0.1</span></div>
+        <div class="brand-title">PDF Text Jump Viewer <span style="font-size:10px;opacity:.65">v3.1</span></div>
         <div class="brand-sub">複数PDFを横断検索し、ヒットページだけを連続表示</div>
       </div>
 
@@ -766,22 +1157,28 @@
       </div>
 
       <button id="search-btn" class="primary-btn" type="button" disabled>横断検索</button>
+
+      <div class="header-spacer"></div>
+
+      <div class="header-status-area">
+        <span id="header-selected-count" class="header-badge">選択 0PDF</span>
+        <span id="header-hit-count" class="header-badge">HIT 0ページ</span>
+        <span id="status" title="PDF一覧を読み込んでいます。">PDF一覧を読み込んでいます。</span>
+      </div>
+    </div>
+
+    <div id="progress-track" class="progress-track" hidden>
+      <div id="progress-bar" class="progress-bar"></div>
     </div>
   </header>
 
   <main class="layout">
-    <section class="status-panel">
-      <div id="status">PDF一覧を読み込んでいます。</div>
-      <div id="progress-track" class="progress-track" hidden>
-        <div id="progress-bar" class="progress-bar"></div>
-      </div>
-    </section>
-
-    <div class="main-grid">
-      <aside class="panel-card">
+    <div id="main-grid" class="main-grid">
+      <aside id="results-sidebar" class="panel-card results-sidebar">
         <div class="panel-head">
           <div class="panel-title">検索結果</div>
           <div id="result-count" class="result-count">0ページ</div>
+          <button id="sidebar-close" class="sidebar-close-btn" type="button" title="検索結果を閉じる">×</button>
         </div>
         <div id="results-list" class="results-list">
           <div class="results-empty">
@@ -793,32 +1190,41 @@
 
       <section class="viewer-card">
         <div class="toolbar">
-          <div class="mode-switch" aria-label="表示方法">
-            <button id="continuous-mode-btn" class="mode-btn active" type="button">
-              ヒットページ連続表示
-            </button>
-            <button id="single-mode-btn" class="mode-btn" type="button">
-              1ページ表示
-            </button>
-          </div>
-
-          <span id="current-file-label" class="current-file-label">検索結果未表示</span>
-
-          <div id="single-controls" class="single-controls" hidden>
-            <button id="prev-btn" class="tool-btn" type="button" disabled>◀ 前ページ</button>
-            <div class="page-control">
-              <input id="page-input" type="number" min="1" value="1" disabled>
-              <span>/</span>
-              <span id="page-count">0</span>
+          <div class="toolbar-left">
+            <div class="mode-switch" aria-label="表示方法">
+              <button id="continuous-mode-btn" class="mode-btn active" type="button">
+                ヒットページ連続表示
+              </button>
+              <button id="single-mode-btn" class="mode-btn" type="button">
+                1ページ表示
+              </button>
             </div>
-            <button id="next-btn" class="tool-btn" type="button" disabled>次ページ ▶</button>
           </div>
 
-          <span id="continuous-summary" class="continuous-summary">0ページ</span>
+          <div class="toolbar-center">
+            <span id="current-file-label" class="current-file-label">検索結果未表示</span>
 
-          <button id="zoom-out-btn" class="tool-btn" type="button" disabled>－</button>
-          <span id="zoom-label" class="zoom-label">120%</span>
-          <button id="zoom-in-btn" class="tool-btn" type="button" disabled>＋</button>
+            <div id="single-controls" class="single-controls" hidden>
+              <button id="prev-btn" class="tool-btn" type="button" disabled>◀ 前ページ</button>
+              <div class="page-control">
+                <input id="page-input" type="number" min="1" value="1" disabled>
+                <span>/</span>
+                <span id="page-count">0</span>
+              </div>
+              <button id="next-btn" class="tool-btn" type="button" disabled>次ページ ▶</button>
+            </div>
+
+            <span id="continuous-summary" class="continuous-summary">0ページ</span>
+          </div>
+
+          <div class="toolbar-right">
+            <button id="fit-width-btn" class="tool-btn fit-width-btn active" type="button" disabled>
+              幅に合わせる
+            </button>
+            <button id="zoom-out-btn" class="tool-btn" type="button" disabled>－</button>
+            <span id="zoom-label" class="zoom-label">自動</span>
+            <button id="zoom-in-btn" class="tool-btn" type="button" disabled>＋</button>
+          </div>
         </div>
 
         <div id="viewer-stage" class="viewer-stage">
@@ -826,8 +1232,8 @@
             <strong>ヒットページ連続表示</strong><br>
             選択した複数PDFを横断検索し、検索語が見つかったページだけを
             1本のスクロール資料として表示します。<br><br>
-            検索結果左側のページをクリックすると、連続表示内の該当ページへ移動します。<br>
-            各ページの「1ページ表示」を押すと、元PDFの前後ページも確認できます。
+            左上の「☰」で検索結果サイドバーを開閉できます。<br>
+            「幅に合わせる」では、サイドバー開閉後も表示幅へ自動調整します。
           </div>
 
           <div id="continuous-wrap" class="continuous-wrap" hidden></div>
@@ -858,6 +1264,14 @@
     const CONTINUOUS_RENDER_MARGIN = 900;
 
     const elements = {
+      appHeader: document.getElementById('app-header'),
+      mainGrid: document.getElementById('main-grid'),
+      sidebarToggle: document.getElementById('sidebar-toggle'),
+      sidebarClose: document.getElementById('sidebar-close'),
+      sidebarToggleCount: document.getElementById('sidebar-toggle-count'),
+      headerSelectedCount: document.getElementById('header-selected-count'),
+      headerHitCount: document.getElementById('header-hit-count'),
+      fitWidthBtn: document.getElementById('fit-width-btn'),
       catalogTrigger: document.getElementById('catalog-trigger'),
       catalogMenu: document.getElementById('catalog-menu'),
       catalogList: document.getElementById('catalog-list'),
@@ -905,6 +1319,11 @@
       currentTargetPage: null,
       currentTargetOccurrence: 1,
       scale: 1.2,
+      zoomMode: 'fit-width',
+      lastSingleRenderScale: 1.2,
+      sidebarOpen: localStorage.getItem('pdfTextJump.sidebarOpen') !== 'false',
+      lastViewerWidth: 0,
+      resizeTimer: null,
       renderSerial: 0,
       renderRequestSerial: 0,
       renderPending: false,
@@ -922,6 +1341,7 @@
 
     function setStatus(message, kind = '') {
       elements.status.textContent = message;
+      elements.status.title = message;
       elements.status.dataset.kind = kind;
     }
 
@@ -929,6 +1349,95 @@
       const percent = Math.max(0, Math.min(100, Number(value) || 0));
       elements.progressTrack.hidden = !visible;
       elements.progressBar.style.width = `${percent}%`;
+    }
+
+    function clampScale(value, min = MIN_SCALE, max = MAX_SCALE) {
+      return Math.min(max, Math.max(min, Number(value) || 1));
+    }
+
+    function getFitAvailableWidth(container, horizontalAllowance = 12) {
+      return Math.max(280, (container?.clientWidth || 0) - horizontalAllowance);
+    }
+
+    function calculateFitScale(page, container, horizontalAllowance = 12) {
+      const baseViewport = page.getViewport({ scale: 1 });
+      const availableWidth = getFitAvailableWidth(container, horizontalAllowance);
+      return clampScale(availableWidth / baseViewport.width, 0.25, MAX_SCALE);
+    }
+
+    function getCurrentDisplayScale() {
+      if (state.viewerMode === 'single' && state.lastSingleRenderScale) {
+        return state.lastSingleRenderScale;
+      }
+
+      for (const item of state.continuousItems.values()) {
+        if (item.renderedScale && isContinuousItemNearViewport(item)) {
+          return item.renderedScale;
+        }
+      }
+
+      for (const item of state.continuousItems.values()) {
+        if (item.renderedScale) return item.renderedScale;
+      }
+
+      return state.scale;
+    }
+
+    function getContinuousRenderSignature(item) {
+      if (state.zoomMode === 'fit-width') {
+        return `fit:${Math.round(getFitAvailableWidth(item.body, 10))}`;
+      }
+      return `manual:${state.scale.toFixed(4)}`;
+    }
+
+    function updateHeaderHeight() {
+      const height = Math.ceil(elements.appHeader.getBoundingClientRect().height || 64);
+      document.documentElement.style.setProperty('--app-header-height', `${height}px`);
+    }
+
+    function applySidebarState({ persist = true, refresh = true } = {}) {
+      elements.mainGrid.classList.toggle('sidebar-collapsed', !state.sidebarOpen);
+      elements.sidebarToggle.setAttribute('aria-expanded', String(state.sidebarOpen));
+      elements.sidebarToggle.title = state.sidebarOpen ? '検索結果を閉じる' : '検索結果を開く';
+
+      if (persist) {
+        localStorage.setItem('pdfTextJump.sidebarOpen', String(state.sidebarOpen));
+      }
+
+      if (refresh) scheduleFitLayoutRefresh();
+    }
+
+    function toggleSidebar(force) {
+      state.sidebarOpen = typeof force === 'boolean' ? force : !state.sidebarOpen;
+      applySidebarState();
+    }
+
+    function scheduleFitLayoutRefresh() {
+      clearTimeout(state.resizeTimer);
+      state.resizeTimer = setTimeout(() => {
+        updateHeaderHeight();
+        const width = elements.viewerStage.clientWidth;
+        if (Math.abs(width - state.lastViewerWidth) < 2) return;
+        state.lastViewerWidth = width;
+
+        if (state.zoomMode !== 'fit-width') return;
+        if (state.viewerMode === 'continuous') {
+          refreshContinuousScale();
+        } else if (state.currentPdf) {
+          requestViewerRender();
+        }
+      }, 230);
+    }
+
+    async function enableFitWidth() {
+      state.zoomMode = 'fit-width';
+      updateViewerToolbar();
+
+      if (state.viewerMode === 'continuous') {
+        await refreshContinuousScale();
+      } else if (state.currentPdf) {
+        await requestViewerRender();
+      }
     }
 
     function normalizeForSearch(value) {
@@ -1192,6 +1701,7 @@
       const selected = state.selectedFiles.size;
       const total = state.catalog.length;
       elements.catalogTrigger.textContent = `検索対象PDF：${selected} / ${total}件`;
+      elements.headerSelectedCount.textContent = `選択 ${selected}PDF`;
     }
 
     function toggleCatalogMenu(force) {
@@ -1386,6 +1896,9 @@
     function renderResults() {
       const pageResults = state.results.filter(item => !item.error);
       elements.resultCount.textContent = `${pageResults.length}ページ`;
+      elements.headerHitCount.textContent = `HIT ${pageResults.length}ページ`;
+      elements.sidebarToggleCount.textContent = String(pageResults.length);
+      elements.sidebarToggleCount.hidden = pageResults.length === 0;
       elements.resultsList.replaceChildren();
 
       if (!state.results.length) {
@@ -1613,6 +2126,7 @@
           textLayer,
           status,
           renderedScale: null,
+          renderedSignature: '',
           requestToken: 0,
           pending: false,
           renderTask: null,
@@ -1649,10 +2163,11 @@
     }
 
     function requestContinuousItemRender(item) {
+      const signature = item ? getContinuousRenderSignature(item) : '';
       if (
         !item ||
         item.generation !== state.continuousGeneration ||
-        item.renderedScale === state.scale
+        item.renderedSignature === signature
       ) {
         return item?.loopPromise || Promise.resolve();
       }
@@ -1690,8 +2205,8 @@
       ) {
         item.pending = false;
         const token = item.requestToken;
-        const scale = state.scale;
-        await renderContinuousItemSnapshot(item, token, scale);
+        const signature = getContinuousRenderSignature(item);
+        await renderContinuousItemSnapshot(item, token, signature);
       }
     }
 
@@ -1719,7 +2234,7 @@
       return record.promise;
     }
 
-    async function renderContinuousItemSnapshot(item, token, scale) {
+    async function renderContinuousItemSnapshot(item, token, signature) {
       item.status.hidden = false;
       item.status.dataset.kind = '';
       item.status.textContent = `${item.result.pageNumber}ページを読み込んでいます。`;
@@ -1730,7 +2245,10 @@
       const page = await pdf.getPage(item.result.pageNumber);
       if (!isCurrentContinuousRequest(item, token)) return;
 
-      const viewport = page.getViewport({ scale });
+      const effectiveScale = state.zoomMode === 'fit-width'
+        ? calculateFitScale(page, item.body, 10)
+        : state.scale;
+      const viewport = page.getViewport({ scale: effectiveScale });
       const outputScale = window.devicePixelRatio || 1;
       const context = item.canvas.getContext('2d', { alpha: false });
 
@@ -1746,7 +2264,7 @@
       item.textLayer.replaceChildren();
       item.textLayer.style.width = `${viewport.width}px`;
       item.textLayer.style.height = `${viewport.height}px`;
-      item.textLayer.style.setProperty('--scale-factor', String(scale));
+      item.textLayer.style.setProperty('--scale-factor', String(effectiveScale));
 
       const renderTask = page.render({
         canvasContext: context,
@@ -1781,7 +2299,8 @@
       if (!isCurrentContinuousRequest(item, token)) return;
 
       highlightAllOccurrencesInLayer(item.textLayer, state.searchText);
-      item.renderedScale = scale;
+      item.renderedScale = effectiveScale;
+      item.renderedSignature = signature;
       item.status.hidden = true;
       item.status.dataset.kind = '';
     }
@@ -1837,6 +2356,7 @@
       for (const item of state.continuousItems.values()) {
         item.generation = generation;
         item.renderedScale = null;
+        item.renderedSignature = '';
         item.requestToken += 1;
         item.pending = false;
         if (item.renderTask) {
@@ -2067,15 +2587,21 @@
       elements.pageInput.value = String(state.currentPage);
       elements.pageInput.max = String(total || 1);
       elements.pageCount.textContent = String(total);
-      elements.zoomLabel.textContent = `${Math.round(state.scale * 100)}%`;
+
+      const displayScale = getCurrentDisplayScale();
+      elements.zoomLabel.textContent = state.zoomMode === 'fit-width'
+        ? '自動'
+        : `${Math.round(state.scale * 100)}%`;
+      elements.fitWidthBtn.classList.toggle('active', state.zoomMode === 'fit-width');
 
       elements.prevBtn.disabled = isContinuous || !state.currentPdf || state.currentPage <= 1;
       elements.nextBtn.disabled = isContinuous || !state.currentPdf || state.currentPage >= total;
       elements.pageInput.disabled = isContinuous || !state.currentPdf;
 
       const zoomAvailable = isContinuous ? pageResults.length > 0 : Boolean(state.currentPdf);
-      elements.zoomOutBtn.disabled = !zoomAvailable || state.scale <= MIN_SCALE;
-      elements.zoomInBtn.disabled = !zoomAvailable || state.scale >= MAX_SCALE;
+      elements.fitWidthBtn.disabled = !zoomAvailable;
+      elements.zoomOutBtn.disabled = !zoomAvailable || displayScale <= MIN_SCALE;
+      elements.zoomInBtn.disabled = !zoomAvailable || displayScale >= MAX_SCALE;
     }
 
     function requestViewerRender() {
@@ -2136,7 +2662,12 @@
         return;
       }
 
-      const viewport = page.getViewport({ scale });
+      const effectiveScale = state.zoomMode === 'fit-width'
+        ? calculateFitScale(page, elements.viewerStage, 14)
+        : scale;
+      state.lastSingleRenderScale = effectiveScale;
+
+      const viewport = page.getViewport({ scale: effectiveScale });
       const outputScale = window.devicePixelRatio || 1;
       const context = elements.canvas.getContext('2d', { alpha: false });
 
@@ -2151,7 +2682,7 @@
       elements.textLayer.replaceChildren();
       elements.textLayer.style.width = `${viewport.width}px`;
       elements.textLayer.style.height = `${viewport.height}px`;
-      elements.textLayer.style.setProperty('--scale-factor', String(scale));
+      elements.textLayer.style.setProperty('--scale-factor', String(effectiveScale));
 
       const renderTask = page.render({
         canvasContext: context,
@@ -2273,8 +2804,13 @@
       return requestViewerRender();
     }
 
-    function changeScale(nextScale) {
-      state.scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, nextScale));
+    function changeScale(delta) {
+      const baseScale = state.zoomMode === 'fit-width'
+        ? getCurrentDisplayScale()
+        : state.scale;
+
+      state.zoomMode = 'manual';
+      state.scale = clampScale(baseScale + delta);
       updateViewerToolbar();
 
       if (state.viewerMode === 'continuous') {
@@ -2320,8 +2856,12 @@
     elements.prevBtn.addEventListener('click', () => changePage(state.currentPage - 1));
     elements.nextBtn.addEventListener('click', () => changePage(state.currentPage + 1));
     elements.pageInput.addEventListener('change', () => changePage(elements.pageInput.value));
-    elements.zoomOutBtn.addEventListener('click', () => changeScale(state.scale - SCALE_STEP));
-    elements.zoomInBtn.addEventListener('click', () => changeScale(state.scale + SCALE_STEP));
+    elements.fitWidthBtn.addEventListener('click', enableFitWidth);
+    elements.zoomOutBtn.addEventListener('click', () => changeScale(-SCALE_STEP));
+    elements.zoomInBtn.addEventListener('click', () => changeScale(SCALE_STEP));
+
+    elements.sidebarToggle.addEventListener('click', () => toggleSidebar());
+    elements.sidebarClose.addEventListener('click', () => toggleSidebar(false));
 
     elements.viewerStage.addEventListener('scroll', () => {
       if (state.viewerMode === 'continuous') scheduleVisibleContinuousPages();
@@ -2337,6 +2877,18 @@
         }
       }
     });
+
+    applySidebarState({ persist: false, refresh: false });
+    updateHeaderHeight();
+    state.lastViewerWidth = elements.viewerStage.clientWidth;
+
+    const headerResizeObserver = new ResizeObserver(() => updateHeaderHeight());
+    headerResizeObserver.observe(elements.appHeader);
+
+    const viewerResizeObserver = new ResizeObserver(() => scheduleFitLayoutRefresh());
+    viewerResizeObserver.observe(elements.viewerStage);
+
+    window.addEventListener('resize', scheduleFitLayoutRefresh, { passive: true });
 
     renderViewerMode();
     loadCatalog();
