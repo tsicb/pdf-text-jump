@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PDF Text Jump Viewer v3.2</title>
+  <title>PDF Text Jump Viewer v4.0</title>
   <style>
     :root {
       --navy: #17365f;
@@ -1150,6 +1150,306 @@
       .mode-btn { padding-inline: 8px; }
     }
 
+
+    /* v4.0: PDF出力・ページ選択 */
+    .export-btn {
+      border-color: #86a9d8;
+      background: #eef5ff;
+      color: #174a84;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .export-btn:hover:not(:disabled) {
+      border-color: var(--blue);
+      background: var(--blue);
+      color: #fff;
+    }
+
+    .export-count {
+      min-width: 20px;
+      height: 20px;
+      margin-left: 5px;
+      padding: 0 5px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      background: rgba(37, 99, 235, .12);
+      color: inherit;
+      font-size: 9px;
+      font-weight: 900;
+    }
+
+    .export-btn:hover:not(:disabled) .export-count {
+      background: rgba(255,255,255,.2);
+    }
+
+    .result-row {
+      width: 100%;
+      margin: 3px 0;
+      display: grid;
+      grid-template-columns: 26px minmax(0, 1fr);
+      align-items: stretch;
+      gap: 4px;
+    }
+
+    .result-row .result-item {
+      margin: 0;
+    }
+
+    .result-select-wrap,
+    .continuous-select-wrap {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid #dbe3ec;
+      border-radius: 7px;
+      background: #fff;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .result-select-wrap:hover,
+    .continuous-select-wrap:hover {
+      border-color: #93b4dd;
+      background: var(--blue-soft);
+    }
+
+    .result-select,
+    .continuous-select {
+      width: 15px;
+      height: 15px;
+      margin: 0;
+      accent-color: var(--blue);
+      cursor: pointer;
+    }
+
+    .continuous-page-actions {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .continuous-select-wrap {
+      min-width: 34px;
+      min-height: 30px;
+    }
+
+    .export-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      background: rgba(15, 23, 42, .56);
+      backdrop-filter: blur(3px);
+    }
+
+    .export-dialog {
+      width: min(650px, 96vw);
+      max-height: min(720px, 92vh);
+      overflow: auto;
+      border: 1px solid #cbd5e1;
+      border-radius: 14px;
+      background: #fff;
+      box-shadow: 0 24px 70px rgba(15, 23, 42, .34);
+    }
+
+    .export-dialog-head {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      min-height: 56px;
+      padding: 12px 15px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255,255,255,.97);
+    }
+
+    .export-dialog-title {
+      flex: 1;
+      color: #1e3a5f;
+      font-size: 16px;
+      font-weight: 900;
+    }
+
+    .export-dialog-sub {
+      margin-top: 2px;
+      color: #64748b;
+      font-size: 10px;
+      font-weight: 600;
+    }
+
+    .export-close-btn {
+      width: 32px;
+      height: 32px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      background: #fff;
+      color: #64748b;
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    .export-dialog-body {
+      padding: 15px;
+    }
+
+    .export-section + .export-section {
+      margin-top: 14px;
+    }
+
+    .export-section-title {
+      margin-bottom: 7px;
+      color: #334155;
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .export-selection-card {
+      padding: 12px;
+      border: 1px solid #dbe3ec;
+      border-radius: 10px;
+      background: #f8fafc;
+    }
+
+    .export-selection-line {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .export-selected-count {
+      margin-right: auto;
+      color: #1d4ed8;
+      font-size: 14px;
+      font-weight: 900;
+    }
+
+    .export-option {
+      display: flex;
+      align-items: flex-start;
+      gap: 9px;
+      padding: 10px 11px;
+      border: 1px solid #dbe3ec;
+      border-radius: 9px;
+      background: #fff;
+      cursor: pointer;
+    }
+
+    .export-option + .export-option {
+      margin-top: 7px;
+    }
+
+    .export-option input {
+      margin-top: 2px;
+      accent-color: var(--blue);
+    }
+
+    .export-option-main {
+      color: #334155;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .export-option-note {
+      margin-top: 2px;
+      color: #64748b;
+      font-size: 10px;
+      line-height: 1.5;
+    }
+
+    .export-filename-input {
+      width: 100%;
+      height: 36px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 0 10px;
+      color: #334155;
+      outline: none;
+    }
+
+    .export-filename-input:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(37,99,235,.12);
+    }
+
+    .export-status {
+      min-height: 34px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: #f1f5f9;
+      color: #64748b;
+      font-size: 10px;
+      line-height: 1.6;
+    }
+
+    .export-status[data-kind="success"] { background: #ecfdf5; color: #047857; }
+    .export-status[data-kind="warning"] { background: #fffbeb; color: #b45309; }
+    .export-status[data-kind="error"] { background: #fef2f2; color: #b91c1c; }
+
+    .export-dialog-foot {
+      position: sticky;
+      bottom: 0;
+      padding: 11px 15px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      border-top: 1px solid var(--line);
+      background: rgba(255,255,255,.97);
+    }
+
+    .export-cancel-btn,
+    .export-download-btn {
+      min-height: 37px;
+      border-radius: 8px;
+      padding: 0 15px;
+      font-weight: 800;
+    }
+
+    .export-cancel-btn {
+      border: 1px solid #cbd5e1;
+      background: #fff;
+      color: #475569;
+    }
+
+    .export-download-btn {
+      border: 1px solid var(--blue);
+      background: var(--blue);
+      color: #fff;
+    }
+
+    .export-download-btn:disabled,
+    .export-cancel-btn:disabled {
+      opacity: .48;
+      cursor: default;
+    }
+
+    body.export-modal-open {
+      overflow: hidden;
+    }
+
+    .pdf-export-textlayer-host {
+      position: fixed;
+      left: -100000px;
+      top: 0;
+      z-index: -1;
+      overflow: hidden;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    @media (max-width: 900px) {
+      .export-btn { padding-inline: 8px; }
+      .export-btn-label { display: none; }
+    }
+
   </style>
 </head>
 <body>
@@ -1168,8 +1468,8 @@
       </button>
 
       <div class="brand">
-        <div class="brand-title">PDF Text Jump Viewer <span style="font-size:10px;opacity:.65">v3.2</span></div>
-        <div class="brand-sub">複数PDFを横断検索し、ヒットページだけを連続表示</div>
+        <div class="brand-title">PDF Text Jump Viewer <span style="font-size:10px;opacity:.65">v4.0</span></div>
+        <div class="brand-sub">複数PDFを横断検索し、選択ページをPDF出力</div>
       </div>
 
       <div class="field">
@@ -1262,6 +1562,10 @@
           </div>
 
           <div class="toolbar-right">
+            <button id="export-btn" class="tool-btn export-btn" type="button" disabled title="選択したヒットページをPDFとして保存">
+              <span class="export-btn-label">PDF出力</span>
+              <span id="export-count" class="export-count">0</span>
+            </button>
             <button id="fit-page-btn" class="tool-btn fit-page-btn" type="button" disabled>
               ページに合わせる
             </button>
@@ -1293,6 +1597,66 @@
     </div>
   </main>
 
+  <div id="export-modal" class="export-modal" hidden role="dialog" aria-modal="true" aria-labelledby="export-dialog-title">
+    <section class="export-dialog">
+      <div class="export-dialog-head">
+        <div>
+          <div id="export-dialog-title" class="export-dialog-title">ヒットページをPDF出力</div>
+          <div class="export-dialog-sub">元PDFの品質を保ったまま、選択ページを1つのPDFへ結合します。</div>
+        </div>
+        <button id="export-close-btn" class="export-close-btn" type="button" title="閉じる">×</button>
+      </div>
+
+      <div class="export-dialog-body">
+        <section class="export-section">
+          <div class="export-section-title">出力するページ</div>
+          <div class="export-selection-card">
+            <div class="export-selection-line">
+              <span id="export-selected-count" class="export-selected-count">0ページ選択中</span>
+              <button id="export-select-all-btn" class="mini-btn" type="button">全ページ選択</button>
+              <button id="export-select-current-btn" class="mini-btn" type="button">表示中だけ選択</button>
+              <button id="export-clear-btn" class="mini-btn" type="button">選択解除</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="export-section">
+          <div class="export-section-title">PDFへの追記</div>
+          <label class="export-option">
+            <input id="export-highlight" type="checkbox" checked>
+            <span>
+              <div class="export-option-main">検索語を黄色でハイライトする</div>
+              <div class="export-option-note">PDF内の文字位置を解析し、半透明の黄色い矩形をPDFへ追加します。PDFの文字構造によって範囲が広くなる場合があります。</div>
+            </span>
+          </label>
+
+          <label class="export-option">
+            <input id="export-source-footer" type="checkbox" checked>
+            <span>
+              <div class="export-option-main">元PDF名と元ページ番号をページ下部へ付記する</div>
+              <div class="export-option-note">日本語を含む表示名にも対応するため、付記部分だけを小さな画像として重ねます。</div>
+            </span>
+          </label>
+        </section>
+
+        <section class="export-section">
+          <div class="export-section-title">ファイル名</div>
+          <input id="export-filename" class="export-filename-input" type="text" value="検索結果.pdf" autocomplete="off">
+        </section>
+
+        <section class="export-section">
+          <div id="export-status" class="export-status">ページを選択して「PDFを生成・ダウンロード」を押してください。</div>
+        </section>
+      </div>
+
+      <div class="export-dialog-foot">
+        <button id="export-cancel-btn" class="export-cancel-btn" type="button">キャンセル</button>
+        <button id="export-download-btn" class="export-download-btn" type="button">PDFを生成・ダウンロード</button>
+      </div>
+    </section>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
   <script type="module">
     import * as pdfjsLib from
       'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.6.205/build/pdf.min.mjs';
@@ -1319,6 +1683,8 @@
       sidebarToggleCount: document.getElementById('sidebar-toggle-count'),
       headerSelectedCount: document.getElementById('header-selected-count'),
       headerHitCount: document.getElementById('header-hit-count'),
+      exportBtn: document.getElementById('export-btn'),
+      exportCount: document.getElementById('export-count'),
       fitPageBtn: document.getElementById('fit-page-btn'),
       fitWidthBtn: document.getElementById('fit-width-btn'),
       catalogTrigger: document.getElementById('catalog-trigger'),
@@ -1354,6 +1720,18 @@
       pageWrap: document.getElementById('page-wrap'),
       canvas: document.getElementById('pdf-canvas'),
       textLayer: document.getElementById('text-layer'),
+      exportModal: document.getElementById('export-modal'),
+      exportCloseBtn: document.getElementById('export-close-btn'),
+      exportCancelBtn: document.getElementById('export-cancel-btn'),
+      exportDownloadBtn: document.getElementById('export-download-btn'),
+      exportSelectAllBtn: document.getElementById('export-select-all-btn'),
+      exportSelectCurrentBtn: document.getElementById('export-select-current-btn'),
+      exportClearBtn: document.getElementById('export-clear-btn'),
+      exportSelectedCount: document.getElementById('export-selected-count'),
+      exportHighlight: document.getElementById('export-highlight'),
+      exportSourceFooter: document.getElementById('export-source-footer'),
+      exportFilename: document.getElementById('export-filename'),
+      exportStatus: document.getElementById('export-status'),
     };
 
     const state = {
@@ -1396,6 +1774,8 @@
       continuousItems: new Map(),
       continuousPdfCache: new Map(),
       continuousGeneration: 0,
+      exportSelectedKeys: new Set(),
+      exportBusy: false,
     };
 
     function readStoredViewerMode() {
@@ -1938,6 +2318,8 @@
       state.searchText = searchText;
       state.results = [];
       state.activeResultKey = '';
+      state.exportSelectedKeys.clear();
+      updateExportUi();
       const query = normalizeForSearch(searchText);
       const serial = ++state.searchSerial;
 
@@ -1959,6 +2341,7 @@
               serial
             );
             state.results.push(...fileResults);
+            fileResults.forEach(result => state.exportSelectedKeys.add(resultKey(result)));
             renderResults();
           } catch (error) {
             if (error.message === '検索が中断されました。') throw error;
@@ -2048,6 +2431,7 @@
           ? '検索しています。PDFごとの結果が順次表示されます。'
           : 'PDFを選択し、検索語を入力して「横断検索」を押してください。';
         elements.resultsList.appendChild(empty);
+        updateExportUi();
         return;
       }
 
@@ -2069,7 +2453,23 @@
         section.appendChild(title);
 
         for (const result of group.items) {
-          const key = `${result.file}::${result.pageNumber}`;
+          const key = resultKey(result);
+          const row = document.createElement('div');
+          row.className = 'result-row';
+
+          const selectWrap = document.createElement('label');
+          selectWrap.className = 'result-select-wrap';
+          selectWrap.title = 'PDF出力に含める';
+
+          const checkbox = document.createElement('input');
+          checkbox.type = 'checkbox';
+          checkbox.className = 'result-select';
+          checkbox.dataset.exportKey = key;
+          checkbox.checked = state.exportSelectedKeys.has(key);
+          checkbox.setAttribute('aria-label', `${result.label} ${result.pageNumber}ページをPDF出力に含める`);
+          checkbox.addEventListener('change', () => setExportSelection(key, checkbox.checked));
+          selectWrap.appendChild(checkbox);
+
           const button = document.createElement('button');
           button.type = 'button';
           button.className = `result-item${state.activeResultKey === key ? ' active' : ''}`;
@@ -2096,11 +2496,13 @@
           }
 
           button.addEventListener('click', () => openSearchResult(result));
-          section.appendChild(button);
+          row.append(selectWrap, button);
+          section.appendChild(row);
         }
 
         elements.resultsList.appendChild(section);
       }
+      updateExportUi();
     }
 
 
@@ -2110,6 +2512,126 @@
 
     function resultKey(result) {
       return `${result.file}::${result.pageNumber}`;
+    }
+
+    function getExportSelectedResults() {
+      return getPageResults().filter(result => state.exportSelectedKeys.has(resultKey(result)));
+    }
+
+    function getCurrentHitResult() {
+      const pageResults = getPageResults();
+      if (!pageResults.length) return null;
+
+      if (state.viewerMode === 'paged') {
+        return pageResults[state.pagedIndex] || null;
+      }
+
+      if (state.activeResultKey) {
+        const active = pageResults.find(result => resultKey(result) === state.activeResultKey);
+        if (active) return active;
+      }
+
+      if (state.currentFile) {
+        const current = pageResults.find(
+          result => result.file === state.currentFile && result.pageNumber === state.currentPage
+        );
+        if (current) return current;
+      }
+
+      return pageResults[0] || null;
+    }
+
+    function syncExportCheckboxes() {
+      document.querySelectorAll('[data-export-key]').forEach(input => {
+        if (!(input instanceof HTMLInputElement)) return;
+        input.checked = state.exportSelectedKeys.has(input.dataset.exportKey || '');
+      });
+    }
+
+    function setExportSelection(key, selected) {
+      if (selected) state.exportSelectedKeys.add(key);
+      else state.exportSelectedKeys.delete(key);
+      updateExportUi();
+    }
+
+    function selectAllExportResults() {
+      state.exportSelectedKeys = new Set(getPageResults().map(resultKey));
+      updateExportUi();
+    }
+
+    function clearExportSelection() {
+      state.exportSelectedKeys.clear();
+      updateExportUi();
+    }
+
+    function selectCurrentExportResult() {
+      const current = getCurrentHitResult();
+      if (!current) {
+        setExportStatus('現在表示中のヒットページを特定できませんでした。', 'warning');
+        return;
+      }
+      state.exportSelectedKeys = new Set([resultKey(current)]);
+      updateExportUi();
+      setExportStatus(`${current.label} の${current.pageNumber}ページだけを選択しました。`, 'success');
+    }
+
+    function updateExportUi() {
+      const pageCount = getPageResults().length;
+      const selectedCount = getExportSelectedResults().length;
+
+      elements.exportCount.textContent = String(selectedCount);
+      elements.exportBtn.disabled = state.exportBusy || pageCount === 0;
+      elements.exportSelectedCount.textContent = `${selectedCount}ページ選択中（全${pageCount}ページ）`;
+      elements.exportDownloadBtn.disabled = state.exportBusy || selectedCount === 0;
+      elements.exportSelectAllBtn.disabled = state.exportBusy || pageCount === 0;
+      elements.exportSelectCurrentBtn.disabled = state.exportBusy || !getCurrentHitResult();
+      elements.exportClearBtn.disabled = state.exportBusy || selectedCount === 0;
+      elements.exportCloseBtn.disabled = state.exportBusy;
+      elements.exportCancelBtn.disabled = state.exportBusy;
+      elements.exportHighlight.disabled = state.exportBusy;
+      elements.exportSourceFooter.disabled = state.exportBusy;
+      elements.exportFilename.disabled = state.exportBusy;
+      syncExportCheckboxes();
+    }
+
+    function setExportStatus(message, kind = '') {
+      elements.exportStatus.textContent = message;
+      elements.exportStatus.dataset.kind = kind;
+    }
+
+    function sanitizeFilenamePart(value) {
+      return String(value || '')
+        .normalize('NFKC')
+        .replace(/[\\/:*?"<>|\u0000-\u001F]/g, '_')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 80);
+    }
+
+    function buildDefaultExportFilename() {
+      const word = sanitizeFilenamePart(state.searchText) || '検索結果';
+      return `PDF検索結果_${word}.pdf`;
+    }
+
+    function normalizeExportFilename(value) {
+      let filename = sanitizeFilenamePart(value) || buildDefaultExportFilename();
+      if (!filename.toLowerCase().endsWith('.pdf')) filename += '.pdf';
+      return filename;
+    }
+
+    function openExportModal() {
+      if (!getPageResults().length) return;
+      elements.exportFilename.value = buildDefaultExportFilename();
+      setExportStatus('ページを選択して「PDFを生成・ダウンロード」を押してください。');
+      elements.exportModal.hidden = false;
+      document.body.classList.add('export-modal-open');
+      updateExportUi();
+    }
+
+    function closeExportModal() {
+      if (state.exportBusy) return;
+      elements.exportModal.hidden = true;
+      document.body.classList.remove('export-modal-open');
     }
 
     function renderViewerMode() {
@@ -2253,6 +2775,22 @@
 
         titleWrap.append(title, meta);
 
+        const actions = document.createElement('div');
+        actions.className = 'continuous-page-actions';
+
+        const selectWrap = document.createElement('label');
+        selectWrap.className = 'continuous-select-wrap';
+        selectWrap.title = 'PDF出力に含める';
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'continuous-select';
+        checkbox.dataset.exportKey = key;
+        checkbox.checked = state.exportSelectedKeys.has(key);
+        checkbox.setAttribute('aria-label', `${result.label} ${result.pageNumber}ページをPDF出力に含める`);
+        checkbox.addEventListener('change', () => setExportSelection(key, checkbox.checked));
+        selectWrap.appendChild(checkbox);
+
         const singleButton = document.createElement('button');
         singleButton.type = 'button';
         singleButton.className = 'continuous-open-single';
@@ -2262,7 +2800,8 @@
           await openSingleSearchResult(result);
         });
 
-        head.append(titleWrap, singleButton);
+        actions.append(selectWrap, singleButton);
+        head.append(titleWrap, actions);
 
         const body = document.createElement('div');
         body.className = 'continuous-page-body';
@@ -3018,6 +3557,293 @@
       hitSpans[0]?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
     }
 
+    async function renderExportHighlightRects(pdf, pageNumber, searchText) {
+      const query = normalizeForSearch(searchText);
+      if (!query) return [];
+
+      const page = await pdf.getPage(pageNumber);
+      const viewport = page.getViewport({ scale: 1 });
+      const textContent = await page.getTextContent();
+
+      const host = document.createElement('div');
+      host.className = 'pdf-export-textlayer-host';
+      host.style.width = `${viewport.width}px`;
+      host.style.height = `${viewport.height}px`;
+
+      const layer = document.createElement('div');
+      layer.className = 'textLayer';
+      layer.style.width = `${viewport.width}px`;
+      layer.style.height = `${viewport.height}px`;
+      layer.style.setProperty('--scale-factor', '1');
+      host.appendChild(layer);
+      document.body.appendChild(host);
+
+      try {
+        const textLayer = new pdfjsLib.TextLayer({
+          textContentSource: textContent,
+          container: layer,
+          viewport,
+        });
+        await textLayer.render();
+
+        const spans = Array.from(layer.querySelectorAll('span'));
+        let joined = '';
+        const ranges = [];
+
+        spans.forEach(span => {
+          const normalized = normalizeForSearch(span.textContent);
+          const start = joined.length;
+          joined += normalized;
+          ranges.push({ span, start, end: joined.length });
+        });
+
+        const hitSpans = new Set();
+        let from = 0;
+        while (from <= joined.length - query.length) {
+          const start = joined.indexOf(query, from);
+          if (start === -1) break;
+          const end = start + query.length;
+          ranges
+            .filter(range => range.end > start && range.start < end)
+            .forEach(range => hitSpans.add(range.span));
+          from = start + Math.max(1, query.length);
+        }
+
+        const hostRect = host.getBoundingClientRect();
+        const rectangles = [];
+
+        for (const span of hitSpans) {
+          const rect = span.getBoundingClientRect();
+          if (rect.width <= 0 || rect.height <= 0) continue;
+
+          const left = rect.left - hostRect.left;
+          const top = rect.top - hostRect.top;
+          const right = rect.right - hostRect.left;
+          const bottom = rect.bottom - hostRect.top;
+          const p1 = viewport.convertToPdfPoint(left, top);
+          const p2 = viewport.convertToPdfPoint(right, bottom);
+
+          rectangles.push({
+            x: Math.min(p1[0], p2[0]),
+            y: Math.min(p1[1], p2[1]),
+            width: Math.abs(p2[0] - p1[0]),
+            height: Math.abs(p2[1] - p1[1]),
+          });
+        }
+
+        return rectangles;
+      } finally {
+        host.remove();
+      }
+    }
+
+    async function createFooterPngBytes(text) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 1800;
+      canvas.height = 84;
+      const context = canvas.getContext('2d');
+
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      context.fillStyle = 'rgba(255,255,255,0.88)';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.strokeStyle = 'rgba(100,116,139,0.42)';
+      context.lineWidth = 2;
+      context.strokeRect(1, 1, canvas.width - 2, canvas.height - 2);
+      context.fillStyle = '#334155';
+      context.font = '600 28px "Yu Gothic", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif';
+      context.textBaseline = 'middle';
+
+      const safeText = String(text || '').slice(0, 150);
+      let displayText = safeText;
+      while (context.measureText(displayText).width > canvas.width - 44 && displayText.length > 4) {
+        displayText = `${displayText.slice(0, -2)}…`;
+      }
+      context.fillText(displayText, 22, canvas.height / 2);
+
+      const blob = await new Promise((resolve, reject) => {
+        canvas.toBlob(value => value ? resolve(value) : reject(new Error('付記画像を生成できませんでした。')), 'image/png');
+      });
+      return new Uint8Array(await blob.arrayBuffer());
+    }
+
+    async function loadExportSource(file, needsPdfJs) {
+      const response = await fetch(buildPdfPath(file), { cache: 'no-store' });
+      if (!response.ok) {
+        throw new Error(`${file} の取得に失敗しました（HTTP ${response.status}）。`);
+      }
+
+      const buffer = await response.arrayBuffer();
+      const bytesForPdfLib = new Uint8Array(buffer.slice(0));
+      const bytesForPdfJs = new Uint8Array(buffer.slice(0));
+      const pdfLibDoc = await window.PDFLib.PDFDocument.load(bytesForPdfLib);
+      const pdfJsDoc = needsPdfJs
+        ? await pdfjsLib.getDocument({ data: bytesForPdfJs, enableXfa: true }).promise
+        : null;
+
+      return { pdfLibDoc, pdfJsDoc };
+    }
+
+    async function exportSelectedPdf() {
+      if (state.exportBusy) return;
+      const selectedResults = getExportSelectedResults();
+      if (!selectedResults.length) {
+        setExportStatus('出力するページを1ページ以上選択してください。', 'warning');
+        return;
+      }
+
+      if (!window.PDFLib?.PDFDocument) {
+        setExportStatus('PDF生成ライブラリを読み込めませんでした。ページを再読み込みしてください。', 'error');
+        return;
+      }
+
+      const addHighlights = elements.exportHighlight.checked;
+      const addSourceFooter = elements.exportSourceFooter.checked;
+      const filename = normalizeExportFilename(elements.exportFilename.value);
+      elements.exportFilename.value = filename;
+
+      state.exportBusy = true;
+      updateExportUi();
+      elements.searchBtn.disabled = true;
+      elements.catalogTrigger.disabled = true;
+      setProgress(0, true);
+      setExportStatus('PDF生成を開始します。元PDFを読み込んでいます。');
+
+      const sourceCache = new Map();
+      try {
+        const { PDFDocument, rgb } = window.PDFLib;
+        const outputDoc = await PDFDocument.create();
+        outputDoc.setTitle(`PDF検索結果：${state.searchText}`);
+        outputDoc.setSubject(`検索語「${state.searchText}」のヒットページ`);
+        outputDoc.setCreator('PDF Text Jump Viewer');
+        outputDoc.setProducer('pdf-lib');
+
+        const uniqueFiles = [...new Set(selectedResults.map(result => result.file))];
+        for (let index = 0; index < uniqueFiles.length; index++) {
+          const file = uniqueFiles[index];
+          const label = selectedResults.find(result => result.file === file)?.label || file;
+          const progress = ((index + 0.2) / Math.max(1, uniqueFiles.length)) * 30;
+          setProgress(progress, true);
+          setExportStatus(`元PDFを読み込んでいます：${label}（${index + 1} / ${uniqueFiles.length}）`);
+          sourceCache.set(file, await loadExportSource(file, addHighlights));
+        }
+
+        const resultsByFile = new Map();
+        selectedResults.forEach(result => {
+          if (!resultsByFile.has(result.file)) resultsByFile.set(result.file, []);
+          resultsByFile.get(result.file).push(result);
+        });
+
+        const copiedPageMap = new Map();
+        let copiedFileIndex = 0;
+        for (const [file, fileResults] of resultsByFile) {
+          const source = sourceCache.get(file);
+          const copiedPages = await outputDoc.copyPages(
+            source.pdfLibDoc,
+            fileResults.map(result => result.pageNumber - 1)
+          );
+          fileResults.forEach((result, index) => {
+            copiedPageMap.set(resultKey(result), copiedPages[index]);
+          });
+          copiedFileIndex += 1;
+          setProgress(30 + (copiedFileIndex / resultsByFile.size) * 20, true);
+        }
+
+        const footerImageCache = new Map();
+        for (let index = 0; index < selectedResults.length; index++) {
+          const result = selectedResults[index];
+          const outputPage = outputDoc.addPage(copiedPageMap.get(resultKey(result)));
+          const source = sourceCache.get(result.file);
+
+          setExportStatus(
+            `ページを生成しています：${result.label} ${result.pageNumber}ページ ` +
+            `（${index + 1} / ${selectedResults.length}）`
+          );
+
+          if (addHighlights && source.pdfJsDoc) {
+            const rectangles = await renderExportHighlightRects(
+              source.pdfJsDoc,
+              result.pageNumber,
+              state.searchText
+            );
+            const pageSize = outputPage.getSize();
+            for (const rect of rectangles) {
+              const x = Math.max(0, Math.min(pageSize.width, rect.x));
+              const y = Math.max(0, Math.min(pageSize.height, rect.y));
+              const width = Math.max(0, Math.min(rect.width, pageSize.width - x));
+              const height = Math.max(0, Math.min(rect.height, pageSize.height - y));
+              if (width <= 0.5 || height <= 0.5) continue;
+
+              outputPage.drawRectangle({
+                x,
+                y,
+                width,
+                height,
+                color: rgb(1, 0.84, 0.12),
+                opacity: 0.3,
+                borderColor: rgb(0.96, 0.62, 0.04),
+                borderOpacity: 0.52,
+                borderWidth: 0.45,
+              });
+            }
+          }
+
+          if (addSourceFooter) {
+            const footerText = `元PDF：${result.label}（${result.file}）｜元ページ：${result.pageNumber}`;
+            let footerImage = footerImageCache.get(footerText);
+            if (!footerImage) {
+              footerImage = await outputDoc.embedPng(await createFooterPngBytes(footerText));
+              footerImageCache.set(footerText, footerImage);
+            }
+            const { width: pageWidth, height: pageHeight } = outputPage.getSize();
+            const footerHeight = Math.max(11, Math.min(17, pageHeight * 0.026));
+            const footerWidth = Math.min(pageWidth - 12, footerHeight * (1800 / 84));
+            outputPage.drawImage(footerImage, {
+              x: 6,
+              y: 4,
+              width: Math.max(20, footerWidth),
+              height: footerHeight,
+              opacity: 0.95,
+            });
+          }
+
+          setProgress(50 + ((index + 1) / selectedResults.length) * 44, true);
+        }
+
+        setExportStatus('PDFファイルを書き出しています。');
+        const outputBytes = await outputDoc.save();
+        setProgress(98, true);
+
+        const blob = new Blob([outputBytes], { type: 'application/pdf' });
+        const objectUrl = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = objectUrl;
+        anchor.download = filename;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        setTimeout(() => URL.revokeObjectURL(objectUrl), 1500);
+
+        setProgress(100, true);
+        setExportStatus(`${selectedResults.length}ページのPDFをダウンロードしました。`, 'success');
+        setStatus(`PDF出力完了：${selectedResults.length}ページを「${filename}」として保存しました。`, 'success');
+      } catch (error) {
+        console.error(error);
+        setExportStatus(`PDF生成に失敗しました：${error.message}`, 'error');
+        setStatus(`PDF生成に失敗しました：${error.message}`, 'error');
+      } finally {
+        for (const source of sourceCache.values()) {
+          if (source.pdfJsDoc) {
+            try { await source.pdfJsDoc.destroy(); } catch (error) { console.warn(error); }
+          }
+        }
+        state.exportBusy = false;
+        elements.searchBtn.disabled = false;
+        elements.catalogTrigger.disabled = false;
+        updateExportUi();
+        setTimeout(() => setProgress(0, false), 900);
+      }
+    }
+
     function changePage(nextPage) {
       if (state.viewerMode === 'paged') {
         const pageResults = getPageResults();
@@ -3065,6 +3891,17 @@
       return requestViewerRender();
     }
 
+    elements.exportBtn.addEventListener('click', openExportModal);
+    elements.exportCloseBtn.addEventListener('click', closeExportModal);
+    elements.exportCancelBtn.addEventListener('click', closeExportModal);
+    elements.exportSelectAllBtn.addEventListener('click', selectAllExportResults);
+    elements.exportSelectCurrentBtn.addEventListener('click', selectCurrentExportResult);
+    elements.exportClearBtn.addEventListener('click', clearExportSelection);
+    elements.exportDownloadBtn.addEventListener('click', exportSelectedPdf);
+    elements.exportModal.addEventListener('click', event => {
+      if (event.target === elements.exportModal) closeExportModal();
+    });
+
     elements.catalogTrigger.addEventListener('click', event => {
       event.stopPropagation();
       toggleCatalogMenu();
@@ -3073,7 +3910,10 @@
     elements.catalogMenu.addEventListener('click', event => event.stopPropagation());
     document.addEventListener('click', () => toggleCatalogMenu(false));
     document.addEventListener('keydown', event => {
-      if (event.key === 'Escape') toggleCatalogMenu(false);
+      if (event.key === 'Escape') {
+        toggleCatalogMenu(false);
+        closeExportModal();
+      }
     });
 
     elements.selectAllBtn.addEventListener('click', () => {
@@ -3181,6 +4021,7 @@
     window.addEventListener('resize', scheduleFitLayoutRefresh, { passive: true });
 
     renderViewerMode();
+    updateExportUi();
     loadCatalog();
   </script>
 </body>
