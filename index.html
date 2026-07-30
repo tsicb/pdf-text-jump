@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PDF Text Jump Viewer v3.1</title>
+  <title>PDF Text Jump Viewer v3.2</title>
   <style>
     :root {
       --navy: #17365f;
@@ -733,7 +733,7 @@
     }
 
 
-    /* ===== v3.1：横長PDFを主役にしたワイドレイアウト ===== */
+    /* ===== v3.1：横長PDFを主役にしたワイドレイアウト（継承） ===== */
     :root {
       --app-header-height: 64px;
       --sidebar-width: 330px;
@@ -1110,6 +1110,46 @@
       .toolbar-left, .toolbar-center, .toolbar-right { justify-content: center; flex-wrap: wrap; }
     }
 
+
+    /* ===== v3.2：ページ送り・ページ全体表示 ===== */
+    .fit-page-btn.active,
+    .fit-width-btn.active {
+      border-color: var(--blue);
+      background: var(--blue);
+      color: #fff;
+    }
+
+    .viewer-stage.page-fit-active {
+      display: grid;
+      place-items: center;
+      align-content: center;
+    }
+
+    .viewer-stage.page-fit-active #page-wrap {
+      margin: auto;
+    }
+
+    .paged-position {
+      min-width: 78px;
+      color: #475569;
+      font-size: 11px;
+      font-weight: 800;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .mode-hint {
+      color: #64748b;
+      font-size: 9px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    @media (max-width: 1050px) {
+      .mode-hint { display: none; }
+      .mode-btn { padding-inline: 8px; }
+    }
+
   </style>
 </head>
 <body>
@@ -1128,7 +1168,7 @@
       </button>
 
       <div class="brand">
-        <div class="brand-title">PDF Text Jump Viewer <span style="font-size:10px;opacity:.65">v3.1</span></div>
+        <div class="brand-title">PDF Text Jump Viewer <span style="font-size:10px;opacity:.65">v3.2</span></div>
         <div class="brand-sub">複数PDFを横断検索し、ヒットページだけを連続表示</div>
       </div>
 
@@ -1192,11 +1232,14 @@
         <div class="toolbar">
           <div class="toolbar-left">
             <div class="mode-switch" aria-label="表示方法">
-              <button id="continuous-mode-btn" class="mode-btn active" type="button">
-                ヒットページ連続表示
+              <button id="continuous-mode-btn" class="mode-btn active" type="button" title="ヒットページを縦に並べて閲覧">
+                連続スクロール
               </button>
-              <button id="single-mode-btn" class="mode-btn" type="button">
-                1ページ表示
+              <button id="paged-mode-btn" class="mode-btn" type="button" title="ヒットページを1ページずつ切替">
+                ヒットページ送り
+              </button>
+              <button id="single-mode-btn" class="mode-btn" type="button" title="選択した元PDFを前後ページも含めて閲覧">
+                元PDF表示
               </button>
             </div>
           </div>
@@ -1215,9 +1258,13 @@
             </div>
 
             <span id="continuous-summary" class="continuous-summary">0ページ</span>
+            <span id="paged-position" class="paged-position" hidden>HIT 0 / 0</span>
           </div>
 
           <div class="toolbar-right">
+            <button id="fit-page-btn" class="tool-btn fit-page-btn" type="button" disabled>
+              ページに合わせる
+            </button>
             <button id="fit-width-btn" class="tool-btn fit-width-btn active" type="button" disabled>
               幅に合わせる
             </button>
@@ -1229,11 +1276,10 @@
 
         <div id="viewer-stage" class="viewer-stage">
           <div id="empty-guide" class="empty-guide">
-            <strong>ヒットページ連続表示</strong><br>
-            選択した複数PDFを横断検索し、検索語が見つかったページだけを
-            1本のスクロール資料として表示します。<br><br>
-            左上の「☰」で検索結果サイドバーを開閉できます。<br>
-            「幅に合わせる」では、サイドバー開閉後も表示幅へ自動調整します。
+            <strong>ヒットページを2つの方法で閲覧できます</strong><br>
+            「連続スクロール」は一覧確認向け、「ヒットページ送り」は1ページずつ読む用途向けです。<br><br>
+            ヒットページ送りでは、矢印キー・PageUp／PageDown・マウスホイールで前後へ移動できます。<br>
+            「ページに合わせる」を使うと、横長PDFの1ページ全体を画面内へ収めます。
           </div>
 
           <div id="continuous-wrap" class="continuous-wrap" hidden></div>
@@ -1262,6 +1308,8 @@
     const SCALE_STEP = 0.15;
     const MAX_CONTINUOUS_PAGES = 100;
     const CONTINUOUS_RENDER_MARGIN = 900;
+    const PAGE_TURN_WHEEL_THRESHOLD = 45;
+    const PAGE_TURN_COOLDOWN_MS = 420;
 
     const elements = {
       appHeader: document.getElementById('app-header'),
@@ -1271,6 +1319,7 @@
       sidebarToggleCount: document.getElementById('sidebar-toggle-count'),
       headerSelectedCount: document.getElementById('header-selected-count'),
       headerHitCount: document.getElementById('header-hit-count'),
+      fitPageBtn: document.getElementById('fit-page-btn'),
       fitWidthBtn: document.getElementById('fit-width-btn'),
       catalogTrigger: document.getElementById('catalog-trigger'),
       catalogMenu: document.getElementById('catalog-menu'),
@@ -1286,10 +1335,12 @@
       resultCount: document.getElementById('result-count'),
       resultsList: document.getElementById('results-list'),
       continuousModeBtn: document.getElementById('continuous-mode-btn'),
+      pagedModeBtn: document.getElementById('paged-mode-btn'),
       singleModeBtn: document.getElementById('single-mode-btn'),
       currentFileLabel: document.getElementById('current-file-label'),
       singleControls: document.getElementById('single-controls'),
       continuousSummary: document.getElementById('continuous-summary'),
+      pagedPosition: document.getElementById('paged-position'),
       continuousWrap: document.getElementById('continuous-wrap'),
       viewerStage: document.getElementById('viewer-stage'),
       prevBtn: document.getElementById('prev-btn'),
@@ -1318,8 +1369,13 @@
       currentPage: 1,
       currentTargetPage: null,
       currentTargetOccurrence: 1,
-      scale: 1.2,
+      scale: clampStoredScale(localStorage.getItem('pdfTextJump.manualScale'), 1.2),
       zoomMode: 'fit-width',
+      zoomPreferences: {
+        continuous: readStoredZoomMode('pdfTextJump.zoom.continuous', 'fit-width'),
+        paged: readStoredZoomMode('pdfTextJump.zoom.paged', 'fit-page'),
+        single: readStoredZoomMode('pdfTextJump.zoom.single', 'fit-page'),
+      },
       lastSingleRenderScale: 1.2,
       sidebarOpen: localStorage.getItem('pdfTextJump.sidebarOpen') !== 'false',
       lastViewerWidth: 0,
@@ -1332,12 +1388,44 @@
       viewerOpenSerial: 0,
       searchSerial: 0,
       activeResultKey: '',
-      viewerMode: 'continuous',
+      viewerMode: readStoredViewerMode(),
+      pagedIndex: 0,
+      wheelAccumulator: 0,
+      wheelLockedUntil: 0,
       continuousObserver: null,
       continuousItems: new Map(),
       continuousPdfCache: new Map(),
       continuousGeneration: 0,
     };
+
+    function readStoredViewerMode() {
+      const value = localStorage.getItem('pdfTextJump.viewerMode');
+      return ['continuous', 'paged', 'single'].includes(value) ? value : 'continuous';
+    }
+
+    function readStoredZoomMode(key, fallback) {
+      const value = localStorage.getItem(key);
+      return ['fit-width', 'fit-page', 'manual'].includes(value) ? value : fallback;
+    }
+
+    function clampStoredScale(value, fallback) {
+      const parsed = Number.parseFloat(value);
+      return Number.isFinite(parsed) ? Math.min(MAX_SCALE, Math.max(MIN_SCALE, parsed)) : fallback;
+    }
+
+    function persistViewerMode() {
+      localStorage.setItem('pdfTextJump.viewerMode', state.viewerMode);
+    }
+
+    function persistZoomPreference() {
+      state.zoomPreferences[state.viewerMode] = state.zoomMode;
+      localStorage.setItem(`pdfTextJump.zoom.${state.viewerMode}`, state.zoomMode);
+      localStorage.setItem('pdfTextJump.manualScale', String(state.scale));
+    }
+
+    function applyZoomPreferenceForMode(mode) {
+      state.zoomMode = state.zoomPreferences[mode] || (mode === 'continuous' ? 'fit-width' : 'fit-page');
+    }
 
     function setStatus(message, kind = '') {
       elements.status.textContent = message;
@@ -1365,8 +1453,37 @@
       return clampScale(availableWidth / baseViewport.width, 0.25, MAX_SCALE);
     }
 
+    function calculateFitPageScale(
+      page,
+      container,
+      horizontalAllowance = 14,
+      verticalAllowance = 14
+    ) {
+      const baseViewport = page.getViewport({ scale: 1 });
+      const availableWidth = Math.max(280, (container?.clientWidth || 0) - horizontalAllowance);
+      const availableHeight = Math.max(220, (container?.clientHeight || 0) - verticalAllowance);
+      return clampScale(
+        Math.min(
+          availableWidth / baseViewport.width,
+          availableHeight / baseViewport.height
+        ),
+        0.25,
+        MAX_SCALE
+      );
+    }
+
+    function calculateAutoScale(page, container, horizontalAllowance = 14, verticalAllowance = 14) {
+      if (state.zoomMode === 'fit-page') {
+        return calculateFitPageScale(page, container, horizontalAllowance, verticalAllowance);
+      }
+      if (state.zoomMode === 'fit-width') {
+        return calculateFitScale(page, container, horizontalAllowance);
+      }
+      return state.scale;
+    }
+
     function getCurrentDisplayScale() {
-      if (state.viewerMode === 'single' && state.lastSingleRenderScale) {
+      if (state.viewerMode !== 'continuous' && state.lastSingleRenderScale) {
         return state.lastSingleRenderScale;
       }
 
@@ -1385,7 +1502,10 @@
 
     function getContinuousRenderSignature(item) {
       if (state.zoomMode === 'fit-width') {
-        return `fit:${Math.round(getFitAvailableWidth(item.body, 10))}`;
+        return `fit-width:${Math.round(getFitAvailableWidth(item.body, 10))}`;
+      }
+      if (state.zoomMode === 'fit-page') {
+        return `fit-page:${Math.round(item.body?.clientWidth || 0)}x${Math.round(item.body?.clientHeight || 0)}`;
       }
       return `manual:${state.scale.toFixed(4)}`;
     }
@@ -1420,7 +1540,7 @@
         if (Math.abs(width - state.lastViewerWidth) < 2) return;
         state.lastViewerWidth = width;
 
-        if (state.zoomMode !== 'fit-width') return;
+        if (!['fit-width', 'fit-page'].includes(state.zoomMode)) return;
         if (state.viewerMode === 'continuous') {
           refreshContinuousScale();
         } else if (state.currentPdf) {
@@ -1429,8 +1549,10 @@
       }, 230);
     }
 
-    async function enableFitWidth() {
-      state.zoomMode = 'fit-width';
+    async function setAutoZoomMode(mode) {
+      if (!['fit-width', 'fit-page'].includes(mode)) return;
+      state.zoomMode = mode;
+      persistZoomPreference();
       updateViewerToolbar();
 
       if (state.viewerMode === 'continuous') {
@@ -1438,6 +1560,14 @@
       } else if (state.currentPdf) {
         await requestViewerRender();
       }
+    }
+
+    function enableFitWidth() {
+      return setAutoZoomMode('fit-width');
+    }
+
+    function enableFitPage() {
+      return setAutoZoomMode('fit-page');
     }
 
     function normalizeForSearch(value) {
@@ -1808,7 +1938,6 @@
       state.searchText = searchText;
       state.results = [];
       state.activeResultKey = '';
-      state.viewerMode = 'continuous';
       const query = normalizeForSearch(searchText);
       const serial = ++state.searchSerial;
 
@@ -1848,11 +1977,22 @@
         setProgress(100, true);
 
         if (pageResults.length) {
-          buildContinuousViewer();
-          renderViewerMode();
+          if (state.viewerMode === 'continuous') {
+            buildContinuousViewer();
+            renderViewerMode();
+          } else if (state.viewerMode === 'paged') {
+            await openPagedSearchResult(pageResults[0], 0);
+          } else {
+            await openSingleSearchResult(pageResults[0]);
+          }
+          const modeMessage = state.viewerMode === 'continuous'
+            ? 'ヒットページを連続表示しています。'
+            : state.viewerMode === 'paged'
+              ? 'ヒットページ送りで表示しています。'
+              : '最初のヒットページを元PDF表示で開いています。';
           setStatus(
             `検索完了：「${state.searchText}」を${selectedEntries.length}件のPDFから検索し、` +
-            `${pageResults.length}ページで見つけました。ヒットページだけを連続表示しています。` +
+            `${pageResults.length}ページで見つけました。${modeMessage}` +
             `${errorCount ? ` 読込失敗：${errorCount}件。` : ''}`,
             errorCount ? 'warning' : 'success'
           );
@@ -1975,14 +2115,22 @@
     function renderViewerMode() {
       const pageResults = getPageResults();
       const isContinuous = state.viewerMode === 'continuous';
+      const isPaged = state.viewerMode === 'paged';
+      const isSingle = state.viewerMode === 'single';
 
       elements.continuousModeBtn.classList.toggle('active', isContinuous);
-      elements.singleModeBtn.classList.toggle('active', !isContinuous);
+      elements.pagedModeBtn.classList.toggle('active', isPaged);
+      elements.singleModeBtn.classList.toggle('active', isSingle);
       elements.singleControls.hidden = isContinuous;
       elements.continuousSummary.hidden = !isContinuous;
+      elements.pagedPosition.hidden = !isPaged;
       elements.continuousWrap.hidden = !isContinuous || !pageResults.length;
       elements.pageWrap.hidden = isContinuous || !state.currentPdf;
       elements.emptyGuide.hidden = Boolean(pageResults.length || state.currentPdf);
+      elements.viewerStage.classList.toggle(
+        'page-fit-active',
+        !isContinuous && state.zoomMode === 'fit-page'
+      );
 
       if (isContinuous) {
         elements.currentFileLabel.textContent = pageResults.length
@@ -1990,14 +2138,29 @@
           : '検索結果未表示';
         elements.currentFileLabel.title = elements.currentFileLabel.textContent;
         elements.continuousSummary.textContent = `${Math.min(pageResults.length, MAX_CONTINUOUS_PAGES)}ページ表示`;
+      } else if (isPaged) {
+        const current = pageResults[state.pagedIndex];
+        elements.pagedPosition.textContent = pageResults.length
+          ? `HIT ${state.pagedIndex + 1} / ${pageResults.length}`
+          : 'HIT 0 / 0';
+        if (current) {
+          elements.currentFileLabel.textContent = `${current.label}｜元PDF ${current.pageNumber}ページ`;
+          elements.currentFileLabel.title = `${current.label}（${current.file}） ${current.pageNumber}ページ`;
+        }
       }
 
       updateViewerToolbar();
     }
 
     async function setViewerMode(mode) {
-      if (!['continuous', 'single'].includes(mode)) return;
+      if (!['continuous', 'paged', 'single'].includes(mode)) return;
+      const modeChanged = state.viewerMode !== mode;
       state.viewerMode = mode;
+      persistViewerMode();
+
+      if (modeChanged) {
+        applyZoomPreferenceForMode(mode);
+      }
 
       if (mode === 'continuous') {
         if (getPageResults().length && !state.continuousItems.size) {
@@ -2008,12 +2171,18 @@
         return;
       }
 
-      renderViewerMode();
+      const pageResults = getPageResults();
+      const activeIndex = pageResults.findIndex(item => resultKey(item) === state.activeResultKey);
+      const index = activeIndex >= 0 ? activeIndex : Math.min(state.pagedIndex, Math.max(0, pageResults.length - 1));
+      const target = pageResults[index] || pageResults[0];
 
-      if (!state.currentPdf) {
-        const active = getPageResults().find(item => resultKey(item) === state.activeResultKey);
-        const first = active || getPageResults()[0];
-        if (first) await openSingleSearchResult(first);
+      renderViewerMode();
+      if (!target) return;
+
+      if (mode === 'paged') {
+        await openPagedSearchResult(target, index);
+      } else {
+        await openSingleSearchResult(target);
       }
     }
 
@@ -2087,11 +2256,9 @@
         const singleButton = document.createElement('button');
         singleButton.type = 'button';
         singleButton.className = 'continuous-open-single';
-        singleButton.textContent = '1ページ表示';
+        singleButton.textContent = '元PDF表示';
         singleButton.addEventListener('click', async event => {
           event.stopPropagation();
-          state.viewerMode = 'single';
-          renderViewerMode();
           await openSingleSearchResult(result);
         });
 
@@ -2245,9 +2412,7 @@
       const page = await pdf.getPage(item.result.pageNumber);
       if (!isCurrentContinuousRequest(item, token)) return;
 
-      const effectiveScale = state.zoomMode === 'fit-width'
-        ? calculateFitScale(page, item.body, 10)
-        : state.scale;
+      const effectiveScale = calculateAutoScale(page, item.body, 10, 10);
       const viewport = page.getViewport({ scale: effectiveScale });
       const outputScale = window.devicePixelRatio || 1;
       const context = item.canvas.getContext('2d', { alpha: false });
@@ -2376,11 +2541,23 @@
       state.activeResultKey = key;
       renderResults();
 
-      const item = state.continuousItems.get(key);
+      let item = state.continuousItems.get(key);
+      const resultIndex = getPageResults().findIndex(candidate => resultKey(candidate) === key);
+
+      if (!item && !state.continuousItems.size && resultIndex >= 0 && resultIndex < MAX_CONTINUOUS_PAGES) {
+        buildContinuousViewer();
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        item = state.continuousItems.get(key);
+      }
+
       if (!item) {
-        state.viewerMode = 'single';
-        renderViewerMode();
-        await openSingleSearchResult(result);
+        setStatus(
+          resultIndex >= MAX_CONTINUOUS_PAGES
+            ? `このページは連続表示の上限（${MAX_CONTINUOUS_PAGES}ページ）外です。` +
+              '「ヒットページ送り」または「元PDF表示」で確認してください。'
+            : '連続表示の準備中です。少し待ってからもう一度選択してください。',
+          'warning'
+        );
         return;
       }
 
@@ -2496,29 +2673,47 @@
       if (state.viewerMode === 'continuous') {
         return scrollToContinuousResult(result);
       }
+      if (state.viewerMode === 'paged') {
+        const index = getPageResults().findIndex(item => resultKey(item) === resultKey(result));
+        return openPagedSearchResult(result, index >= 0 ? index : 0);
+      }
       return openSingleSearchResult(result);
     }
 
-    async function openSingleSearchResult(result) {
-      state.viewerMode = 'single';
+    function openPagedSearchResult(result, index) {
+      state.pagedIndex = Math.max(0, index);
+      return openResultInCanvas(result, 'paged');
+    }
+
+    function openSingleSearchResult(result) {
+      return openResultInCanvas(result, 'single');
+    }
+
+    async function openResultInCanvas(result, mode) {
+      if (!['paged', 'single'].includes(mode)) return;
+
+      const modeChanged = state.viewerMode !== mode;
+      state.viewerMode = mode;
+      persistViewerMode();
+      if (modeChanged) applyZoomPreferenceForMode(mode);
       renderViewerMode();
 
       const openSerial = ++state.viewerOpenSerial;
-      const key = `${result.file}::${result.pageNumber}`;
+      const key = resultKey(result);
       const targetPage = result.pageNumber;
       const targetOccurrence = 1;
 
       state.activeResultKey = key;
+      if (mode === 'paged') {
+        const foundIndex = getPageResults().findIndex(item => resultKey(item) === key);
+        if (foundIndex >= 0) state.pagedIndex = foundIndex;
+      }
       renderResults();
 
       const sameFile = state.currentPdf && state.currentFile === result.file;
 
       try {
         if (!sameFile) {
-          /*
-            destroyCurrentPdf() は表示ページを1ページ目へ初期化するため、
-            ヒットページの設定は新しいPDFを読み込んだ後に行う。
-          */
           await destroyCurrentPdf();
           if (openSerial !== state.viewerOpenSerial) return;
 
@@ -2578,27 +2773,58 @@
       const total = state.currentPdf?.numPages || 0;
       const pageResults = getPageResults();
       const isContinuous = state.viewerMode === 'continuous';
+      const isPaged = state.viewerMode === 'paged';
 
-      if (!isContinuous) {
+      if (state.viewerMode === 'single') {
         elements.currentFileLabel.textContent = state.currentFileLabel || 'PDF未選択';
         elements.currentFileLabel.title = state.currentFileLabel || '';
+      } else if (isPaged) {
+        const current = pageResults[state.pagedIndex];
+        if (current) {
+          elements.currentFileLabel.textContent = `${current.label}｜元PDF ${current.pageNumber}ページ`;
+          elements.currentFileLabel.title = `${current.label}（${current.file}） ${current.pageNumber}ページ`;
+        }
       }
 
-      elements.pageInput.value = String(state.currentPage);
-      elements.pageInput.max = String(total || 1);
-      elements.pageCount.textContent = String(total);
+      if (isPaged) {
+        elements.pageInput.value = String(pageResults.length ? state.pagedIndex + 1 : 1);
+        elements.pageInput.max = String(pageResults.length || 1);
+        elements.pageCount.textContent = String(pageResults.length);
+        elements.pagedPosition.textContent = pageResults.length
+          ? `HIT ${state.pagedIndex + 1} / ${pageResults.length}`
+          : 'HIT 0 / 0';
+      } else {
+        elements.pageInput.value = String(state.currentPage);
+        elements.pageInput.max = String(total || 1);
+        elements.pageCount.textContent = String(total);
+      }
 
       const displayScale = getCurrentDisplayScale();
       elements.zoomLabel.textContent = state.zoomMode === 'fit-width'
-        ? '自動'
-        : `${Math.round(state.scale * 100)}%`;
+        ? '幅自動'
+        : state.zoomMode === 'fit-page'
+          ? 'ページ自動'
+          : `${Math.round(state.scale * 100)}%`;
       elements.fitWidthBtn.classList.toggle('active', state.zoomMode === 'fit-width');
+      elements.fitPageBtn.classList.toggle('active', state.zoomMode === 'fit-page');
+      elements.fitPageBtn.hidden = isContinuous;
+      elements.viewerStage.classList.toggle(
+        'page-fit-active',
+        !isContinuous && state.zoomMode === 'fit-page'
+      );
 
-      elements.prevBtn.disabled = isContinuous || !state.currentPdf || state.currentPage <= 1;
-      elements.nextBtn.disabled = isContinuous || !state.currentPdf || state.currentPage >= total;
-      elements.pageInput.disabled = isContinuous || !state.currentPdf;
+      if (isPaged) {
+        elements.prevBtn.disabled = pageResults.length === 0 || state.pagedIndex <= 0;
+        elements.nextBtn.disabled = pageResults.length === 0 || state.pagedIndex >= pageResults.length - 1;
+        elements.pageInput.disabled = pageResults.length === 0;
+      } else {
+        elements.prevBtn.disabled = isContinuous || !state.currentPdf || state.currentPage <= 1;
+        elements.nextBtn.disabled = isContinuous || !state.currentPdf || state.currentPage >= total;
+        elements.pageInput.disabled = isContinuous || !state.currentPdf;
+      }
 
       const zoomAvailable = isContinuous ? pageResults.length > 0 : Boolean(state.currentPdf);
+      elements.fitPageBtn.disabled = !zoomAvailable || isContinuous;
       elements.fitWidthBtn.disabled = !zoomAvailable;
       elements.zoomOutBtn.disabled = !zoomAvailable || displayScale <= MIN_SCALE;
       elements.zoomInBtn.disabled = !zoomAvailable || displayScale >= MAX_SCALE;
@@ -2662,9 +2888,9 @@
         return;
       }
 
-      const effectiveScale = state.zoomMode === 'fit-width'
-        ? calculateFitScale(page, elements.viewerStage, 14)
-        : scale;
+      const effectiveScale = state.zoomMode === 'manual'
+        ? scale
+        : calculateAutoScale(page, elements.viewerStage, 14, 14);
       state.lastSingleRenderScale = effectiveScale;
 
       const viewport = page.getViewport({ scale: effectiveScale });
@@ -2793,6 +3019,17 @@
     }
 
     function changePage(nextPage) {
+      if (state.viewerMode === 'paged') {
+        const pageResults = getPageResults();
+        if (!pageResults.length) return Promise.resolve();
+
+        const nextIndex = Math.min(
+          pageResults.length - 1,
+          Math.max(0, (Number.parseInt(nextPage, 10) || 1) - 1)
+        );
+        return openPagedSearchResult(pageResults[nextIndex], nextIndex);
+      }
+
       if (!state.currentPdf) return Promise.resolve();
 
       state.currentPage = Math.min(
@@ -2804,13 +3041,21 @@
       return requestViewerRender();
     }
 
+    function movePageBy(direction) {
+      if (state.viewerMode === 'paged') {
+        return changePage(state.pagedIndex + 1 + direction);
+      }
+      return changePage(state.currentPage + direction);
+    }
+
     function changeScale(delta) {
-      const baseScale = state.zoomMode === 'fit-width'
+      const baseScale = ['fit-width', 'fit-page'].includes(state.zoomMode)
         ? getCurrentDisplayScale()
         : state.scale;
 
       state.zoomMode = 'manual';
       state.scale = clampScale(baseScale + delta);
+      persistZoomPreference();
       updateViewerToolbar();
 
       if (state.viewerMode === 'continuous') {
@@ -2851,11 +3096,13 @@
     });
 
     elements.continuousModeBtn.addEventListener('click', () => setViewerMode('continuous'));
+    elements.pagedModeBtn.addEventListener('click', () => setViewerMode('paged'));
     elements.singleModeBtn.addEventListener('click', () => setViewerMode('single'));
 
-    elements.prevBtn.addEventListener('click', () => changePage(state.currentPage - 1));
-    elements.nextBtn.addEventListener('click', () => changePage(state.currentPage + 1));
+    elements.prevBtn.addEventListener('click', () => movePageBy(-1));
+    elements.nextBtn.addEventListener('click', () => movePageBy(1));
     elements.pageInput.addEventListener('change', () => changePage(elements.pageInput.value));
+    elements.fitPageBtn.addEventListener('click', enableFitPage);
     elements.fitWidthBtn.addEventListener('click', enableFitWidth);
     elements.zoomOutBtn.addEventListener('click', () => changeScale(-SCALE_STEP));
     elements.zoomInBtn.addEventListener('click', () => changeScale(SCALE_STEP));
@@ -2866,6 +3113,48 @@
     elements.viewerStage.addEventListener('scroll', () => {
       if (state.viewerMode === 'continuous') scheduleVisibleContinuousPages();
     }, { passive: true });
+
+    function isTypingTarget(target) {
+      return Boolean(
+        target instanceof HTMLElement &&
+        (target.matches('input, textarea, select') || target.isContentEditable)
+      );
+    }
+
+    document.addEventListener('keydown', event => {
+      if (isTypingTarget(event.target) || !elements.catalogMenu.hidden) return;
+      if (state.viewerMode === 'continuous') return;
+
+      const previousKeys = ['ArrowLeft', 'ArrowUp', 'PageUp'];
+      const nextKeys = ['ArrowRight', 'ArrowDown', 'PageDown'];
+
+      if (previousKeys.includes(event.key)) {
+        event.preventDefault();
+        movePageBy(-1);
+      } else if (nextKeys.includes(event.key) || (event.key === ' ' && !event.shiftKey)) {
+        event.preventDefault();
+        movePageBy(1);
+      } else if (event.key === ' ' && event.shiftKey) {
+        event.preventDefault();
+        movePageBy(-1);
+      }
+    });
+
+    elements.viewerStage.addEventListener('wheel', event => {
+      if (state.viewerMode !== 'paged' || event.ctrlKey || event.metaKey) return;
+
+      event.preventDefault();
+      const now = performance.now();
+      if (now < state.wheelLockedUntil) return;
+
+      state.wheelAccumulator += event.deltaY;
+      if (Math.abs(state.wheelAccumulator) < PAGE_TURN_WHEEL_THRESHOLD) return;
+
+      const direction = state.wheelAccumulator > 0 ? 1 : -1;
+      state.wheelAccumulator = 0;
+      state.wheelLockedUntil = now + PAGE_TURN_COOLDOWN_MS;
+      movePageBy(direction);
+    }, { passive: false });
 
     window.addEventListener('beforeunload', () => {
       if (state.renderTask) {
@@ -2878,6 +3167,7 @@
       }
     });
 
+    applyZoomPreferenceForMode(state.viewerMode);
     applySidebarState({ persist: false, refresh: false });
     updateHeaderHeight();
     state.lastViewerWidth = elements.viewerStage.clientWidth;
