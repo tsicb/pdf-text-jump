@@ -1151,6 +1151,171 @@
     }
 
 
+
+
+    /* ===== v4.1：AND／OR複数語検索 ===== */
+    .search-mode-field {
+      flex: 0 0 auto;
+    }
+
+    .search-mode-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .search-mode-switch {
+      display: inline-flex;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,.58);
+      border-radius: 7px;
+      background: rgba(255,255,255,.12);
+    }
+
+    .search-mode-btn {
+      min-height: 30px;
+      border: 0;
+      border-right: 1px solid rgba(255,255,255,.38);
+      padding: 0 9px;
+      background: transparent;
+      color: rgba(255,255,255,.9);
+      cursor: pointer;
+      font-size: 10px;
+      font-weight: 800;
+      white-space: nowrap;
+      transition: .15s ease;
+    }
+
+    .search-mode-btn:last-child {
+      border-right: 0;
+    }
+
+    .search-mode-btn:hover {
+      background: rgba(255,255,255,.15);
+      color: #fff;
+    }
+
+    .search-mode-btn.active {
+      background: #fff;
+      color: #1d4ed8;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.72);
+    }
+
+    .search-mode-btn:disabled {
+      cursor: wait;
+      opacity: .62;
+    }
+
+    .search-mode-code {
+      margin-left: 3px;
+      font-size: 8px;
+      opacity: .72;
+    }
+
+    .search-help-btn {
+      width: 26px;
+      height: 26px;
+      border: 1px solid rgba(255,255,255,.52);
+      border-radius: 999px;
+      background: rgba(255,255,255,.1);
+      color: #fff;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 900;
+    }
+
+    .search-help-btn:hover,
+    .search-help-btn[aria-expanded="true"] {
+      background: #fff;
+      color: #1d4ed8;
+    }
+
+    .search-help-popover {
+      position: absolute;
+      top: calc(100% + 9px);
+      right: 0;
+      z-index: 80;
+      width: min(390px, 88vw);
+      padding: 13px 14px;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      background: #fff;
+      color: #334155;
+      box-shadow: 0 12px 35px rgba(15,23,42,.25);
+      font-size: 11px;
+      line-height: 1.65;
+    }
+
+    .search-help-popover::before {
+      content: '';
+      position: absolute;
+      top: -7px;
+      right: 7px;
+      width: 12px;
+      height: 12px;
+      border-top: 1px solid #cbd5e1;
+      border-left: 1px solid #cbd5e1;
+      background: #fff;
+      transform: rotate(45deg);
+    }
+
+    .search-help-title {
+      margin-bottom: 6px;
+      color: #17365f;
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .search-help-block + .search-help-block {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    .search-help-popover code {
+      padding: 1px 4px;
+      border-radius: 4px;
+      background: #eef5ff;
+      color: #1d4ed8;
+      font-family: inherit;
+      font-weight: 700;
+    }
+
+    .result-match-summary {
+      color: #7c3aed;
+      font-size: 9px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .term-badges {
+      margin-top: 5px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+
+    .term-badge {
+      max-width: 100%;
+      padding: 2px 6px;
+      overflow: hidden;
+      border: 1px solid #bfdbfe;
+      border-radius: 999px;
+      background: #eff6ff;
+      color: #1d4ed8;
+      font-size: 8px;
+      font-weight: 800;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    @media (max-width: 1180px) {
+      .search-mode-btn { padding-inline: 7px; }
+      .search-mode-field > label { display: none; }
+    }
+
+
     /* v4.0: PDF出力・ページ選択 */
     .export-btn {
       border-color: #86a9d8;
@@ -1468,8 +1633,8 @@
       </button>
 
       <div class="brand">
-        <div class="brand-title">PDF Text Jump Viewer <span style="font-size:10px;opacity:.65">v4.0</span></div>
-        <div class="brand-sub">複数PDFを横断検索し、選択ページをPDF出力</div>
+        <div class="brand-title">PDF Text Jump Viewer <span style="font-size:10px;opacity:.65">v4.1</span></div>
+        <div class="brand-sub">複数PDFをAND／OR検索し、ヒットページを閲覧・PDF出力</div>
       </div>
 
       <div class="field">
@@ -1493,7 +1658,46 @@
 
       <div class="field">
         <label for="text-input">検索語</label>
-        <input id="text-input" type="text" placeholder="例：有効求人倍率" autocomplete="off">
+        <input id="text-input" type="text" placeholder="例：東京 正社員 未経験" autocomplete="off">
+      </div>
+
+      <div class="field search-mode-field">
+        <label>検索条件</label>
+        <div class="search-mode-wrap">
+          <div class="search-mode-switch" role="group" aria-label="検索条件">
+            <button id="search-mode-and" class="search-mode-btn active" type="button" aria-pressed="true">
+              すべて含む<span class="search-mode-code">AND</span>
+            </button>
+            <button id="search-mode-or" class="search-mode-btn" type="button" aria-pressed="false">
+              どれか含む<span class="search-mode-code">OR</span>
+            </button>
+          </div>
+
+          <button
+            id="search-help-btn"
+            class="search-help-btn"
+            type="button"
+            aria-controls="search-help-popover"
+            aria-expanded="false"
+            title="AND／OR検索の説明"
+          >?</button>
+
+          <div id="search-help-popover" class="search-help-popover" hidden>
+            <div class="search-help-title">スペース区切り検索</div>
+            <div class="search-help-block">
+              <strong>すべて含む（AND）</strong><br>
+              スペースで区切った語句が、同じページ内にすべてある場合だけヒットします。
+            </div>
+            <div class="search-help-block">
+              <strong>どれか含む（OR）</strong><br>
+              スペースで区切った語句のうち、1語以上が同じページにあればヒットします。
+            </div>
+            <div class="search-help-block">
+              例：<code>東京 正社員 未経験</code><br>
+              半角・全角スペースのどちらでも区切れます。重複した語句は1語として扱います。
+            </div>
+          </div>
+        </div>
       </div>
 
       <button id="search-btn" class="primary-btn" type="button" disabled>横断検索</button>
@@ -1583,6 +1787,7 @@
             <strong>ヒットページを2つの方法で閲覧できます</strong><br>
             「連続スクロール」は一覧確認向け、「ヒットページ送り」は1ページずつ読む用途向けです。<br><br>
             ヒットページ送りでは、矢印キー・PageUp／PageDown・マウスホイールで前後へ移動できます。<br>
+            検索語をスペースで区切り、「すべて含む（AND）」または「どれか含む（OR）」で横断検索できます。<br>
             「ページに合わせる」を使うと、横長PDFの1ページ全体を画面内へ収めます。
           </div>
 
@@ -1625,8 +1830,8 @@
           <label class="export-option">
             <input id="export-highlight" type="checkbox" checked>
             <span>
-              <div class="export-option-main">検索語を黄色でハイライトする</div>
-              <div class="export-option-note">PDF内の文字位置を解析し、半透明の黄色い矩形をPDFへ追加します。PDFの文字構造によって範囲が広くなる場合があります。</div>
+              <div class="export-option-main">一致した検索語を黄色でハイライトする</div>
+              <div class="export-option-note">ページ内で実際に一致した語句の文字位置を解析し、半透明の黄色い矩形をPDFへ追加します。PDFの文字構造によって範囲が広くなる場合があります。</div>
             </span>
           </label>
 
@@ -1694,6 +1899,10 @@
       selectAllBtn: document.getElementById('select-all-btn'),
       clearAllBtn: document.getElementById('clear-all-btn'),
       textInput: document.getElementById('text-input'),
+      searchModeAnd: document.getElementById('search-mode-and'),
+      searchModeOr: document.getElementById('search-mode-or'),
+      searchHelpBtn: document.getElementById('search-help-btn'),
+      searchHelpPopover: document.getElementById('search-help-popover'),
       searchBtn: document.getElementById('search-btn'),
       status: document.getElementById('status'),
       progressTrack: document.getElementById('progress-track'),
@@ -1741,6 +1950,9 @@
       catalogSource: '',
       results: [],
       searchText: '',
+      searchTerms: [],
+      searchMode: readStoredSearchMode(),
+      executedSearchMode: 'and',
       currentPdf: null,
       currentFile: '',
       currentFileLabel: '',
@@ -1781,6 +1993,11 @@
     function readStoredViewerMode() {
       const value = localStorage.getItem('pdfTextJump.viewerMode');
       return ['continuous', 'paged', 'single'].includes(value) ? value : 'continuous';
+    }
+
+    function readStoredSearchMode() {
+      const value = localStorage.getItem('pdfTextJump.searchMode');
+      return ['and', 'or'].includes(value) ? value : 'and';
     }
 
     function readStoredZoomMode(key, fallback) {
@@ -1957,6 +2174,78 @@
         .toLocaleLowerCase('ja-JP');
     }
 
+    function parseSearchTerms(rawText) {
+      const seen = new Set();
+      const terms = [];
+
+      for (const rawTerm of String(rawText || '').trim().split(/[\s\u00A0\u2000-\u200B\u3000]+/u)) {
+        const term = rawTerm.trim();
+        const normalized = normalizeForSearch(term);
+        if (!normalized || seen.has(normalized)) continue;
+        seen.add(normalized);
+        terms.push({ term, normalized });
+      }
+
+      return terms;
+    }
+
+    function searchModeLabel(mode = state.searchMode) {
+      return mode === 'or' ? 'どれか含む（OR）' : 'すべて含む（AND）';
+    }
+
+    function updateSearchModeUi() {
+      const isAnd = state.searchMode === 'and';
+      elements.searchModeAnd.classList.toggle('active', isAnd);
+      elements.searchModeOr.classList.toggle('active', !isAnd);
+      elements.searchModeAnd.setAttribute('aria-pressed', String(isAnd));
+      elements.searchModeOr.setAttribute('aria-pressed', String(!isAnd));
+    }
+
+    function setSearchMode(mode, { persist = true, updateUrl = false } = {}) {
+      state.searchMode = mode === 'or' ? 'or' : 'and';
+      if (persist) localStorage.setItem('pdfTextJump.searchMode', state.searchMode);
+      updateSearchModeUi();
+      if (updateUrl && state.searchText) updateUrlState();
+    }
+
+    function toggleSearchHelp(force) {
+      const shouldOpen = typeof force === 'boolean'
+        ? force
+        : elements.searchHelpPopover.hidden;
+      elements.searchHelpPopover.hidden = !shouldOpen;
+      elements.searchHelpBtn.setAttribute('aria-expanded', String(shouldOpen));
+    }
+
+    function evaluatePageSearch(normalizedPageText, searchTerms, mode) {
+      const termMatches = searchTerms.map(term => ({
+        term: term.term,
+        normalized: term.normalized,
+        count: countOccurrences(normalizedPageText, term.normalized),
+      }));
+      const matchedTerms = termMatches.filter(item => item.count > 0);
+      const isHit = mode === 'or'
+        ? matchedTerms.length > 0
+        : matchedTerms.length === searchTerms.length;
+
+      return {
+        isHit,
+        matchedTerms,
+        matchedTermCount: matchedTerms.length,
+        totalTermCount: searchTerms.length,
+        hitCount: matchedTerms.reduce((sum, item) => sum + item.count, 0),
+      };
+    }
+
+    function formatResultMatchSummary(result) {
+      const totalTerms = result.totalTermCount || state.searchTerms.length || 1;
+      const matchedTerms = result.matchedTermCount || result.matchedTerms?.length || 1;
+      if (totalTerms <= 1) return `${result.hitCount}件一致`;
+      if ((result.searchMode || state.executedSearchMode) === 'or') {
+        return `${matchedTerms} / ${totalTerms}語一致・合計${result.hitCount}か所`;
+      }
+      return `${totalTerms}語すべて一致・合計${result.hitCount}か所`;
+    }
+
     function normalizeBaseDir(value) {
       let dir = String(value || DEFAULT_PDF_BASE_DIR).trim().replaceAll('\\', '/');
       dir = dir.replace(/^\/+/, '');
@@ -2012,6 +2301,9 @@
       return {
         files: [...new Set(files)],
         text: params.get('text') || '',
+        mode: ['and', 'or'].includes(params.get('mode'))
+          ? params.get('mode')
+          : (params.has('text') ? 'and' : ''),
       };
     }
 
@@ -2025,6 +2317,7 @@
 
       if (state.searchText) {
         url.searchParams.set('text', state.searchText);
+        url.searchParams.set('mode', state.searchMode);
       }
 
       window.history.replaceState(null, '', url);
@@ -2121,6 +2414,8 @@
 
       const initial = readUrlState();
       elements.textInput.value = initial.text;
+      if (initial.mode) setSearchMode(initial.mode, { persist: true });
+      else updateSearchModeUi();
 
       const catalogFiles = new Set(state.catalog.map(item => item.file));
       for (const requestedFile of initial.files) {
@@ -2234,24 +2529,26 @@
       return count;
     }
 
-    function createSnippet(text, searchText) {
+    function createSnippet(text, searchTerms) {
       const plain = String(text || '').replace(/\s+/g, ' ').trim();
       if (!plain) return '';
 
-      const normalizedQuery = normalizeForSearch(searchText);
       const normalizedPlain = normalizeForSearch(plain);
-      const index = normalizedPlain.indexOf(normalizedQuery);
+      const indices = searchTerms
+        .map(term => normalizedPlain.indexOf(term.normalized))
+        .filter(index => index >= 0);
+      const index = indices.length ? Math.min(...indices) : -1;
 
       if (index === -1) return plain.slice(0, 90);
 
       // 正規化後の位置と元文字列の位置は厳密には一致しないため、
-      // 見出し用途として近似的に先頭部分を返す。
+      // 見出し用途として近似的に周辺部分を返す。
       const roughStart = Math.max(0, Math.min(plain.length - 1, index - 28));
       const snippet = plain.slice(roughStart, roughStart + 120);
       return `${roughStart > 0 ? '…' : ''}${snippet}${roughStart + 120 < plain.length ? '…' : ''}`;
     }
 
-    async function searchOnePdf(entry, query, fileIndex, fileTotal, serial) {
+    async function searchOnePdf(entry, searchTerms, searchMode, fileIndex, fileTotal, serial) {
       const path = buildPdfPath(entry.file);
       setStatus(`検索中：${entry.label} を読み込んでいます（${fileIndex + 1} / ${fileTotal}ファイル）`);
 
@@ -2267,15 +2564,19 @@
           const textContent = await page.getTextContent();
           const pageText = textContent.items.map(item => item.str ?? '').join(' ');
           const normalizedPageText = normalizeForSearch(pageText);
-          const hitCount = countOccurrences(normalizedPageText, query);
+          const match = evaluatePageSearch(normalizedPageText, searchTerms, searchMode);
 
-          if (hitCount > 0) {
+          if (match.isHit) {
             results.push({
               file: entry.file,
               label: entry.label,
               pageNumber,
-              hitCount,
-              snippet: createSnippet(pageText, state.searchText),
+              hitCount: match.hitCount,
+              matchedTerms: match.matchedTerms,
+              matchedTermCount: match.matchedTermCount,
+              totalTermCount: match.totalTermCount,
+              searchMode,
+              snippet: createSnippet(pageText, searchTerms),
             });
           }
 
@@ -2302,6 +2603,13 @@
         return;
       }
 
+      const searchTerms = parseSearchTerms(searchText);
+      if (!searchTerms.length) {
+        setStatus('有効な検索語を入力してください。', 'warning');
+        elements.textInput.focus();
+        return;
+      }
+
       const selectedEntries = state.catalog.filter(item => state.selectedFiles.has(item.file));
       if (!selectedEntries.length) {
         setStatus('検索対象PDFを1件以上選択してください。', 'warning');
@@ -2309,18 +2617,23 @@
         return;
       }
 
+      const executedSearchMode = state.searchMode;
       elements.searchBtn.disabled = true;
       elements.catalogTrigger.disabled = true;
+      elements.searchModeAnd.disabled = true;
+      elements.searchModeOr.disabled = true;
 
       await disposeContinuousViewer();
       await destroyCurrentPdf();
 
       state.searchText = searchText;
+      state.searchTerms = searchTerms;
+      state.executedSearchMode = executedSearchMode;
+      localStorage.setItem('pdfTextJump.searchMode', executedSearchMode);
       state.results = [];
       state.activeResultKey = '';
       state.exportSelectedKeys.clear();
       updateExportUi();
-      const query = normalizeForSearch(searchText);
       const serial = ++state.searchSerial;
 
       renderViewerMode();
@@ -2335,7 +2648,8 @@
           try {
             const fileResults = await searchOnePdf(
               entry,
-              query,
+              searchTerms,
+              executedSearchMode,
               fileIndex,
               selectedEntries.length,
               serial
@@ -2374,15 +2688,16 @@
               ? 'ヒットページ送りで表示しています。'
               : '最初のヒットページを元PDF表示で開いています。';
           setStatus(
-            `検索完了：「${state.searchText}」を${selectedEntries.length}件のPDFから検索し、` +
-            `${pageResults.length}ページで見つけました。${modeMessage}` +
+            `検索完了：${searchModeLabel(executedSearchMode)}で「${state.searchTerms.map(item => item.term).join(' / ')}」を` +
+            `${selectedEntries.length}件のPDFから検索し、${pageResults.length}ページで見つけました。${modeMessage}` +
             `${errorCount ? ` 読込失敗：${errorCount}件。` : ''}`,
             errorCount ? 'warning' : 'success'
           );
         } else {
           renderViewerMode();
           setStatus(
-            `検索完了：「${state.searchText}」は選択したPDF内で見つかりませんでした。` +
+            `検索完了：${searchModeLabel(executedSearchMode)}で「${state.searchTerms.map(item => item.term).join(' / ')}」は` +
+            '選択したPDF内で見つかりませんでした。' +
             `${errorCount ? ` 読込失敗：${errorCount}件。` : ''}`,
             'warning'
           );
@@ -2394,6 +2709,8 @@
         setTimeout(() => setProgress(0, false), 800);
         elements.searchBtn.disabled = false;
         elements.catalogTrigger.disabled = false;
+        elements.searchModeAnd.disabled = false;
+        elements.searchModeOr.disabled = false;
       }
     }
 
@@ -2482,11 +2799,24 @@
           pageChip.textContent = `${result.pageNumber}ページ`;
 
           const hit = document.createElement('span');
-          hit.className = 'hit-count';
-          hit.textContent = `${result.hitCount}件一致`;
+          hit.className = 'result-match-summary';
+          hit.textContent = formatResultMatchSummary(result);
 
           main.append(pageChip, hit);
           button.appendChild(main);
+
+          if (result.matchedTerms?.length) {
+            const badges = document.createElement('div');
+            badges.className = 'term-badges';
+            result.matchedTerms.forEach(item => {
+              const badge = document.createElement('span');
+              badge.className = 'term-badge';
+              badge.textContent = item.term;
+              badge.title = `${item.term}：${item.count}か所`;
+              badges.appendChild(badge);
+            });
+            button.appendChild(badges);
+          }
 
           if (result.snippet) {
             const snippet = document.createElement('div');
@@ -2771,7 +3101,7 @@
         const meta = document.createElement('div');
         meta.className = 'continuous-page-meta';
         meta.textContent =
-          `元PDF：${result.file} ／ ${result.pageNumber}ページ ／ ${result.hitCount}件一致`;
+          `元PDF：${result.file} ／ ${result.pageNumber}ページ ／ ${formatResultMatchSummary(result)}`;
 
         titleWrap.append(title, meta);
 
@@ -3002,7 +3332,7 @@
 
       if (!isCurrentContinuousRequest(item, token)) return;
 
-      highlightAllOccurrencesInLayer(item.textLayer, state.searchText);
+      highlightSearchTermsInLayer(item.textLayer, state.searchTerms);
       item.renderedScale = effectiveScale;
       item.renderedSignature = signature;
       item.status.hidden = true;
@@ -3018,13 +3348,7 @@
       );
     }
 
-    function highlightAllOccurrencesInLayer(textLayerElement, searchText) {
-      const spans = Array.from(textLayerElement.querySelectorAll('span'));
-      spans.forEach(span => span.classList.remove('search-hit'));
-
-      const query = normalizeForSearch(searchText);
-      if (!query || !spans.length) return;
-
+    function collectHitSpans(spans, searchTerms) {
       let joined = '';
       const ranges = [];
 
@@ -3035,22 +3359,41 @@
         ranges.push({ span, start, end: joined.length });
       });
 
-      let from = 0;
       const hitSpans = new Set();
+      for (const term of searchTerms || []) {
+        const query = term.normalized || normalizeForSearch(term.term || term);
+        if (!query) continue;
 
-      while (from <= joined.length - query.length) {
-        const start = joined.indexOf(query, from);
-        if (start === -1) break;
-        const end = start + query.length;
-
-        ranges
-          .filter(range => range.end > start && range.start < end)
-          .forEach(range => hitSpans.add(range.span));
-
-        from = start + Math.max(1, query.length);
+        let from = 0;
+        while (from <= joined.length - query.length) {
+          const start = joined.indexOf(query, from);
+          if (start === -1) break;
+          const end = start + query.length;
+          ranges
+            .filter(range => range.end > start && range.start < end)
+            .forEach(range => hitSpans.add(range.span));
+          from = start + Math.max(1, query.length);
+        }
       }
 
+      return hitSpans;
+    }
+
+    function highlightSearchTermsInLayer(textLayerElement, searchTerms, scrollToFirst = false) {
+      const spans = Array.from(textLayerElement.querySelectorAll('span'));
+      spans.forEach(span => span.classList.remove('search-hit'));
+      if (!spans.length || !(searchTerms || []).length) return;
+
+      const hitSpans = collectHitSpans(spans, searchTerms);
       hitSpans.forEach(span => span.classList.add('search-hit'));
+
+      if (scrollToFirst) {
+        [...hitSpans][0]?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+          inline: 'center',
+        });
+      }
     }
 
     async function refreshContinuousScale() {
@@ -3292,7 +3635,7 @@
 
         setStatus(
           `${result.label} の${result.pageNumber}ページを表示しました。` +
-          `「${state.searchText}」はこのページに${result.hitCount}件あります。`,
+          `${searchModeLabel(result.searchMode || state.executedSearchMode)}：${formatResultMatchSummary(result)}。`,
           'success'
         );
       } catch (error) {
@@ -3501,10 +3844,7 @@
       }
 
       if (state.searchText && state.currentTargetPage === pageNumber) {
-        highlightOccurrenceOnRenderedPage(
-          state.searchText,
-          state.currentTargetOccurrence
-        );
+        highlightSearchTermsInLayer(elements.textLayer, state.searchTerms, true);
       }
 
       updateViewerToolbar();
@@ -3515,51 +3855,13 @@
       return requestViewerRender();
     }
 
-    function highlightOccurrenceOnRenderedPage(searchText, occurrenceOnPage = 1) {
-      const spans = Array.from(elements.textLayer.querySelectorAll('span'));
-      spans.forEach(span => span.classList.remove('search-hit'));
-
-      const query = normalizeForSearch(searchText);
-      if (!query || !spans.length) return;
-
-      let joined = '';
-      const ranges = [];
-
-      spans.forEach(span => {
-        const normalized = normalizeForSearch(span.textContent);
-        const start = joined.length;
-        joined += normalized;
-        ranges.push({ span, start, end: joined.length });
-      });
-
-      let from = 0;
-      let current = 0;
-      let foundStart = -1;
-
-      while (from <= joined.length - query.length) {
-        const index = joined.indexOf(query, from);
-        if (index === -1) break;
-        current += 1;
-        if (current === occurrenceOnPage) {
-          foundStart = index;
-          break;
-        }
-        from = index + Math.max(1, query.length);
-      }
-
-      if (foundStart === -1) return;
-      const foundEnd = foundStart + query.length;
-      const hitSpans = ranges
-        .filter(range => range.end > foundStart && range.start < foundEnd)
-        .map(range => range.span);
-
-      hitSpans.forEach(span => span.classList.add('search-hit'));
-      hitSpans[0]?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+    // v4.0以前の関数名との互換用。現在は一致した全語句を強調します。
+    function highlightOccurrenceOnRenderedPage() {
+      highlightSearchTermsInLayer(elements.textLayer, state.searchTerms, true);
     }
 
-    async function renderExportHighlightRects(pdf, pageNumber, searchText) {
-      const query = normalizeForSearch(searchText);
-      if (!query) return [];
+    async function renderExportHighlightRects(pdf, pageNumber, searchTerms) {
+      if (!(searchTerms || []).length) return [];
 
       const page = await pdf.getPage(pageNumber);
       const viewport = page.getViewport({ scale: 1 });
@@ -3587,27 +3889,7 @@
         await textLayer.render();
 
         const spans = Array.from(layer.querySelectorAll('span'));
-        let joined = '';
-        const ranges = [];
-
-        spans.forEach(span => {
-          const normalized = normalizeForSearch(span.textContent);
-          const start = joined.length;
-          joined += normalized;
-          ranges.push({ span, start, end: joined.length });
-        });
-
-        const hitSpans = new Set();
-        let from = 0;
-        while (from <= joined.length - query.length) {
-          const start = joined.indexOf(query, from);
-          if (start === -1) break;
-          const end = start + query.length;
-          ranges
-            .filter(range => range.end > start && range.start < end)
-            .forEach(range => hitSpans.add(range.span));
-          from = start + Math.max(1, query.length);
-        }
+        const hitSpans = collectHitSpans(spans, searchTerms);
 
         const hostRect = host.getBoundingClientRect();
         const rectangles = [];
@@ -3713,7 +3995,7 @@
         const { PDFDocument, rgb } = window.PDFLib;
         const outputDoc = await PDFDocument.create();
         outputDoc.setTitle(`PDF検索結果：${state.searchText}`);
-        outputDoc.setSubject(`検索語「${state.searchText}」のヒットページ`);
+        outputDoc.setSubject(`${searchModeLabel(state.executedSearchMode)}：検索語「${state.searchTerms.map(item => item.term).join(' / ')}」のヒットページ`);
         outputDoc.setCreator('PDF Text Jump Viewer');
         outputDoc.setProducer('pdf-lib');
 
@@ -3763,7 +4045,7 @@
             const rectangles = await renderExportHighlightRects(
               source.pdfJsDoc,
               result.pageNumber,
-              state.searchText
+              state.searchTerms
             );
             const pageSize = outputPage.getSize();
             for (const rect of rectangles) {
@@ -3908,10 +4190,14 @@
     });
 
     elements.catalogMenu.addEventListener('click', event => event.stopPropagation());
-    document.addEventListener('click', () => toggleCatalogMenu(false));
+    document.addEventListener('click', () => {
+      toggleCatalogMenu(false);
+      toggleSearchHelp(false);
+    });
     document.addEventListener('keydown', event => {
       if (event.key === 'Escape') {
         toggleCatalogMenu(false);
+        toggleSearchHelp(false);
         closeExportModal();
       }
     });
@@ -3926,8 +4212,17 @@
       renderCatalog();
     });
 
+    elements.searchModeAnd.addEventListener('click', () => setSearchMode('and', { updateUrl: true }));
+    elements.searchModeOr.addEventListener('click', () => setSearchMode('or', { updateUrl: true }));
+    elements.searchHelpBtn.addEventListener('click', event => {
+      event.stopPropagation();
+      toggleSearchHelp();
+    });
+    elements.searchHelpPopover.addEventListener('click', event => event.stopPropagation());
+
     elements.searchBtn.addEventListener('click', () => {
       toggleCatalogMenu(false);
+      toggleSearchHelp(false);
       runCrossSearch();
     });
 
@@ -4007,6 +4302,7 @@
       }
     });
 
+    updateSearchModeUi();
     applyZoomPreferenceForMode(state.viewerMode);
     applySidebarState({ persist: false, refresh: false });
     updateHeaderHeight();
