@@ -1824,6 +1824,200 @@
       .export-btn-label { display: none; }
     }
 
+
+
+    /* v4.3: サイドバー検索結果をヒットページのサムネイル中心に再構成 */
+    .result-group + .result-group {
+      margin-top: 10px;
+      padding-top: 9px;
+    }
+
+    .result-group-title {
+      position: sticky;
+      top: 0;
+      z-index: 4;
+      margin: -1px -1px 7px;
+      padding: 7px 7px 6px;
+      border-bottom: 1px solid #e2e8f0;
+      background: rgba(248, 250, 252, .96);
+      backdrop-filter: blur(5px);
+      color: #27364a;
+      font-size: 11px;
+      line-height: 1.35;
+    }
+
+    .result-group-meta {
+      margin-top: 2px;
+      color: #8291a6;
+      font-size: 9px;
+      font-weight: 700;
+    }
+
+    .result-thumb-list {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 8px;
+    }
+
+    .result-thumb-card {
+      position: relative;
+      min-width: 0;
+      overflow: hidden;
+      border: 2px solid #d7e0eb;
+      border-radius: 9px;
+      background: #edf2f7;
+      box-shadow: 0 1px 4px rgba(15, 23, 42, .08);
+      transition: border-color .14s ease, box-shadow .14s ease, transform .14s ease;
+    }
+
+    .result-thumb-card:hover {
+      border-color: #8caed8;
+      box-shadow: 0 4px 12px rgba(15, 23, 42, .13);
+      transform: translateY(-1px);
+    }
+
+    .result-thumb-card.active {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 2px rgba(37, 99, 235, .16), 0 4px 14px rgba(37, 99, 235, .17);
+    }
+
+    .result-thumb-button {
+      width: 100%;
+      min-width: 0;
+      display: block;
+      border: 0;
+      padding: 0;
+      background: transparent;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .result-thumb-media {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      min-height: 132px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      background:
+        linear-gradient(135deg, rgba(226,232,240,.9), rgba(248,250,252,.96));
+    }
+
+    .result-thumb-media img {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: contain;
+      background: #fff;
+    }
+
+    .result-thumb-state {
+      padding: 14px;
+      color: #718096;
+      font-size: 10px;
+      font-weight: 700;
+      line-height: 1.55;
+      text-align: center;
+    }
+
+    .result-thumb-state[data-kind="error"] {
+      color: var(--error);
+    }
+
+    .result-thumb-select-wrap {
+      position: absolute;
+      top: 7px;
+      left: 7px;
+      z-index: 5;
+      width: 27px;
+      height: 27px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(148, 163, 184, .75);
+      border-radius: 8px;
+      background: rgba(255,255,255,.94);
+      box-shadow: 0 1px 5px rgba(15,23,42,.18);
+      cursor: pointer;
+    }
+
+    .result-thumb-select-wrap:hover {
+      border-color: var(--blue);
+      background: #fff;
+    }
+
+    .result-thumb-select {
+      width: 16px;
+      height: 16px;
+      margin: 0;
+      accent-color: var(--blue);
+      cursor: pointer;
+    }
+
+    .result-thumb-bottom {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      z-index: 3;
+      min-height: 35px;
+      padding: 12px 7px 6px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 6px;
+      pointer-events: none;
+      background: linear-gradient(to bottom, transparent, rgba(15, 23, 42, .84));
+    }
+
+    .result-thumb-badge {
+      min-width: 0;
+      max-width: 64%;
+      padding: 3px 7px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: rgba(255,255,255,.92);
+      color: #26374c;
+      font-size: 9px;
+      font-weight: 900;
+      line-height: 1.2;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      box-shadow: 0 1px 4px rgba(15,23,42,.18);
+    }
+
+    .result-thumb-badge.hit {
+      margin-left: auto;
+      background: rgba(88, 28, 135, .9);
+      color: #fff;
+    }
+
+    .result-thumb-card.active .result-thumb-badge.page {
+      background: var(--blue);
+      color: #fff;
+    }
+
+    .result-thumb-card[aria-busy="true"]::after {
+      content: '';
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      z-index: 4;
+      width: 15px;
+      height: 15px;
+      border: 2px solid rgba(255,255,255,.65);
+      border-top-color: var(--blue);
+      border-radius: 50%;
+      animation: result-thumb-spin .8s linear infinite;
+      filter: drop-shadow(0 1px 2px rgba(15,23,42,.25));
+    }
+
+    @keyframes result-thumb-spin {
+      to { transform: rotate(360deg); }
+    }
+
   </style>
 </head>
 <body>
@@ -2184,6 +2378,13 @@
       thumbnailQueue: [],
       thumbnailActiveCount: 0,
       thumbnailObserver: null,
+      resultThumbnailCache: new Map(),
+      resultThumbnailInFlight: new Map(),
+      resultThumbnailQueue: [],
+      resultThumbnailActiveCount: 0,
+      resultThumbnailObserver: null,
+      resultThumbnailPdfCache: new Map(),
+      resultThumbnailGeneration: 0,
       results: [],
       searchText: '',
       searchTerms: [],
@@ -2363,6 +2564,7 @@
     function toggleSidebar(force) {
       state.sidebarOpen = typeof force === 'boolean' ? force : !state.sidebarOpen;
       applySidebarState();
+      if (state.sidebarOpen) requestAnimationFrame(() => setupResultThumbnailObserver());
     }
 
     function scheduleFitLayoutRefresh() {
@@ -3122,6 +3324,7 @@
       await disposeContinuousViewer();
       await destroyCurrentPdf();
 
+      resetResultThumbnailSystem({ clearCache: true });
       state.searchText = searchText;
       state.searchTerms = searchTerms;
       state.executedSearchMode = executedSearchMode;
@@ -3235,6 +3438,11 @@
       elements.headerHitCount.textContent = `HIT ${pageResults.length}ページ`;
       elements.sidebarToggleCount.textContent = String(pageResults.length);
       elements.sidebarToggleCount.hidden = pageResults.length === 0;
+
+      if (state.resultThumbnailObserver) {
+        state.resultThumbnailObserver.disconnect();
+        state.resultThumbnailObserver = null;
+      }
       elements.resultsList.replaceChildren();
 
       if (!state.results.length) {
@@ -3256,81 +3464,334 @@
         const title = document.createElement('div');
         title.className = 'result-group-title';
         title.textContent = group.label;
+        title.title = group.file;
 
         const meta = document.createElement('div');
         meta.className = 'result-group-meta';
         meta.textContent = group.error
           ? `読込失敗：${group.error}`
-          : `${group.items.length}ページにヒット ／ ${group.file}`;
+          : `${group.items.length}ページにヒット`;
         title.appendChild(meta);
         section.appendChild(title);
 
+        const thumbList = document.createElement('div');
+        thumbList.className = 'result-thumb-list';
+
         for (const result of group.items) {
           const key = resultKey(result);
-          const row = document.createElement('div');
-          row.className = 'result-row';
-
-          const selectWrap = document.createElement('label');
-          selectWrap.className = 'result-select-wrap';
-          selectWrap.title = 'PDF出力に含める';
-
-          const checkbox = document.createElement('input');
-          checkbox.type = 'checkbox';
-          checkbox.className = 'result-select';
-          checkbox.dataset.exportKey = key;
-          checkbox.checked = state.exportSelectedKeys.has(key);
-          checkbox.setAttribute('aria-label', `${result.label} ${result.pageNumber}ページをPDF出力に含める`);
-          checkbox.addEventListener('change', () => setExportSelection(key, checkbox.checked));
-          selectWrap.appendChild(checkbox);
+          const cacheKey = resultThumbnailCacheKey(result);
+          const card = document.createElement('article');
+          card.className = `result-thumb-card${state.activeResultKey === key ? ' active' : ''}`;
+          card.dataset.resultKey = key;
+          card.dataset.thumbnailCacheKey = cacheKey;
+          card.setAttribute('aria-busy', 'false');
 
           const button = document.createElement('button');
           button.type = 'button';
-          button.className = `result-item${state.activeResultKey === key ? ' active' : ''}`;
+          button.className = 'result-thumb-button';
+          button.title = `${result.label}：${result.pageNumber}ページを開く`;
+          button.setAttribute('aria-label', `${result.label} ${result.pageNumber}ページを開く。${formatResultMatchSummary(result)}`);
 
-          const main = document.createElement('div');
-          main.className = 'result-item-main';
+          const media = document.createElement('div');
+          media.className = 'result-thumb-media';
+          media.dataset.resultKey = key;
+          media.dataset.thumbnailCacheKey = cacheKey;
 
-          const pageChip = document.createElement('span');
-          pageChip.className = 'page-chip';
-          pageChip.textContent = `${result.pageNumber}ページ`;
-
-          const hit = document.createElement('span');
-          hit.className = 'result-match-summary';
-          hit.textContent = formatResultMatchSummary(result);
-
-          main.append(pageChip, hit);
-          button.appendChild(main);
-
-          if (result.matchedTerms?.length) {
-            const badges = document.createElement('div');
-            badges.className = 'term-badges';
-            result.matchedTerms.forEach(item => {
-              const badge = document.createElement('span');
-              badge.className = 'term-badge';
-              badge.textContent = item.term;
-              badge.title = `${item.term}：${item.count}か所`;
-              badges.appendChild(badge);
-            });
-            button.appendChild(badges);
+          const cached = state.resultThumbnailCache.get(cacheKey);
+          if (cached) {
+            applyResultThumbnailToSlot(media, cached, result);
+          } else {
+            const loading = document.createElement('div');
+            loading.className = 'result-thumb-state';
+            loading.textContent = 'ページサムネイルを準備中…';
+            media.appendChild(loading);
           }
 
-          if (result.snippet) {
-            const snippet = document.createElement('div');
-            snippet.className = 'result-snippet';
-            snippet.textContent = result.snippet;
-            button.appendChild(snippet);
-          }
+          const bottom = document.createElement('div');
+          bottom.className = 'result-thumb-bottom';
 
+          const pageBadge = document.createElement('span');
+          pageBadge.className = 'result-thumb-badge page';
+          pageBadge.textContent = `P.${result.pageNumber}`;
+
+          const hitBadge = document.createElement('span');
+          hitBadge.className = 'result-thumb-badge hit';
+          hitBadge.textContent = result.totalTermCount > 1
+            ? `${result.matchedTermCount}/${result.totalTermCount}語・${result.hitCount} HIT`
+            : `${result.hitCount} HIT`;
+          hitBadge.title = formatResultMatchSummary(result);
+
+          bottom.append(pageBadge, hitBadge);
+          button.append(media, bottom);
           button.addEventListener('click', () => openSearchResult(result));
-          row.append(selectWrap, button);
-          section.appendChild(row);
+
+          const selectWrap = document.createElement('label');
+          selectWrap.className = 'result-thumb-select-wrap';
+          selectWrap.title = 'PDF出力に含める';
+          selectWrap.addEventListener('click', event => event.stopPropagation());
+
+          const checkbox = document.createElement('input');
+          checkbox.type = 'checkbox';
+          checkbox.className = 'result-thumb-select';
+          checkbox.dataset.exportKey = key;
+          checkbox.checked = state.exportSelectedKeys.has(key);
+          checkbox.setAttribute('aria-label', `${result.label} ${result.pageNumber}ページをPDF出力に含める`);
+          checkbox.addEventListener('click', event => event.stopPropagation());
+          checkbox.addEventListener('change', () => setExportSelection(key, checkbox.checked));
+          selectWrap.appendChild(checkbox);
+
+          card.append(button, selectWrap);
+          thumbList.appendChild(card);
         }
 
+        section.appendChild(thumbList);
         elements.resultsList.appendChild(section);
       }
+
       updateExportUi();
+      requestAnimationFrame(() => setupResultThumbnailObserver());
     }
 
+
+
+    function resultThumbnailCacheKey(result) {
+      const terms = (result.matchedTerms?.length ? result.matchedTerms : state.searchTerms)
+        .map(item => item.normalized || normalizeForSearch(item.term || item))
+        .filter(Boolean)
+        .sort()
+        .join('|');
+      return `${resultKey(result)}::${result.searchMode || state.executedSearchMode}::${terms}`;
+    }
+
+    function resetResultThumbnailSystem({ clearCache = false } = {}) {
+      state.resultThumbnailGeneration += 1;
+      state.resultThumbnailQueue.length = 0;
+
+      if (state.resultThumbnailObserver) {
+        state.resultThumbnailObserver.disconnect();
+        state.resultThumbnailObserver = null;
+      }
+
+      if (clearCache) state.resultThumbnailCache.clear();
+    }
+
+    function setupResultThumbnailObserver() {
+      if (!state.sidebarOpen || !elements.resultsList.isConnected) return;
+
+      if (state.resultThumbnailObserver) {
+        state.resultThumbnailObserver.disconnect();
+      }
+
+      const slots = Array.from(elements.resultsList.querySelectorAll('.result-thumb-media'));
+      if (!slots.length) return;
+
+      const observeSlot = slot => {
+        const result = getPageResults().find(item => resultKey(item) === slot.dataset.resultKey);
+        if (!result) return;
+        const cacheKey = slot.dataset.thumbnailCacheKey || resultThumbnailCacheKey(result);
+        const cached = state.resultThumbnailCache.get(cacheKey);
+        if (cached) {
+          applyResultThumbnailToSlot(slot, cached, result);
+          return;
+        }
+        enqueueResultThumbnail(result, cacheKey);
+      };
+
+      if (!('IntersectionObserver' in window)) {
+        slots.forEach(observeSlot);
+        return;
+      }
+
+      state.resultThumbnailObserver = new IntersectionObserver(entries => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          state.resultThumbnailObserver?.unobserve(entry.target);
+          observeSlot(entry.target);
+        }
+      }, {
+        root: elements.resultsList,
+        rootMargin: '260px 0px',
+        threshold: 0.01,
+      });
+
+      slots.forEach(slot => {
+        const cacheKey = slot.dataset.thumbnailCacheKey;
+        const result = getPageResults().find(item => resultKey(item) === slot.dataset.resultKey);
+        const cached = cacheKey ? state.resultThumbnailCache.get(cacheKey) : null;
+        if (cached && result) applyResultThumbnailToSlot(slot, cached, result);
+        else state.resultThumbnailObserver.observe(slot);
+      });
+    }
+
+    function enqueueResultThumbnail(result, cacheKey = resultThumbnailCacheKey(result)) {
+      if (state.resultThumbnailCache.has(cacheKey)) {
+        applyResultThumbnailToConnectedSlots(cacheKey, state.resultThumbnailCache.get(cacheKey), result);
+        return;
+      }
+      if (
+        state.resultThumbnailInFlight.has(cacheKey) ||
+        state.resultThumbnailQueue.some(job => job.cacheKey === cacheKey)
+      ) return;
+
+      state.resultThumbnailQueue.push({
+        result,
+        cacheKey,
+        generation: state.resultThumbnailGeneration,
+      });
+      pumpResultThumbnailQueue();
+    }
+
+    function pumpResultThumbnailQueue() {
+      while (state.resultThumbnailActiveCount < 2 && state.resultThumbnailQueue.length) {
+        const job = state.resultThumbnailQueue.shift();
+        state.resultThumbnailActiveCount += 1;
+        markResultThumbnailBusy(job.cacheKey, true);
+
+        const promise = generateResultThumbnail(job.result)
+          .then(value => {
+            if (job.generation !== state.resultThumbnailGeneration) return;
+            state.resultThumbnailCache.set(job.cacheKey, value);
+            applyResultThumbnailToConnectedSlots(job.cacheKey, value, job.result);
+          })
+          .catch(error => {
+            console.error(error);
+            if (job.generation !== state.resultThumbnailGeneration) return;
+            const value = { error: error.message || 'サムネイル生成失敗' };
+            state.resultThumbnailCache.set(job.cacheKey, value);
+            applyResultThumbnailToConnectedSlots(job.cacheKey, value, job.result);
+          })
+          .finally(() => {
+            const generationChanged = job.generation !== state.resultThumbnailGeneration;
+            state.resultThumbnailInFlight.delete(job.cacheKey);
+            state.resultThumbnailActiveCount = Math.max(0, state.resultThumbnailActiveCount - 1);
+            markResultThumbnailBusy(job.cacheKey, false);
+            pumpResultThumbnailQueue();
+            if (generationChanged && state.sidebarOpen) {
+              requestAnimationFrame(() => setupResultThumbnailObserver());
+            }
+          });
+
+        state.resultThumbnailInFlight.set(job.cacheKey, promise);
+      }
+    }
+
+    function markResultThumbnailBusy(cacheKey, busy) {
+      elements.resultsList.querySelectorAll('.result-thumb-card').forEach(card => {
+        if (card.dataset.thumbnailCacheKey === cacheKey) {
+          card.setAttribute('aria-busy', String(Boolean(busy)));
+        }
+      });
+    }
+
+    function applyResultThumbnailToConnectedSlots(cacheKey, value, result) {
+      elements.resultsList.querySelectorAll('.result-thumb-media').forEach(slot => {
+        if (slot.dataset.thumbnailCacheKey === cacheKey) {
+          applyResultThumbnailToSlot(slot, value, result);
+        }
+      });
+      markResultThumbnailBusy(cacheKey, false);
+    }
+
+    function applyResultThumbnailToSlot(slot, value, result) {
+      slot.replaceChildren();
+
+      if (value?.dataUrl) {
+        const image = document.createElement('img');
+        image.src = value.dataUrl;
+        image.alt = `${result.label} ${result.pageNumber}ページのサムネイル`;
+        image.loading = 'lazy';
+        slot.appendChild(image);
+        return;
+      }
+
+      const stateLabel = document.createElement('div');
+      stateLabel.className = 'result-thumb-state';
+      stateLabel.dataset.kind = 'error';
+      stateLabel.textContent = 'サムネイルを表示できません';
+      slot.appendChild(stateLabel);
+    }
+
+    async function getResultThumbnailPdf(file) {
+      let record = state.resultThumbnailPdfCache.get(file);
+      if (record) return record.promise;
+
+      const loadingTask = pdfjsLib.getDocument({
+        url: buildPdfPath(file),
+        enableXfa: true,
+      });
+      record = {
+        loadingTask,
+        pdf: null,
+        promise: null,
+      };
+      record.promise = loadingTask.promise.then(pdf => {
+        record.pdf = pdf;
+        return pdf;
+      });
+      state.resultThumbnailPdfCache.set(file, record);
+      return record.promise;
+    }
+
+    async function generateResultThumbnail(result) {
+      const pdf = await getResultThumbnailPdf(result.file);
+      const page = await pdf.getPage(result.pageNumber);
+      const baseViewport = page.getViewport({ scale: 1 });
+      const targetWidth = 620;
+      const scale = Math.max(0.2, Math.min(1.5, targetWidth / baseViewport.width));
+      const viewport = page.getViewport({ scale });
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(viewport.width));
+      canvas.height = Math.max(1, Math.round(viewport.height));
+      const context = canvas.getContext('2d', { alpha: false });
+
+      await page.render({
+        canvasContext: context,
+        viewport,
+      }).promise;
+
+      const matchedTerms = (result.matchedTerms?.length ? result.matchedTerms : state.searchTerms)
+        .map(item => ({
+          term: item.term || String(item),
+          normalized: item.normalized || normalizeForSearch(item.term || item),
+        }));
+      const rectangles = await renderExportHighlightRects(pdf, result.pageNumber, matchedTerms);
+
+      context.save();
+      context.fillStyle = 'rgba(250, 204, 21, .42)';
+      context.strokeStyle = 'rgba(217, 119, 6, .72)';
+      context.lineWidth = Math.max(1, viewport.width / 620);
+
+      for (const rect of rectangles) {
+        const viewportRect = viewport.convertToViewportRectangle([
+          rect.x,
+          rect.y,
+          rect.x + rect.width,
+          rect.y + rect.height,
+        ]);
+        const x = Math.min(viewportRect[0], viewportRect[2]);
+        const y = Math.min(viewportRect[1], viewportRect[3]);
+        const width = Math.abs(viewportRect[2] - viewportRect[0]);
+        const height = Math.abs(viewportRect[3] - viewportRect[1]);
+        if (width <= .5 || height <= .5) continue;
+        context.fillRect(x, y, width, height);
+        context.strokeRect(x, y, width, height);
+      }
+      context.restore();
+
+      return {
+        dataUrl: canvas.toDataURL('image/jpeg', .86),
+        width: canvas.width,
+        height: canvas.height,
+      };
+    }
+
+    function destroyResultThumbnailPdfCache() {
+      for (const record of state.resultThumbnailPdfCache.values()) {
+        if (record.pdf) record.pdf.destroy().catch(() => {});
+        else if (record.loadingTask?.destroy) Promise.resolve(record.loadingTask.destroy()).catch(() => {});
+      }
+      state.resultThumbnailPdfCache.clear();
+    }
 
     function getPageResults() {
       return state.results.filter(item => !item.error);
@@ -4798,6 +5259,7 @@
           try { item.renderTask.cancel(); } catch {}
         }
       }
+      destroyResultThumbnailPdfCache();
     });
 
     updateSearchModeUi();
