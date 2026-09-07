@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" href="./favicon.svg?v=1" type="image/svg+xml">
   <meta name="theme-color" content="#1769aa">
-  <title>PDF Text Jump Viewer v5.0.0</title>
+  <title>PDF Text Jump Viewer v5.1.0</title>
   <style>
     :root {
       --navy: #17365f;
@@ -2276,7 +2276,7 @@
 
 
 
-    /* ===== v5.0.0：検索INDEX優先・フォールバック・性能計測 ===== */
+    /* ===== v5.1.0：検索INDEX優先・表示レンダリング最適化・性能計測 ===== */
     .performance-btn {
       flex: 0 0 auto;
       min-height: 27px;
@@ -2481,7 +2481,7 @@
       </button>
 
       <div class="brand">
-        <div class="brand-title">PDF Text Jump Viewer <span style="font-size:10px;opacity:.65">v5.0.0</span></div>
+        <div class="brand-title">PDF Text Jump Viewer <span style="font-size:10px;opacity:.65">v5.1.0</span></div>
         <div class="brand-sub">サムネイルでPDFを選び、AND／OR検索・閲覧・PDF出力</div>
       </div>
 
@@ -2707,7 +2707,7 @@
       <div class="performance-head">
         <div class="performance-title-wrap">
           <div id="performance-title" class="performance-title">検索・表示速度の計測結果</div>
-          <div class="performance-sub">直近の横断検索について、PDF読込・ページ取得・テキスト抽出・検索判定・初回表示を分けて計測します。</div>
+          <div class="performance-sub">直近の横断検索について、検索INDEX・PDF表示・Canvas描画・TextLayer・サムネイルを分けて計測します。</div>
         </div>
         <button id="performance-close" class="performance-close" type="button" title="閉じる">×</button>
       </div>
@@ -2831,6 +2831,10 @@
     const CONTINUOUS_RENDER_MARGIN = 900;
     const PAGE_TURN_WHEEL_THRESHOLD = 45;
     const PAGE_TURN_COOLDOWN_MS = 420;
+    const SHARED_PDF_CACHE_LIMIT = 4;
+    const RESULT_THUMBNAIL_CONCURRENCY = 1;
+    const RESULT_THUMBNAIL_IDLE_TIMEOUT_MS = 1200;
+    const NEIGHBOR_PREFETCH_IDLE_TIMEOUT_MS = 900;
 
     const elements = {
       appHeader: document.getElementById('app-header'),
@@ -2933,14 +2937,16 @@
       resultThumbnailQueue: [],
       resultThumbnailActiveCount: 0,
       resultThumbnailObserver: null,
-      resultThumbnailPdfCache: new Map(),
       resultThumbnailGeneration: 0,
+      resultThumbnailIdleHandle: null,
+      resultThumbnailRenderTask: null,
       results: [],
       searchText: '',
       searchTerms: [],
       searchMode: readStoredSearchMode(),
       executedSearchMode: 'and',
       currentPdf: null,
+      currentPdfRecord: null,
       currentFile: '',
       currentFileLabel: '',
       currentPage: 1,
@@ -2973,8 +2979,12 @@
       pagedNavPreviewIndex: null,
       continuousObserver: null,
       continuousItems: new Map(),
-      continuousPdfCache: new Map(),
       continuousGeneration: 0,
+      sharedPdfCache: new Map(),
+      sharedPdfUseSerial: 0,
+      viewerPriorityBusy: false,
+      neighborPrefetchHandles: new Set(),
+      neighborPrefetchKeys: new Set(),
       performanceRun: null,
       performanceHistory: [],
       catalogLoadMs: null,
@@ -3005,6 +3015,184 @@
       return `${minutes}分 ${seconds}秒`;
     }
 
+    function scheduleIdleTask(callback, timeout = 1000) {
+      if ('requestIdleCallback' in window) {
+        const id = window.requestIdleCallback(callback, { timeout });
+        return { kind: 'idle', id };
+      }
+      const id = window.setTimeout(() => callback({ didTimeout: true, timeRemaining: () => 0 }), Math.min(timeout, 180));
+      return { kind: 'timeout', id };
+    }
+
+    function cancelIdleTask(handle) {
+      if (!handle) return;
+      if (handle.kind === 'idle' && 'cancelIdleCallback' in window) {
+        window.cancelIdleCallback(handle.id);
+      } else {
+        clearTimeout(handle.id);
+      }
+    }
+
+    function touchSharedPdfRecord(record) {
+      if (!record) return;
+      record.lastUsed = ++state.sharedPdfUseSerial;
+    }
+
+    function recordSharedPdfCacheAccess(cacheHit) {
+      const run = state.performanceRun;
+      if (!run) return;
+      if (cacheHit) run.sharedPdfCacheHits += 1;
+      else run.sharedPdfCacheMisses += 1;
+    }
+
+    function getOrCreateSharedPdfRecord(file) {
+      let record = state.sharedPdfCache.get(file);
+      if (record) {
+        touchSharedPdfRecord(record);
+        recordSharedPdfCacheAccess(true);
+        return { record, cacheHit: true };
+      }
+
+      const loadingTask = pdfjsLib.getDocument({
+        url: buildPdfPath(file),
+        enableXfa: true,
+      });
+      record = {
+        file,
+        loadingTask,
+        pdf: null,
+        promise: null,
+        pinCount: 0,
+        activeCount: 0,
+        lastUsed: ++state.sharedPdfUseSerial,
+      };
+      record.promise = loadingTask.promise
+        .then(pdf => {
+          record.pdf = pdf;
+          touchSharedPdfRecord(record);
+          return pdf;
+        })
+        .catch(error => {
+          if (state.sharedPdfCache.get(file) === record) {
+            state.sharedPdfCache.delete(file);
+          }
+          throw error;
+        });
+      state.sharedPdfCache.set(file, record);
+      recordSharedPdfCacheAccess(false);
+      return { record, cacheHit: false };
+    }
+
+    async function withSharedPdf(file, callback) {
+      const { record, cacheHit } = getOrCreateSharedPdfRecord(file);
+      record.activeCount += 1;
+      touchSharedPdfRecord(record);
+      trimSharedPdfCache();
+      try {
+        const pdf = await record.promise;
+        return await callback(pdf, { record, cacheHit });
+      } finally {
+        record.activeCount = Math.max(0, record.activeCount - 1);
+        touchSharedPdfRecord(record);
+        trimSharedPdfCache();
+      }
+    }
+
+    async function pinSharedPdf(file) {
+      const { record, cacheHit } = getOrCreateSharedPdfRecord(file);
+      record.pinCount += 1;
+      touchSharedPdfRecord(record);
+      trimSharedPdfCache();
+      try {
+        const pdf = await record.promise;
+        return { pdf, record, cacheHit };
+      } catch (error) {
+        record.pinCount = Math.max(0, record.pinCount - 1);
+        trimSharedPdfCache();
+        throw error;
+      }
+    }
+
+    function unpinSharedPdfRecord(record) {
+      if (!record) return;
+      record.pinCount = Math.max(0, record.pinCount - 1);
+      touchSharedPdfRecord(record);
+      trimSharedPdfCache();
+    }
+
+    function trimSharedPdfCache() {
+      if (state.sharedPdfCache.size <= SHARED_PDF_CACHE_LIMIT) return;
+      const candidates = [...state.sharedPdfCache.values()]
+        .filter(record => record.pinCount === 0 && record.activeCount === 0)
+        .sort((a, b) => a.lastUsed - b.lastUsed);
+
+      while (state.sharedPdfCache.size > SHARED_PDF_CACHE_LIMIT && candidates.length) {
+        const record = candidates.shift();
+        if (!record || record.pinCount || record.activeCount) continue;
+        if (state.sharedPdfCache.get(record.file) !== record) continue;
+        state.sharedPdfCache.delete(record.file);
+        if (record.pdf) {
+          record.pdf.destroy().catch(() => {});
+        } else if (record.loadingTask?.destroy) {
+          Promise.resolve(record.loadingTask.destroy()).catch(() => {});
+        }
+      }
+    }
+
+    function destroySharedPdfCache() {
+      const records = [...state.sharedPdfCache.values()];
+      state.sharedPdfCache.clear();
+      for (const record of records) {
+        if (record.pdf) record.pdf.destroy().catch(() => {});
+        else if (record.loadingTask?.destroy) Promise.resolve(record.loadingTask.destroy()).catch(() => {});
+      }
+    }
+
+    function recordViewerDocumentOpen(durationMs, cacheHit) {
+      const run = state.performanceRun;
+      if (!run) return;
+      const value = Math.max(0, Number(durationMs) || 0);
+      run.viewerDocumentOpenCount += 1;
+      run.viewerDocumentOpenTotalMs += value;
+      run.viewerDocumentOpenMaxMs = Math.max(run.viewerDocumentOpenMaxMs, value);
+      if (cacheHit) run.viewerDocumentCacheHits += 1;
+    }
+
+    function recordViewerRenderPerformance(metric) {
+      const run = state.performanceRun;
+      if (!run) return;
+      const total = Math.max(0, Number(metric.totalMs) || 0);
+      run.viewerRenderCount += 1;
+      run.viewerRenderTotalMs += total;
+      run.viewerRenderMaxMs = Math.max(run.viewerRenderMaxMs, total);
+      run.viewerPageGetMs += Math.max(0, Number(metric.pageGetMs) || 0);
+      run.viewerCanvasRenderMs += Math.max(0, Number(metric.canvasRenderMs) || 0);
+      run.viewerTextExtractMs += Math.max(0, Number(metric.textExtractMs) || 0);
+      run.viewerTextLayerMs += Math.max(0, Number(metric.textLayerMs) || 0);
+      run.viewerHighlightMs += Math.max(0, Number(metric.highlightMs) || 0);
+      if (run.completedAtIso) renderPerformanceReport();
+    }
+
+    function recordNeighborPrefetchPerformance(durationMs) {
+      const run = state.performanceRun;
+      if (!run) return;
+      run.neighborPrefetchCount += 1;
+      run.neighborPrefetchTotalMs += Math.max(0, Number(durationMs) || 0);
+    }
+
+    function hasActivePrimaryViewerRender() {
+      if (state.renderTask || state.renderLoopPromise) return true;
+      for (const item of state.continuousItems.values()) {
+        if (item.renderTask || item.loopPromise || item.pending) return true;
+      }
+      return false;
+    }
+
+    function releaseViewerPriority() {
+      state.viewerPriorityBusy = false;
+      scheduleResultThumbnailPump();
+    }
+
     function beginPerformanceRun({ searchText, searchTerms, searchMode, selectedEntries }) {
       const run = {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -3021,6 +3209,24 @@
         resultPages: 0,
         errorCount: 0,
         firstViewerReadyMs: null,
+        firstViewerAfterSearchMs: null,
+        searchCompletedAtPerf: null,
+        viewerDocumentOpenCount: 0,
+        viewerDocumentOpenTotalMs: 0,
+        viewerDocumentOpenMaxMs: 0,
+        viewerDocumentCacheHits: 0,
+        viewerRenderCount: 0,
+        viewerRenderTotalMs: 0,
+        viewerRenderMaxMs: 0,
+        viewerPageGetMs: 0,
+        viewerCanvasRenderMs: 0,
+        viewerTextExtractMs: 0,
+        viewerTextLayerMs: 0,
+        viewerHighlightMs: 0,
+        neighborPrefetchCount: 0,
+        neighborPrefetchTotalMs: 0,
+        sharedPdfCacheHits: 0,
+        sharedPdfCacheMisses: 0,
         firstResultThumbnailMs: null,
         thumbnailCount: 0,
         thumbnailTotalMs: 0,
@@ -3075,9 +3281,14 @@
     }
 
     function markFirstViewerReady() {
+      releaseViewerPriority();
       const run = state.performanceRun;
       if (!run || run.firstViewerReadyMs != null) return;
-      run.firstViewerReadyMs = perfNow() - run.startedAtPerf;
+      const now = perfNow();
+      run.firstViewerReadyMs = now - run.startedAtPerf;
+      if (run.searchCompletedAtPerf != null) {
+        run.firstViewerAfterSearchMs = Math.max(0, now - run.searchCompletedAtPerf);
+      }
       if (run.completedAtIso) renderPerformanceReport();
     }
 
@@ -3182,6 +3393,31 @@
         }
       }
 
+      if (run.firstViewerAfterSearchMs != null) {
+        if (run.firstViewerAfterSearchMs >= 1200) {
+          messages.push(`<strong>検索完了後の初回PDF表示に ${formatDuration(run.firstViewerAfterSearchMs)} かかっています。</strong> v5.1では中央ビューアを最優先にし、サムネイルはアイドル時へ後回しにしています。`);
+        } else {
+          messages.push(`検索完了後の初回PDF表示は ${formatDuration(run.firstViewerAfterSearchMs)} です。`);
+        }
+      }
+
+      if (run.viewerRenderCount) {
+        const avgRender = run.viewerRenderTotalMs / run.viewerRenderCount;
+        const parts = [
+          ['Canvas', run.viewerCanvasRenderMs],
+          ['TextLayer', run.viewerTextLayerMs],
+          ['文字抽出', run.viewerTextExtractMs],
+          ['ページ取得', run.viewerPageGetMs],
+          ['ハイライト', run.viewerHighlightMs],
+        ].sort((a, b) => b[1] - a[1]);
+        const top = parts[0];
+        messages.push(`中央PDF描画は平均 ${formatDuration(avgRender)} / 回。最も時間を使っている区分は ${top[0]}（合計 ${formatDuration(top[1])}）です。`);
+      }
+
+      if (run.sharedPdfCacheHits || run.sharedPdfCacheMisses) {
+        messages.push(`PDF文書共有キャッシュ：HIT ${run.sharedPdfCacheHits}回 / 新規読込 ${run.sharedPdfCacheMisses}回。最大${SHARED_PDF_CACHE_LIMIT}文書をLRU保持します。`);
+      }
+
       if (run.thumbnailCount) {
         const avgThumb = run.thumbnailTotalMs / run.thumbnailCount;
         if (avgThumb >= 500) {
@@ -3204,11 +3440,21 @@
       }
 
       const totals = getPerformanceTotals(run);
+      const avgViewerRender = run.viewerRenderCount
+        ? run.viewerRenderTotalMs / run.viewerRenderCount
+        : 0;
+      const avgThumbnail = run.thumbnailCount
+        ? run.thumbnailTotalMs / run.thumbnailCount
+        : 0;
       const kpis = [
         ['検索解析', formatDuration(run.totalSearchMs), `${run.selectedFileCount}PDF / ${totals.pages}ページ`],
         ['高速INDEX', `${totals.indexFiles} / ${run.selectedFileCount}PDF`, totals.fallbackFiles ? `フォールバック ${totals.fallbackFiles}PDF` : '全対象をINDEX検索'],
-        ['INDEX準備', formatDuration(run.indexPrefetchMs || 0), `並列取得・個別合計 ${formatDuration(totals.indexLoadMs)}`],
-        ['HIT', `${run.resultPages}ページ`, `${run.searchTerms.join(' / ')}・${String(run.searchMode).toUpperCase()}`],
+        ['検索後→初回表示', run.firstViewerAfterSearchMs == null ? '未計測' : formatDuration(run.firstViewerAfterSearchMs), `検索開始から ${run.firstViewerReadyMs == null ? '-' : formatDuration(run.firstViewerReadyMs)}`],
+        ['PDF描画', run.viewerRenderCount ? formatDuration(avgViewerRender) : '未計測', `${run.viewerRenderCount}回 / 最大 ${run.viewerRenderCount ? formatDuration(run.viewerRenderMaxMs) : '-'}`],
+        ['Canvas', formatDuration(run.viewerCanvasRenderMs || 0), '中央ビューア描画合計'],
+        ['TextLayer', formatDuration(run.viewerTextLayerMs || 0), `文字抽出 ${formatDuration(run.viewerTextExtractMs || 0)}`],
+        ['サムネイル', run.thumbnailCount ? formatDuration(avgThumbnail) : '待機中', `${run.thumbnailCount}枚 / 最大 ${run.thumbnailCount ? formatDuration(run.thumbnailMaxMs) : '-'}`],
+        ['PDF共有Cache', `${run.sharedPdfCacheHits} HIT`, `新規 ${run.sharedPdfCacheMisses} / 上限 ${SHARED_PDF_CACHE_LIMIT}`],
       ];
 
       elements.performanceSummary.replaceChildren();
@@ -3272,8 +3518,14 @@
         `検索INDEX: ${totals.indexFiles}/${run.selectedFileCount}PDF（フォールバック ${totals.fallbackFiles}PDF）`,
         `INDEX事前準備（実時間）: ${formatDuration(run.indexPrefetchMs || 0)}`,
         `INDEX取得個別合計（並列処理のため重複あり）: ${formatDuration(totals.indexLoadMs)}`,
-        `初回ページ表示: ${run.firstViewerReadyMs == null ? '未計測' : formatDuration(run.firstViewerReadyMs)}`,
-        `文書読込合計: ${formatDuration(totals.documentLoadMs)}`,
+        `初回ページ表示（検索開始から）: ${run.firstViewerReadyMs == null ? '未計測' : formatDuration(run.firstViewerReadyMs)}`,
+        `初回ページ表示（検索完了後）: ${run.firstViewerAfterSearchMs == null ? '未計測' : formatDuration(run.firstViewerAfterSearchMs)}`,
+        `中央PDF文書取得: ${run.viewerDocumentOpenCount}回 / 合計 ${formatDuration(run.viewerDocumentOpenTotalMs)} / 最大 ${formatDuration(run.viewerDocumentOpenMaxMs)} / cache HIT ${run.viewerDocumentCacheHits}`,
+        `中央PDF描画: ${run.viewerRenderCount}回 / 合計 ${formatDuration(run.viewerRenderTotalMs)} / 平均 ${run.viewerRenderCount ? formatDuration(run.viewerRenderTotalMs / run.viewerRenderCount) : '-'}`,
+        `  ページ取得: ${formatDuration(run.viewerPageGetMs)} / Canvas: ${formatDuration(run.viewerCanvasRenderMs)} / 文字抽出: ${formatDuration(run.viewerTextExtractMs)} / TextLayer: ${formatDuration(run.viewerTextLayerMs)} / highlight: ${formatDuration(run.viewerHighlightMs)}`,
+        `隣接HIT先読み: ${run.neighborPrefetchCount}ページ / 合計 ${formatDuration(run.neighborPrefetchTotalMs)}`,
+        `PDF共有Cache: HIT ${run.sharedPdfCacheHits} / 新規 ${run.sharedPdfCacheMisses}`,
+        `全文検索フォールバック時の文書読込合計: ${formatDuration(totals.documentLoadMs)}`,
         `ページ取得合計: ${formatDuration(totals.pageGetMs)}`,
         `テキスト抽出合計: ${formatDuration(totals.textExtractMs)}`,
         `検索判定等合計: ${formatDuration(totals.searchEvalMs)}`,
@@ -3321,7 +3573,7 @@
       const run = state.performanceRun;
       if (!run) return;
       const payload = {
-        viewerVersion: '5.0.0',
+        viewerVersion: '5.1.0',
         userAgent: navigator.userAgent,
         catalogLoadMs: state.catalogLoadMs,
         run: structuredCloneSafe(run),
@@ -4624,7 +4876,10 @@
 
       beginPerformanceRun({ searchText, searchTerms, searchMode: executedSearchMode, selectedEntries });
       state.searchBusy = true;
+      state.viewerPriorityBusy = true;
       resetResultThumbnailSystem({ clearCache: true });
+      cancelNeighborPrefetchJobs();
+      state.neighborPrefetchKeys.clear();
       state.searchText = searchText;
       state.searchTerms = searchTerms;
       state.executedSearchMode = executedSearchMode;
@@ -4676,7 +4931,9 @@
         }
 
         if (state.performanceRun) {
-          state.performanceRun.searchScanMs = perfNow() - state.performanceRun.startedAtPerf;
+          const searchCompletedAtPerf = perfNow();
+          state.performanceRun.searchScanMs = searchCompletedAtPerf - state.performanceRun.startedAtPerf;
+          state.performanceRun.searchCompletedAtPerf = searchCompletedAtPerf;
         }
         const pageResults = state.results.filter(item => !item.error);
         const errorCount = state.results.filter(item => item.error).length;
@@ -4709,6 +4966,7 @@
             errorCount ? 'warning' : 'success'
           );
         } else {
+          releaseViewerPriority();
           renderViewerMode();
           const perfTotals = getPerformanceTotals(state.performanceRun);
           const sourceMessage = perfTotals.indexFiles
@@ -4730,10 +4988,12 @@
           finalizePerformanceRun();
         }
         console.error(error);
+        releaseViewerPriority();
         setStatus(error.message, 'warning');
       } finally {
         state.searchBusy = false;
         requestAnimationFrame(() => setupResultThumbnailObserver());
+        scheduleResultThumbnailPump();
         setTimeout(() => setProgress(0, false), 800);
         elements.searchBtn.disabled = false;
         elements.catalogTrigger.disabled = false;
@@ -4900,8 +5160,19 @@
         state.resultThumbnailObserver.disconnect();
         state.resultThumbnailObserver = null;
       }
+      if (state.resultThumbnailIdleHandle) {
+        cancelIdleTask(state.resultThumbnailIdleHandle);
+        state.resultThumbnailIdleHandle = null;
+      }
+      cancelActiveResultThumbnailRender();
 
       if (clearCache) state.resultThumbnailCache.clear();
+    }
+
+    function cancelActiveResultThumbnailRender() {
+      const task = state.resultThumbnailRenderTask;
+      if (!task) return;
+      try { task.cancel(); } catch (error) { console.warn(error); }
     }
 
     function setupResultThumbnailObserver() {
@@ -4967,12 +5238,36 @@
         cacheKey,
         generation: state.resultThumbnailGeneration,
       });
-      pumpResultThumbnailQueue();
+      scheduleResultThumbnailPump();
+    }
+
+    function scheduleResultThumbnailPump() {
+      if (
+        state.searchBusy ||
+        state.viewerPriorityBusy ||
+        hasActivePrimaryViewerRender() ||
+        state.resultThumbnailIdleHandle ||
+        !state.resultThumbnailQueue.length
+      ) return;
+
+      state.resultThumbnailIdleHandle = scheduleIdleTask(() => {
+        state.resultThumbnailIdleHandle = null;
+        pumpResultThumbnailQueue();
+      }, RESULT_THUMBNAIL_IDLE_TIMEOUT_MS);
     }
 
     function pumpResultThumbnailQueue() {
-      while (state.resultThumbnailActiveCount < 2 && state.resultThumbnailQueue.length) {
+      if (state.searchBusy || state.viewerPriorityBusy || hasActivePrimaryViewerRender()) {
+        scheduleResultThumbnailPump();
+        return;
+      }
+
+      while (
+        state.resultThumbnailActiveCount < RESULT_THUMBNAIL_CONCURRENCY &&
+        state.resultThumbnailQueue.length
+      ) {
         const job = state.resultThumbnailQueue.shift();
+        if (job.generation !== state.resultThumbnailGeneration) continue;
         state.resultThumbnailActiveCount += 1;
         markResultThumbnailBusy(job.cacheKey, true);
 
@@ -4983,6 +5278,15 @@
             applyResultThumbnailToConnectedSlots(job.cacheKey, value, job.result);
           })
           .catch(error => {
+            if (isRenderingCancelledError(error)) {
+              if (
+                job.generation === state.resultThumbnailGeneration &&
+                !state.resultThumbnailCache.has(job.cacheKey)
+              ) {
+                state.resultThumbnailQueue.unshift(job);
+              }
+              return;
+            }
             console.error(error);
             if (job.generation !== state.resultThumbnailGeneration) return;
             const value = { error: error.message || 'サムネイル生成失敗' };
@@ -4994,7 +5298,7 @@
             state.resultThumbnailInFlight.delete(job.cacheKey);
             state.resultThumbnailActiveCount = Math.max(0, state.resultThumbnailActiveCount - 1);
             markResultThumbnailBusy(job.cacheKey, false);
-            pumpResultThumbnailQueue();
+            scheduleResultThumbnailPump();
             if (generationChanged && state.sidebarOpen) {
               requestAnimationFrame(() => setupResultThumbnailObserver());
             }
@@ -5040,90 +5344,80 @@
       slot.appendChild(stateLabel);
     }
 
-    async function getResultThumbnailPdf(file) {
-      let record = state.resultThumbnailPdfCache.get(file);
-      if (record) return record.promise;
-
-      const loadingTask = pdfjsLib.getDocument({
-        url: buildPdfPath(file),
-        enableXfa: true,
-      });
-      record = {
-        loadingTask,
-        pdf: null,
-        promise: null,
-      };
-      record.promise = loadingTask.promise.then(pdf => {
-        record.pdf = pdf;
-        return pdf;
-      });
-      state.resultThumbnailPdfCache.set(file, record);
-      return record.promise;
-    }
-
     async function generateResultThumbnail(result) {
       const thumbnailStartedAt = perfNow();
       try {
-        const pdf = await getResultThumbnailPdf(result.file);
-        const page = await pdf.getPage(result.pageNumber);
-        const baseViewport = page.getViewport({ scale: 1 });
-        const targetWidth = 620;
-        const scale = Math.max(0.2, Math.min(1.5, targetWidth / baseViewport.width));
-        const viewport = page.getViewport({ scale });
-        const canvas = document.createElement('canvas');
-        canvas.width = Math.max(1, Math.round(viewport.width));
-        canvas.height = Math.max(1, Math.round(viewport.height));
-        const context = canvas.getContext('2d', { alpha: false });
-  
-        await page.render({
-          canvasContext: context,
-          viewport,
-        }).promise;
-  
-        const matchedTerms = (result.matchedTerms?.length ? result.matchedTerms : state.searchTerms)
-          .map(item => ({
-            term: item.term || String(item),
-            normalized: item.normalized || normalizeForSearch(item.term || item),
-          }));
-        const rectangles = await renderExportHighlightRects(pdf, result.pageNumber, matchedTerms);
-  
-        context.save();
-        context.fillStyle = 'rgba(250, 204, 21, .42)';
-        context.strokeStyle = 'rgba(217, 119, 6, .72)';
-        context.lineWidth = Math.max(1, viewport.width / 620);
-  
-        for (const rect of rectangles) {
-          const viewportRect = viewport.convertToViewportRectangle([
-            rect.x,
-            rect.y,
-            rect.x + rect.width,
-            rect.y + rect.height,
-          ]);
-          const x = Math.min(viewportRect[0], viewportRect[2]);
-          const y = Math.min(viewportRect[1], viewportRect[3]);
-          const width = Math.abs(viewportRect[2] - viewportRect[0]);
-          const height = Math.abs(viewportRect[3] - viewportRect[1]);
-          if (width <= .5 || height <= .5) continue;
-          context.fillRect(x, y, width, height);
-          context.strokeRect(x, y, width, height);
-        }
-        context.restore();
-  
-        return {
-          dataUrl: canvas.toDataURL('image/jpeg', .86),
-          width: canvas.width,
-          height: canvas.height,
-        };
+        return await withSharedPdf(result.file, async pdf => {
+          const page = await pdf.getPage(result.pageNumber);
+          const baseViewport = page.getViewport({ scale: 1 });
+          const targetWidth = 620;
+          const scale = Math.max(0.2, Math.min(1.5, targetWidth / baseViewport.width));
+          const viewport = page.getViewport({ scale });
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.max(1, Math.round(viewport.width));
+          canvas.height = Math.max(1, Math.round(viewport.height));
+          const context = canvas.getContext('2d', { alpha: false });
+
+          const renderTask = page.render({
+            canvasContext: context,
+            viewport,
+          });
+          state.resultThumbnailRenderTask = renderTask;
+          try {
+            await renderTask.promise;
+          } finally {
+            if (state.resultThumbnailRenderTask === renderTask) {
+              state.resultThumbnailRenderTask = null;
+            }
+          }
+
+          const matchedTerms = (result.matchedTerms?.length ? result.matchedTerms : state.searchTerms)
+            .map(item => ({
+              term: item.term || String(item),
+              normalized: item.normalized || normalizeForSearch(item.term || item),
+            }));
+          const rectangles = await renderHighlightRectsFromPage(page, matchedTerms);
+
+          context.save();
+          context.fillStyle = 'rgba(250, 204, 21, .42)';
+          context.strokeStyle = 'rgba(217, 119, 6, .72)';
+          context.lineWidth = Math.max(1, viewport.width / 620);
+
+          for (const rect of rectangles) {
+            const viewportRect = viewport.convertToViewportRectangle([
+              rect.x,
+              rect.y,
+              rect.x + rect.width,
+              rect.y + rect.height,
+            ]);
+            const x = Math.min(viewportRect[0], viewportRect[2]);
+            const y = Math.min(viewportRect[1], viewportRect[3]);
+            const width = Math.abs(viewportRect[2] - viewportRect[0]);
+            const height = Math.abs(viewportRect[3] - viewportRect[1]);
+            if (width <= .5 || height <= .5) continue;
+            context.fillRect(x, y, width, height);
+            context.strokeRect(x, y, width, height);
+          }
+          context.restore();
+
+          return {
+            dataUrl: canvas.toDataURL('image/jpeg', .86),
+            width: canvas.width,
+            height: canvas.height,
+          };
+        });
       } finally {
         recordResultThumbnailPerformance(perfNow() - thumbnailStartedAt);
       }
     }
+
     function destroyResultThumbnailPdfCache() {
-      for (const record of state.resultThumbnailPdfCache.values()) {
-        if (record.pdf) record.pdf.destroy().catch(() => {});
-        else if (record.loadingTask?.destroy) Promise.resolve(record.loadingTask.destroy()).catch(() => {});
+      if (state.resultThumbnailIdleHandle) {
+        cancelIdleTask(state.resultThumbnailIdleHandle);
+        state.resultThumbnailIdleHandle = null;
       }
-      state.resultThumbnailPdfCache.clear();
+      cancelActiveResultThumbnailRender();
+      state.resultThumbnailQueue.length = 0;
     }
 
     function getPageResults() {
@@ -5308,11 +5602,28 @@
       }
 
       if (mode === 'continuous') {
-        if (getPageResults().length && !state.continuousItems.size) {
+        const hasResults = getPageResults().length > 0;
+        if (hasResults) {
+          state.viewerPriorityBusy = true;
+          cancelActiveResultThumbnailRender();
+          if (state.resultThumbnailIdleHandle) {
+            cancelIdleTask(state.resultThumbnailIdleHandle);
+            state.resultThumbnailIdleHandle = null;
+          }
+          cancelNeighborPrefetchJobs();
+        }
+        if (hasResults && !state.continuousItems.size) {
           buildContinuousViewer();
         }
         renderViewerMode();
         scheduleVisibleContinuousPages();
+        if (!hasResults) {
+          releaseViewerPriority();
+        } else {
+          requestAnimationFrame(() => {
+            if (!hasActivePrimaryViewerRender()) releaseViewerPriority();
+          });
+        }
         return;
       }
 
@@ -5520,6 +5831,7 @@
           })
           .finally(() => {
             item.loopPromise = null;
+            scheduleResultThumbnailPump();
           });
       }
 
@@ -5539,98 +5851,75 @@
       }
     }
 
-    async function getContinuousPdf(file) {
-      let record = state.continuousPdfCache.get(file);
-      if (record) return record.promise;
-
-      const loadingTask = pdfjsLib.getDocument({
-        url: buildPdfPath(file),
-        enableXfa: true,
-      });
-
-      record = {
-        loadingTask,
-        pdf: null,
-        promise: null,
-      };
-
-      record.promise = loadingTask.promise.then(pdf => {
-        record.pdf = pdf;
-        return pdf;
-      });
-
-      state.continuousPdfCache.set(file, record);
-      return record.promise;
-    }
-
     async function renderContinuousItemSnapshot(item, token, signature) {
       item.status.hidden = false;
       item.status.dataset.kind = '';
       item.status.textContent = `${item.result.pageNumber}ページを読み込んでいます。`;
 
-      const pdf = await getContinuousPdf(item.result.file);
-      if (!isCurrentContinuousRequest(item, token)) return;
+      await withSharedPdf(item.result.file, async pdf => {
+        if (!isCurrentContinuousRequest(item, token)) return;
 
-      const page = await pdf.getPage(item.result.pageNumber);
-      if (!isCurrentContinuousRequest(item, token)) return;
+        const page = await pdf.getPage(item.result.pageNumber);
+        if (!isCurrentContinuousRequest(item, token)) return;
 
-      const effectiveScale = calculateAutoScale(page, item.body, 10, 10);
-      const viewport = page.getViewport({ scale: effectiveScale });
-      const outputScale = window.devicePixelRatio || 1;
-      const context = item.canvas.getContext('2d', { alpha: false });
+        const effectiveScale = calculateAutoScale(page, item.body, 10, 10);
+        const viewport = page.getViewport({ scale: effectiveScale });
+        const outputScale = window.devicePixelRatio || 1;
+        const context = item.canvas.getContext('2d', { alpha: false });
 
-      item.canvas.width = Math.floor(viewport.width * outputScale);
-      item.canvas.height = Math.floor(viewport.height * outputScale);
-      item.canvas.style.width = `${viewport.width}px`;
-      item.canvas.style.height = `${viewport.height}px`;
-      item.surface.style.width = `${viewport.width}px`;
-      item.surface.style.height = `${viewport.height}px`;
-      item.surface.style.minWidth = '0';
-      item.surface.style.minHeight = '0';
+        item.canvas.width = Math.floor(viewport.width * outputScale);
+        item.canvas.height = Math.floor(viewport.height * outputScale);
+        item.canvas.style.width = `${viewport.width}px`;
+        item.canvas.style.height = `${viewport.height}px`;
+        item.surface.style.width = `${viewport.width}px`;
+        item.surface.style.height = `${viewport.height}px`;
+        item.surface.style.minWidth = '0';
+        item.surface.style.minHeight = '0';
 
-      item.textLayer.replaceChildren();
-      item.textLayer.style.width = `${viewport.width}px`;
-      item.textLayer.style.height = `${viewport.height}px`;
-      item.textLayer.style.setProperty('--scale-factor', String(effectiveScale));
+        item.textLayer.replaceChildren();
+        item.textLayer.style.width = `${viewport.width}px`;
+        item.textLayer.style.height = `${viewport.height}px`;
+        item.textLayer.style.setProperty('--scale-factor', String(effectiveScale));
 
-      const renderTask = page.render({
-        canvasContext: context,
-        viewport,
-        transform: outputScale === 1
-          ? null
-          : [outputScale, 0, 0, outputScale, 0, 0],
+        const renderTask = page.render({
+          canvasContext: context,
+          viewport,
+          transform: outputScale === 1
+            ? null
+            : [outputScale, 0, 0, outputScale, 0, 0],
+        });
+        item.renderTask = renderTask;
+
+        try {
+          await renderTask.promise;
+        } catch (error) {
+          if (isRenderingCancelledError(error)) return;
+          throw error;
+        } finally {
+          if (item.renderTask === renderTask) item.renderTask = null;
+        }
+
+        if (!isCurrentContinuousRequest(item, token)) return;
+
+        const textContent = await page.getTextContent();
+        if (!isCurrentContinuousRequest(item, token)) return;
+
+        const textLayer = new pdfjsLib.TextLayer({
+          textContentSource: textContent,
+          container: item.textLayer,
+          viewport,
+        });
+        await textLayer.render();
+
+        if (!isCurrentContinuousRequest(item, token)) return;
+
+        highlightSearchTermsInLayer(item.textLayer, state.searchTerms);
+        item.renderedScale = effectiveScale;
+        item.renderedSignature = signature;
+        item.status.hidden = true;
+        item.status.dataset.kind = '';
+        markFirstViewerReady();
       });
-      item.renderTask = renderTask;
-
-      try {
-        await renderTask.promise;
-      } catch (error) {
-        if (isRenderingCancelledError(error)) return;
-        throw error;
-      } finally {
-        if (item.renderTask === renderTask) item.renderTask = null;
-      }
-
-      if (!isCurrentContinuousRequest(item, token)) return;
-
-      const textContent = await page.getTextContent();
-      if (!isCurrentContinuousRequest(item, token)) return;
-
-      const textLayer = new pdfjsLib.TextLayer({
-        textContentSource: textContent,
-        container: item.textLayer,
-        viewport,
-      });
-      await textLayer.render();
-
-      if (!isCurrentContinuousRequest(item, token)) return;
-
-      highlightSearchTermsInLayer(item.textLayer, state.searchTerms);
-      item.renderedScale = effectiveScale;
-      item.renderedSignature = signature;
-      item.status.hidden = true;
-      item.status.dataset.kind = '';
-      markFirstViewerReady();
     }
 
     function isCurrentContinuousRequest(item, token) {
@@ -5767,16 +6056,7 @@
       state.continuousItems.clear();
       elements.continuousWrap.replaceChildren();
 
-      const destroyPromises = [];
-      for (const record of state.continuousPdfCache.values()) {
-        if (record.pdf) {
-          destroyPromises.push(record.pdf.destroy().catch(() => {}));
-        } else if (record.loadingTask?.destroy) {
-          destroyPromises.push(Promise.resolve(record.loadingTask.destroy()).catch(() => {}));
-        }
-      }
-      state.continuousPdfCache.clear();
-      await Promise.allSettled(destroyPromises);
+      trimSharedPdfCache();
     }
 
     function isRenderingCancelledError(error) {
@@ -5812,10 +6092,11 @@
     }
 
     async function destroyCurrentPdf() {
-      const pdf = state.currentPdf;
+      const record = state.currentPdfRecord;
 
       // 先に参照を外し、進行中の描画ループへ終了を通知する。
       state.currentPdf = null;
+      state.currentPdfRecord = null;
       state.renderPending = false;
       state.renderRequestSerial += 1;
 
@@ -5833,9 +6114,7 @@
       elements.canvas.width = 1;
       elements.canvas.height = 1;
 
-      if (pdf) {
-        try { await pdf.destroy(); } catch (error) { console.warn(error); }
-      }
+      if (record) unpinSharedPdfRecord(record);
 
       state.currentFile = '';
       state.currentFileLabel = '';
@@ -5868,6 +6147,14 @@
     async function openResultInCanvas(result, mode) {
       if (!['paged', 'single'].includes(mode)) return;
 
+      state.viewerPriorityBusy = true;
+      cancelActiveResultThumbnailRender();
+      if (state.resultThumbnailIdleHandle) {
+        cancelIdleTask(state.resultThumbnailIdleHandle);
+        state.resultThumbnailIdleHandle = null;
+      }
+      cancelNeighborPrefetchJobs();
+
       const modeChanged = state.viewerMode !== mode;
       state.viewerMode = mode;
       persistViewerMode();
@@ -5894,18 +6181,17 @@
           if (openSerial !== state.viewerOpenSerial) return;
 
           setStatus(`PDFを表示しています：${result.label}`);
-          const loadingTask = pdfjsLib.getDocument({
-            url: buildPdfPath(result.file),
-            enableXfa: true,
-          });
-          const loadedPdf = await loadingTask.promise;
+          const openStartedAt = perfNow();
+          const pinned = await pinSharedPdf(result.file);
+          recordViewerDocumentOpen(perfNow() - openStartedAt, pinned.cacheHit);
 
           if (openSerial !== state.viewerOpenSerial) {
-            try { await loadedPdf.destroy(); } catch (error) { console.warn(error); }
+            unpinSharedPdfRecord(pinned.record);
             return;
           }
 
-          state.currentPdf = loadedPdf;
+          state.currentPdf = pinned.pdf;
+          state.currentPdfRecord = pinned.record;
           state.currentFile = result.file;
           state.currentFileLabel = result.label;
         }
@@ -5932,6 +6218,8 @@
           `${searchModeLabel(result.searchMode || state.executedSearchMode)}：${formatResultMatchSummary(result)}。`,
           'success'
         );
+
+        if (mode === 'paged') schedulePagedNeighborPrefetch();
       } catch (error) {
         if (openSerial !== state.viewerOpenSerial || isRenderingCancelledError(error)) {
           return;
@@ -5939,10 +6227,63 @@
 
         console.error(error);
         await destroyCurrentPdf();
+        releaseViewerPriority();
         elements.pageWrap.hidden = true;
         elements.emptyGuide.hidden = false;
         setStatus(`PDF表示に失敗しました：${error.message}`, 'error');
       }
+    }
+
+    function cancelNeighborPrefetchJobs() {
+      for (const handle of state.neighborPrefetchHandles) {
+        cancelIdleTask(handle);
+      }
+      state.neighborPrefetchHandles.clear();
+    }
+
+    function schedulePagedNeighborPrefetch() {
+      cancelNeighborPrefetchJobs();
+      if (state.viewerMode !== 'paged' || state.viewerPriorityBusy) return;
+      const results = getPageResults();
+      if (!results.length) return;
+
+      const candidateIndexes = [state.pagedIndex + 1, state.pagedIndex - 1]
+        .filter(index => index >= 0 && index < results.length);
+
+      candidateIndexes.forEach((index, order) => {
+        const result = results[index];
+        const key = resultKey(result);
+        if (state.neighborPrefetchKeys.has(key)) return;
+
+        let handle = null;
+        handle = scheduleIdleTask(async () => {
+          state.neighborPrefetchHandles.delete(handle);
+          if (
+            state.viewerMode !== 'paged' ||
+            state.viewerPriorityBusy ||
+            Math.abs(index - state.pagedIndex) > 1 ||
+            state.neighborPrefetchKeys.has(key)
+          ) return;
+
+          state.neighborPrefetchKeys.add(key);
+          const startedAt = perfNow();
+          try {
+            await withSharedPdf(result.file, async pdf => {
+              const page = await pdf.getPage(result.pageNumber);
+              // 描画命令と文字情報をアイドル時に先読みし、次ページ切替時の待ちを減らす。
+              await Promise.allSettled([
+                page.getOperatorList(),
+                page.getTextContent(),
+              ]);
+            });
+            recordNeighborPrefetchPerformance(perfNow() - startedAt);
+          } catch (error) {
+            console.info('隣接ヒットページの先読みをスキップしました。', error);
+            state.neighborPrefetchKeys.delete(key);
+          }
+        }, NEIGHBOR_PREFETCH_IDLE_TIMEOUT_MS + order * 450);
+        state.neighborPrefetchHandles.add(handle);
+      });
     }
 
     function getPagedNavIndexFromClientY(clientY) {
@@ -6071,6 +6412,14 @@
     function requestViewerRender() {
       if (!state.currentPdf) return Promise.resolve();
 
+      state.viewerPriorityBusy = true;
+      cancelActiveResultThumbnailRender();
+      if (state.resultThumbnailIdleHandle) {
+        cancelIdleTask(state.resultThumbnailIdleHandle);
+        state.resultThumbnailIdleHandle = null;
+      }
+      cancelNeighborPrefetchJobs();
+
       state.renderRequestSerial += 1;
       state.renderPending = true;
       updateViewerToolbar();
@@ -6090,6 +6439,8 @@
           })
           .finally(() => {
             state.renderLoopPromise = null;
+            releaseViewerPriority();
+            if (state.viewerMode === 'paged') schedulePagedNeighborPrefetch();
           });
       }
 
@@ -6115,8 +6466,12 @@
     }
 
     async function renderPageSnapshot({ pdf, pageNumber, scale, requestSerial }) {
+      const totalStartedAt = perfNow();
       const serial = ++state.renderSerial;
+
+      const pageGetStartedAt = perfNow();
       const page = await pdf.getPage(pageNumber);
+      const pageGetMs = perfNow() - pageGetStartedAt;
 
       // getPage中に別ページが要求された場合は、Canvasを触らず終了する。
       if (
@@ -6148,6 +6503,7 @@
       elements.textLayer.style.height = `${viewport.height}px`;
       elements.textLayer.style.setProperty('--scale-factor', String(effectiveScale));
 
+      const canvasStartedAt = perfNow();
       const renderTask = page.render({
         canvasContext: context,
         viewport,
@@ -6167,6 +6523,7 @@
           state.renderTask = null;
         }
       }
+      const canvasRenderMs = perfNow() - canvasStartedAt;
 
       if (
         serial !== state.renderSerial ||
@@ -6176,7 +6533,9 @@
         return;
       }
 
+      const textExtractStartedAt = perfNow();
       const textContent = await page.getTextContent();
+      const textExtractMs = perfNow() - textExtractStartedAt;
 
       if (
         requestSerial !== state.renderRequestSerial ||
@@ -6185,12 +6544,14 @@
         return;
       }
 
+      const textLayerStartedAt = perfNow();
       const textLayer = new pdfjsLib.TextLayer({
         textContentSource: textContent,
         container: elements.textLayer,
         viewport,
       });
       await textLayer.render();
+      const textLayerMs = perfNow() - textLayerStartedAt;
 
       if (
         requestSerial !== state.renderRequestSerial ||
@@ -6199,10 +6560,20 @@
         return;
       }
 
+      const highlightStartedAt = perfNow();
       if (state.searchText && state.currentTargetPage === pageNumber) {
         highlightSearchTermsInLayer(elements.textLayer, state.searchTerms, true);
       }
+      const highlightMs = perfNow() - highlightStartedAt;
 
+      recordViewerRenderPerformance({
+        pageGetMs,
+        canvasRenderMs,
+        textExtractMs,
+        textLayerMs,
+        highlightMs,
+        totalMs: perfNow() - totalStartedAt,
+      });
       markFirstViewerReady();
       updateViewerToolbar();
     }
@@ -6217,10 +6588,9 @@
       highlightSearchTermsInLayer(elements.textLayer, state.searchTerms, true);
     }
 
-    async function renderExportHighlightRects(pdf, pageNumber, searchTerms) {
+    async function renderHighlightRectsFromPage(page, searchTerms) {
       if (!(searchTerms || []).length) return [];
 
-      const page = await pdf.getPage(pageNumber);
       const viewport = page.getViewport({ scale: 1 });
       const textContent = await page.getTextContent();
 
@@ -6274,6 +6644,12 @@
       } finally {
         host.remove();
       }
+    }
+
+    async function renderExportHighlightRects(pdf, pageNumber, searchTerms) {
+      if (!(searchTerms || []).length) return [];
+      const page = await pdf.getPage(pageNumber);
+      return renderHighlightRectsFromPage(page, searchTerms);
     }
 
     async function createFooterPngBytes(text) {
@@ -6727,6 +7103,8 @@
         }
       }
       destroyResultThumbnailPdfCache();
+      cancelNeighborPrefetchJobs();
+      destroySharedPdfCache();
     });
 
     updateSearchModeUi();
