@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" href="./favicon.svg?v=1" type="image/svg+xml">
   <meta name="theme-color" content="#1769aa">
-  <title>PDF Text Jump Viewer v5.3.2</title>
+  <title>PDF Text Jump Viewer v5.4.0</title>
   <style>
     :root {
       --navy: #17365f;
@@ -2557,7 +2557,7 @@
     }
 
 
-    /* ===== v5.3.2：WebP主体・必要ページだけ高品質PDFへ昇格 ===== */
+    /* ===== v5.4.0：WebP完全Lazy Load・画面近傍だけ取得 ===== */
     .continuous-page-card[data-quality="preview"] .continuous-page-head::after {
       content: "PREVIEW";
       flex: 0 0 auto;
@@ -2629,7 +2629,7 @@
       </button>
 
       <div class="brand">
-        <div class="brand-title">PDF Text Jump Viewer <span style="font-size:10px;opacity:.65">v5.3.2</span></div>
+        <div class="brand-title">PDF Text Jump Viewer <span style="font-size:10px;opacity:.65">v5.4.0</span></div>
         <div class="brand-sub">サムネイルでPDFを選び、AND／OR検索・閲覧・PDF出力</div>
       </div>
 
@@ -2982,12 +2982,15 @@
     const MAX_SCALE = 2.5;
     const SCALE_STEP = 0.15;
     const MAX_CONTINUOUS_PAGES = 100;
-    const CONTINUOUS_MAX_PROMOTED = 2;
+    const CONTINUOUS_MAX_PROMOTED = 1;
     const CONTINUOUS_PROMOTION_EDGE_PX = 80;
     const CONTINUOUS_PROMOTION_SETTLE_MS = 220;
+    const CONTINUOUS_FIRST_PROMOTION_DELAY_MS = 650;
     const CONTINUOUS_DEMOTION_VIEWPORTS = 1.75;
     const CONTINUOUS_MIN_RETAIN_MS = 1200;
     const CONTINUOUS_CANVAS_TIMEOUT_MS = 3000;
+    const SIDEBAR_PREVIEW_ROOT_MARGIN_PX = 620;
+    const CONTINUOUS_PREVIEW_ROOT_MARGIN_PX = 760;
     const POST_SEARCH_OBSERVATION_MS = 5000;
     const PAGE_TURN_WHEEL_THRESHOLD = 45;
     const PAGE_TURN_COOLDOWN_MS = 420;
@@ -3491,6 +3494,13 @@
         staticPreviewLoadMaxMs: 0,
         staticPreviewErrorCount: 0,
         staticPreviewCacheHits: 0,
+        staticPreviewLoadStartsBySource: {
+          sidebar: 0,
+          continuous: 0,
+          viewer: 0,
+          prefetch: 0,
+          other: 0,
+        },
         continuousPromoteCount: 0,
         continuousDemoteCount: 0,
         continuousRenderCancelledCount: 0,
@@ -3681,7 +3691,7 @@
         if (cacheParts.length) messages.push(`INDEX取得元：${cacheParts.join(' / ')}。`);
 
         if (run.totalSearchMs < 3000) {
-          messages.push('<strong>検索待ち時間は十分小さい水準です。</strong> v5.3.2では事前WebPを主表示にして、必要なページだけPDF.jsで高品質化します。');
+          messages.push('<strong>検索待ち時間は十分小さい水準です。</strong> v5.4.0では事前WebPを主表示にして、必要なページだけPDF.jsで高品質化します。');
         } else if (totals.fallbackFiles) {
           messages.push('検索時間がまだ長い場合は、フォールバックしているPDFのINDEX生成状況を優先して確認してください。');
         } else if (totals.indexLoadMs > totals.searchEvalMs * 3) {
@@ -3703,7 +3713,7 @@
 
       if (run.firstViewerAfterSearchMs != null) {
         if (run.firstViewerAfterSearchMs >= 1200) {
-          messages.push(`<strong>検索完了後の初回PDF表示に ${formatDuration(run.firstViewerAfterSearchMs)} かかっています。</strong> v5.3.2ではWebPを主表示にし、画面中央付近の必要ページだけ高品質PDFへ昇格します。`);
+          messages.push(`<strong>検索完了後の初回PDF表示に ${formatDuration(run.firstViewerAfterSearchMs)} かかっています。</strong> v5.4.0ではWebPを主表示にし、画面中央付近の必要ページだけ高品質PDFへ昇格します。`);
         } else {
           messages.push(`検索完了後の初回PDF表示は ${formatDuration(run.firstViewerAfterSearchMs)} です。`);
         }
@@ -3727,13 +3737,14 @@
       }
 
       if (run.staticPreviewLoadCount) {
-        messages.push(`事前ページプレビューを${run.staticPreviewLoadCount}種類読み込みました（共有キャッシュHIT ${run.staticPreviewCacheHits || 0}回）。v5.3.2ではサイドバーと連続表示の基本表示として使います。`);
+        const previewSources = run.staticPreviewLoadStartsBySource || {};
+        messages.push(`事前ページプレビューを${run.staticPreviewLoadCount}種類読み込みました（共有キャッシュHIT ${run.staticPreviewCacheHits || 0}回）。取得起点はサイドバー ${previewSources.sidebar || 0} / 連続表示 ${previewSources.continuous || 0} / 中央表示 ${previewSources.viewer || 0} / 先読み ${previewSources.prefetch || 0}。v5.4.0では画面近傍だけをLazy Loadし、遠いHITページは未取得のまま保持します。`);
       } else if (run.pagePreviewAvailableFiles) {
         messages.push('事前ページプレビューは利用可能ですが、この計測ではまだ表示対象に読み込まれていません。');
       }
 
       if (run.sharedPdfLoadMaxMs >= 1000) {
-        messages.push(`<strong>PDF本体の初回読込最大 ${formatDuration(run.sharedPdfLoadMaxMs)} が残っています。</strong> v5.3.2では事前画像を主表示にし、不要なPDF Canvas描画を抑えます。`);
+        messages.push(`<strong>PDF本体の初回読込最大 ${formatDuration(run.sharedPdfLoadMaxMs)} が残っています。</strong> v5.4.0では事前画像を主表示にし、不要なPDF Canvas描画を抑えます。`);
       }
 
       refreshPostSearchObservation(run);
@@ -3861,8 +3872,9 @@
         `初回事前プレビュー（検索開始から）: ${run.firstPreviewReadyMs == null ? '未計測' : formatDuration(run.firstPreviewReadyMs)}`,
         `初回事前プレビュー（検索完了後）: ${run.firstPreviewAfterSearchMs == null ? '未計測' : formatDuration(run.firstPreviewAfterSearchMs)}`,
         `事前プレビュー: ${run.staticPreviewLoadCount}種類 / Cache HIT ${run.staticPreviewCacheHits || 0} / 合計 ${formatDuration(run.staticPreviewLoadTotalMs)} / 最大 ${formatDuration(run.staticPreviewLoadMaxMs)} / エラー ${run.staticPreviewErrorCount}`,
+        `WebP取得起点: sidebar ${run.staticPreviewLoadStartsBySource?.sidebar || 0} / continuous ${run.staticPreviewLoadStartsBySource?.continuous || 0} / viewer ${run.staticPreviewLoadStartsBySource?.viewer || 0} / prefetch ${run.staticPreviewLoadStartsBySource?.prefetch || 0} / other ${run.staticPreviewLoadStartsBySource?.other || 0}`,
         `検索後5秒観測: ${run.postSearch5s ? `PDF開始 ${run.postSearch5s.pdfLoadStarts} / WebP開始 ${run.postSearch5s.previewLoadStarts} / Canvas開始 ${run.postSearch5s.canvasRenderStarts} / 最終活動 ${formatDuration(run.postSearch5s.lastActivityAfterSearchMs || 0)} / 5秒以降イベント ${run.postSearch5s.afterWindowActivityCount || 0}` : '未計測'}`,
-        `連続表示のPDF昇格: ${run.continuousPromoteCount || 0}回 / WebPへ降格 ${run.continuousDemoteCount || 0}回 / Canvas cancel ${run.continuousRenderCancelledCount || 0}回 / 3秒超WebP退避 ${run.continuousCanvasTimeoutCount || 0}回（v5.3.2）`,
+        `連続表示のPDF昇格: ${run.continuousPromoteCount || 0}回 / WebPへ降格 ${run.continuousDemoteCount || 0}回 / Canvas cancel ${run.continuousRenderCancelledCount || 0}回 / 3秒超WebP退避 ${run.continuousCanvasTimeoutCount || 0}回（v5.4.0）`,
         `初回実PDF表示（検索開始から）: ${run.firstViewerReadyMs == null ? '未計測' : formatDuration(run.firstViewerReadyMs)}`,
         `初回実PDF表示（検索完了後）: ${run.firstViewerAfterSearchMs == null ? '未計測' : formatDuration(run.firstViewerAfterSearchMs)}`,
         `PDF共有文書の新規読込: ${run.sharedPdfLoadCount}回 / 合計 ${formatDuration(run.sharedPdfLoadTotalMs)} / 最大 ${formatDuration(run.sharedPdfLoadMaxMs)}`,
@@ -3920,7 +3932,7 @@
       if (!run) return;
       refreshPostSearchObservation(run);
       const payload = {
-        viewerVersion: '5.3.2',
+        viewerVersion: '5.4.0',
         userAgent: navigator.userAgent,
         catalogLoadMs: state.catalogLoadMs,
         run: structuredCloneSafe(run),
@@ -4345,7 +4357,7 @@
       state.pagePreviewUnavailable.add(`${canonicalFileKey(file)}::${Math.max(1, Number.parseInt(pageNumber, 10) || 1)}`);
     }
 
-    function ensureStaticPreviewReady(file, pageNumber) {
+    function ensureStaticPreviewReady(file, pageNumber, source = 'other') {
       const url = getPagePreviewUrl(file, pageNumber);
       if (!url) return Promise.reject(new Error('事前プレビュー未登録'));
 
@@ -4355,6 +4367,12 @@
         return cached;
       }
 
+      const normalizedSource = ['sidebar', 'continuous', 'viewer', 'prefetch'].includes(source)
+        ? source
+        : 'other';
+      if (state.performanceRun?.staticPreviewLoadStartsBySource) {
+        state.performanceRun.staticPreviewLoadStartsBySource[normalizedSource] += 1;
+      }
       const startedAt = perfNow();
       recordPostSearchActivity('previewLoad', 'start');
       const promise = new Promise((resolve, reject) => {
@@ -4377,12 +4395,12 @@
       return promise;
     }
 
-    function loadStaticPreviewImage(image, result, { onLoad = null, onError = null, eager = true } = {}) {
+    function loadStaticPreviewImage(image, result, { onLoad = null, onError = null, eager = true, source = 'other' } = {}) {
       const url = getPagePreviewUrl(result.file, result.pageNumber);
       if (!url) return false;
       image.decoding = 'async';
       image.loading = eager ? 'eager' : 'lazy';
-      ensureStaticPreviewReady(result.file, result.pageNumber)
+      ensureStaticPreviewReady(result.file, result.pageNumber, source)
         .then(meta => {
           image.src = meta.url;
           if (typeof onLoad === 'function') onLoad(image, meta);
@@ -4413,6 +4431,7 @@
       image.alt = `${result.label} ${result.pageNumber}ページの高速プレビュー`;
       loadStaticPreviewImage(image, result, {
         eager: true,
+        source: 'viewer',
         onLoad: () => {
           if (token !== state.viewerPreviewToken) return;
           markFirstPreviewReady();
@@ -5731,7 +5750,7 @@
         }
       }, {
         root: elements.resultsList,
-        rootMargin: '260px 0px',
+        rootMargin: `${SIDEBAR_PREVIEW_ROOT_MARGIN_PX}px 0px`,
         threshold: 0.01,
       });
 
@@ -5763,6 +5782,7 @@
 
       loadStaticPreviewImage(image, result, {
         eager: false,
+        source: 'sidebar',
         onLoad: () => {
           slot.dataset.staticPreviewPending = 'false';
           markFirstPreviewReady();
@@ -6349,6 +6369,9 @@
           status,
           preview,
           previewMeta: null,
+          previewState: 'idle',
+          previewRequestedAt: 0,
+          previewLoadedAt: 0,
           renderedScale: null,
           renderedSignature: '',
           lastPromotedAt: 0,
@@ -6361,29 +6384,105 @@
         };
         state.continuousItems.set(key, item);
 
-        loadStaticPreviewImage(preview, result, {
-          eager: index < 2,
-          onLoad: (_image, previewMeta) => {
-            if (!card.isConnected || item.generation !== state.continuousGeneration) return;
-            item.previewMeta = previewMeta || null;
-            restoreContinuousPreviewSurface(item);
-            preview.hidden = false;
-            if (card.dataset.quality !== 'loading') status.hidden = true;
-            markFirstPreviewReady();
-          },
-          onError: () => {
-            if (!card.isConnected) return;
-            preview.hidden = true;
-            status.hidden = false;
-            status.dataset.kind = 'error';
-            status.textContent = '事前プレビューを表示できません。画面中央に来たとき元PDFを読み込みます。';
-          },
-        });
       });
 
       elements.continuousWrap.hidden = !displayedResults.length;
       elements.emptyGuide.hidden = Boolean(displayedResults.length);
-      scheduleVisibleContinuousPages({ allowPromotion: true });
+      setupContinuousPreviewObserver();
+      scheduleVisibleContinuousPages({ allowPromotion: false });
+      scheduleContinuousPromotionAfterIdle();
+    }
+
+    function loadContinuousPreviewItem(item) {
+      if (!item || !item.card?.isConnected || item.generation !== state.continuousGeneration) return false;
+      if (item.previewState === 'loading' || item.previewState === 'loaded' || item.previewState === 'error') return false;
+      const url = getPagePreviewUrl(item.result.file, item.result.pageNumber);
+      if (!url) {
+        item.previewState = 'error';
+        item.preview.hidden = true;
+        item.status.hidden = false;
+        item.status.dataset.kind = 'error';
+        item.status.textContent = '事前プレビューを利用できません。画面中央に来たとき元PDFを読み込みます。';
+        scheduleVisibleContinuousPages({ allowPromotion: true });
+        return false;
+      }
+
+      item.previewState = 'loading';
+      item.previewRequestedAt = perfNow();
+      item.status.hidden = false;
+      item.status.dataset.kind = '';
+      item.status.textContent = '高速プレビューを読み込んでいます。';
+      loadStaticPreviewImage(item.preview, item.result, {
+        eager: false,
+        source: 'continuous',
+        onLoad: (_image, previewMeta) => {
+          if (!item.card.isConnected || item.generation !== state.continuousGeneration) return;
+          item.previewState = 'loaded';
+          item.previewLoadedAt = perfNow();
+          item.previewMeta = previewMeta || null;
+          restoreContinuousPreviewSurface(item);
+          item.preview.hidden = false;
+          if (item.card.dataset.quality !== 'loading') item.status.hidden = true;
+          markFirstPreviewReady();
+          scheduleContinuousPromotionAfterIdle();
+        },
+        onError: () => {
+          if (!item.card.isConnected || item.generation !== state.continuousGeneration) return;
+          item.previewState = 'error';
+          item.preview.hidden = true;
+          item.status.hidden = false;
+          item.status.dataset.kind = 'error';
+          item.status.textContent = '事前プレビューを表示できません。画面中央に来たとき元PDFを読み込みます。';
+          scheduleContinuousPromotionAfterIdle();
+        },
+      });
+      return true;
+    }
+
+    function loadVisibleContinuousPreviewsManually() {
+      if (state.viewerMode !== 'continuous') return;
+      const rootRect = elements.viewerStage.getBoundingClientRect();
+      const edge = CONTINUOUS_PREVIEW_ROOT_MARGIN_PX;
+      for (const item of state.continuousItems.values()) {
+        if (item.previewState !== 'idle' || !item.card?.isConnected) continue;
+        const rect = item.card.getBoundingClientRect();
+        if (rect.bottom >= rootRect.top - edge && rect.top <= rootRect.bottom + edge) {
+          loadContinuousPreviewItem(item);
+        }
+      }
+    }
+
+    function setupContinuousPreviewObserver() {
+      if (state.continuousObserver) {
+        state.continuousObserver.disconnect();
+        state.continuousObserver = null;
+      }
+      if (state.viewerMode !== 'continuous' || !state.continuousItems.size) return;
+
+      if (!('IntersectionObserver' in window)) {
+        loadVisibleContinuousPreviewsManually();
+        return;
+      }
+
+      state.continuousObserver = new IntersectionObserver(entries => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          const key = entry.target?.dataset?.resultKey || '';
+          const item = state.continuousItems.get(key);
+          if (!item) continue;
+          state.continuousObserver?.unobserve(entry.target);
+          loadContinuousPreviewItem(item);
+        }
+      }, {
+        root: elements.viewerStage,
+        rootMargin: `${CONTINUOUS_PREVIEW_ROOT_MARGIN_PX}px 0px`,
+        threshold: 0.01,
+      });
+
+      for (const item of state.continuousItems.values()) {
+        state.continuousObserver.observe(item.card);
+      }
+      requestAnimationFrame(loadVisibleContinuousPreviewsManually);
     }
 
     function restoreContinuousPreviewSurface(item) {
@@ -6420,12 +6519,20 @@
       state.continuousPromotionTimer = null;
     }
 
+    function getContinuousPromotionNotBefore() {
+      const searchReadyAt = state.performanceRun?.searchCompletedAtPerf != null
+        ? state.performanceRun.searchCompletedAtPerf + CONTINUOUS_FIRST_PROMOTION_DELAY_MS
+        : 0;
+      return Math.max(state.continuousScrollingUntil || 0, searchReadyAt || 0);
+    }
+
     function scheduleContinuousPromotionAfterIdle() {
       clearContinuousPromotionTimer();
-      const waitMs = Math.max(0, state.continuousScrollingUntil - perfNow()) + 18;
+      const waitMs = Math.max(0, getContinuousPromotionNotBefore() - perfNow()) + 18;
       state.continuousPromotionTimer = setTimeout(() => {
         state.continuousPromotionTimer = null;
         if (state.viewerMode !== 'continuous') return;
+        loadVisibleContinuousPreviewsManually();
         scheduleVisibleContinuousPages({ allowPromotion: true });
       }, waitMs);
     }
@@ -6433,6 +6540,7 @@
     function noteContinuousScrollActivity() {
       if (state.viewerMode !== 'continuous') return;
       state.continuousScrollingUntil = perfNow() + CONTINUOUS_PROMOTION_SETTLE_MS;
+      loadVisibleContinuousPreviewsManually();
       // スクロール中は既存の高品質ページを大きく外れない限り保持し、
       // 新しいPDF Canvasの昇格はアイドルになるまで開始しない。
       scheduleVisibleContinuousPages({ allowPromotion: false });
@@ -6492,9 +6600,13 @@
         });
 
       let chosen = [];
-      if (allowPromotion) {
+      const promotionTimeReady = now >= getContinuousPromotionNotBefore();
+      if (allowPromotion && promotionTimeReady) {
         const pool = candidates
-          .filter(candidate => !candidate.autoFallback && (candidate.visible || (candidate.wasDesired && candidate.retainable)))
+          .filter(candidate => {
+            const previewReady = candidate.item.previewState === 'loaded' || candidate.item.previewState === 'error';
+            return previewReady && !candidate.autoFallback && (candidate.visible || (candidate.wasDesired && candidate.retainable));
+          })
           .sort((a, b) => a.score - b.score);
         chosen = pool.slice(0, CONTINUOUS_MAX_PROMOTED);
       } else {
@@ -6515,7 +6627,7 @@
       }
 
       if (allowPromotion) {
-        // アイドル時のみ、画面中央に近い順で最大2ページを候補化する。
+        // アイドル時のみ、画面中央に最も近い1ページだけを候補化する。
         // Canvas描画自体はpump側で常に1件ずつ実行する。
         state.continuousRenderQueue = chosen
           .map(candidate => candidate.item.key)
@@ -6544,7 +6656,11 @@
         }
       }
 
-      if (allowPromotion) pumpContinuousRenderQueue();
+      if (allowPromotion && promotionTimeReady) {
+        pumpContinuousRenderQueue();
+      } else if (allowPromotion && !promotionTimeReady) {
+        scheduleContinuousPromotionAfterIdle();
+      }
     }
 
     function demoteContinuousItem(item) {
@@ -7122,7 +7238,7 @@
           try {
             // 前後ページのWebPだけは先にキャッシュ。PDF本体は現在と同じPDFのときだけ軽くgetPage()する。
             await Promise.allSettled([
-              ensureStaticPreviewReady(result.file, result.pageNumber),
+              ensureStaticPreviewReady(result.file, result.pageNumber, 'prefetch'),
               result.file === state.currentFile
                 ? withSharedPdf(result.file, pdf => pdf.getPage(result.pageNumber), { warm: true })
                 : Promise.resolve(),
