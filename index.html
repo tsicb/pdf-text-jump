@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" href="./favicon.svg?v=1" type="image/svg+xml">
   <meta name="theme-color" content="#1769aa">
-  <title>PDF Text Jump Viewer v4.3.1</title>
+  <title>PDF Text Jump Viewer v4.4.0</title>
   <style>
     :root {
       --navy: #17365f;
@@ -997,6 +997,10 @@
       background: rgba(255,255,255,.22);
     }
 
+    #sidebar-toggle {
+      display: none;
+    }
+
     .header-icon-count {
       position: absolute;
       right: -5px;
@@ -1092,6 +1096,7 @@
     }
 
     .main-grid {
+      position: relative;
       width: 100%;
       height: 100%;
       min-height: 0;
@@ -1129,22 +1134,85 @@
       padding: 7px 10px;
     }
 
-    .sidebar-close-btn {
+    .sidebar-selection-bar {
       flex: 0 0 auto;
-      width: 28px;
-      height: 28px;
-      border: 1px solid #cbd5e1;
-      border-radius: 7px;
+      min-height: 39px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 7px;
+      border-bottom: 1px solid var(--line);
       background: #fff;
-      color: #64748b;
-      font-size: 16px;
-      line-height: 1;
     }
 
-    .sidebar-close-btn:hover {
+    .sidebar-selection-label {
+      min-width: 0;
+      color: #64748b;
+      font-size: 9px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .sidebar-selection-count {
+      margin-right: auto;
+      min-width: 42px;
+      color: var(--blue-dark);
+      font-size: 9px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .sidebar-selection-btn {
+      min-height: 27px;
+      border: 1px solid #cbd5e1;
+      border-radius: 7px;
+      padding: 0 8px;
+      background: #f8fafc;
+      color: #475569;
+      font-size: 9px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .sidebar-selection-btn:hover:not(:disabled) {
       border-color: #93b4dd;
       background: var(--blue-soft);
       color: var(--blue-dark);
+    }
+
+    .sidebar-selection-btn:disabled {
+      opacity: .45;
+      cursor: default;
+    }
+
+    .sidebar-edge-toggle {
+      position: absolute;
+      left: var(--sidebar-width);
+      top: 50%;
+      z-index: 32;
+      width: 24px;
+      height: 66px;
+      padding: 0;
+      border: 1px solid #cbd5e1;
+      border-left-color: #b7c4d4;
+      border-radius: 0 9px 9px 0;
+      background: rgba(255,255,255,.96);
+      color: #64748b;
+      box-shadow: 3px 0 10px rgba(15,23,42,.12);
+      transform: translateY(-50%);
+      transition: left .2s ease, background .15s ease, color .15s ease;
+      font-size: 17px;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .sidebar-edge-toggle:hover {
+      background: var(--blue-soft);
+      color: var(--blue-dark);
+    }
+
+    .main-grid.sidebar-collapsed .sidebar-edge-toggle {
+      left: 0;
     }
 
     .results-list {
@@ -1290,6 +1358,8 @@
 
     @media (max-width: 900px) {
       html, body { overflow: auto; }
+      #sidebar-toggle { display: inline-block; }
+      .sidebar-edge-toggle { display: none; }
       body { display: block; }
       .app-header { position: sticky; top: 0; }
       .header-row { flex-wrap: wrap; }
@@ -1361,6 +1431,125 @@
       .mode-btn { padding-inline: 8px; }
     }
 
+
+
+    /* ===== v4.4：ヒットページ送り専用の右端ナビゲーション ===== */
+    .viewer-card {
+      position: relative;
+    }
+
+    .paged-nav {
+      position: absolute;
+      top: calc(var(--toolbar-height) + 9px);
+      right: 7px;
+      bottom: 9px;
+      z-index: 25;
+      width: 48px;
+      display: grid;
+      grid-template-rows: 30px minmax(110px, 1fr) 30px;
+      gap: 5px;
+      align-items: stretch;
+      padding: 5px;
+      border: 1px solid rgba(148,163,184,.72);
+      border-radius: 12px;
+      background: rgba(255,255,255,.88);
+      box-shadow: 0 5px 18px rgba(15,23,42,.14);
+      backdrop-filter: blur(6px);
+    }
+
+    .paged-nav-step {
+      width: 100%;
+      min-width: 0;
+      border: 1px solid #cbd5e1;
+      border-radius: 7px;
+      padding: 0;
+      background: #fff;
+      color: #475569;
+      font-size: 11px;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .paged-nav-step:hover:not(:disabled) {
+      border-color: #93b4dd;
+      background: var(--blue-soft);
+      color: var(--blue-dark);
+    }
+
+    .paged-nav-step:disabled {
+      opacity: .36;
+      cursor: default;
+    }
+
+    .paged-nav-track {
+      position: relative;
+      min-height: 0;
+      margin: 8px auto;
+      width: 12px;
+      border-radius: 999px;
+      background: #dbe4ef;
+      cursor: pointer;
+      touch-action: none;
+      outline: none;
+    }
+
+    .paged-nav-track:focus-visible {
+      box-shadow: 0 0 0 3px rgba(37,99,235,.22);
+    }
+
+    .paged-nav-progress {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 0;
+      border-radius: 999px;
+      background: #8fb4e8;
+      pointer-events: none;
+    }
+
+    .paged-nav-thumb {
+      position: absolute;
+      left: 50%;
+      top: 0;
+      min-width: 38px;
+      height: 24px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--blue);
+      border-radius: 999px;
+      padding: 0 5px;
+      background: var(--blue);
+      color: #fff;
+      box-shadow: 0 2px 7px rgba(37,99,235,.28);
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      font-size: 8px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .paged-nav.dragging .paged-nav-track {
+      background: #cbd8e8;
+    }
+
+    .paged-nav.dragging .paged-nav-thumb {
+      box-shadow: 0 0 0 4px rgba(37,99,235,.15), 0 2px 8px rgba(37,99,235,.32);
+    }
+
+    .viewer-stage.paged-nav-active {
+      padding-right: 60px;
+    }
+
+    @media (max-width: 900px) {
+      .paged-nav {
+        top: auto;
+        right: 5px;
+        bottom: 8px;
+        height: min(52vh, 470px);
+      }
+    }
 
 
 
@@ -2038,7 +2227,7 @@
       </button>
 
       <div class="brand">
-        <div class="brand-title">PDF Text Jump Viewer <span style="font-size:10px;opacity:.65">v4.2</span></div>
+        <div class="brand-title">PDF Text Jump Viewer <span style="font-size:10px;opacity:.65">v4.4</span></div>
         <div class="brand-sub">サムネイルでPDFを選び、AND／OR検索・閲覧・PDF出力</div>
       </div>
 
@@ -2117,7 +2306,12 @@
         <div class="panel-head">
           <div class="panel-title">検索結果</div>
           <div id="result-count" class="result-count">0ページ</div>
-          <button id="sidebar-close" class="sidebar-close-btn" type="button" title="検索結果を閉じる">×</button>
+        </div>
+        <div class="sidebar-selection-bar" aria-label="PDF出力ページの一括選択">
+          <span class="sidebar-selection-label">PDF出力</span>
+          <span id="sidebar-selection-count" class="sidebar-selection-count">0 / 0</span>
+          <button id="sidebar-select-all" class="sidebar-selection-btn" type="button">全選択</button>
+          <button id="sidebar-clear-all" class="sidebar-selection-btn" type="button">全解除</button>
         </div>
         <div id="results-list" class="results-list">
           <div class="results-empty">
@@ -2126,6 +2320,15 @@
           </div>
         </div>
       </aside>
+
+      <button
+        id="sidebar-edge-toggle"
+        class="sidebar-edge-toggle"
+        type="button"
+        aria-controls="results-sidebar"
+        aria-expanded="true"
+        title="検索結果を閉じる"
+      >‹</button>
 
       <section class="viewer-card">
         <div class="toolbar">
@@ -2175,6 +2378,24 @@
             <span id="zoom-label" class="zoom-label">自動</span>
             <button id="zoom-in-btn" class="tool-btn" type="button" disabled>＋</button>
           </div>
+        </div>
+
+        <div id="paged-nav" class="paged-nav" hidden aria-label="ヒットページ位置ナビゲーション">
+          <button id="paged-nav-prev" class="paged-nav-step" type="button" title="前のヒットページ">▲</button>
+          <div
+            id="paged-nav-track"
+            class="paged-nav-track"
+            role="slider"
+            tabindex="0"
+            aria-label="ヒットページ位置"
+            aria-valuemin="1"
+            aria-valuemax="1"
+            aria-valuenow="1"
+          >
+            <div id="paged-nav-progress" class="paged-nav-progress"></div>
+            <div id="paged-nav-thumb" class="paged-nav-thumb">1 / 1</div>
+          </div>
+          <button id="paged-nav-next" class="paged-nav-step" type="button" title="次のヒットページ">▼</button>
         </div>
 
         <div id="viewer-stage" class="viewer-stage">
@@ -2306,7 +2527,10 @@
       appHeader: document.getElementById('app-header'),
       mainGrid: document.getElementById('main-grid'),
       sidebarToggle: document.getElementById('sidebar-toggle'),
-      sidebarClose: document.getElementById('sidebar-close'),
+      sidebarEdgeToggle: document.getElementById('sidebar-edge-toggle'),
+      sidebarSelectAll: document.getElementById('sidebar-select-all'),
+      sidebarClearAll: document.getElementById('sidebar-clear-all'),
+      sidebarSelectionCount: document.getElementById('sidebar-selection-count'),
       sidebarToggleCount: document.getElementById('sidebar-toggle-count'),
       headerSelectedCount: document.getElementById('header-selected-count'),
       headerHitCount: document.getElementById('header-hit-count'),
@@ -2342,6 +2566,12 @@
       singleControls: document.getElementById('single-controls'),
       continuousSummary: document.getElementById('continuous-summary'),
       pagedPosition: document.getElementById('paged-position'),
+      pagedNav: document.getElementById('paged-nav'),
+      pagedNavPrev: document.getElementById('paged-nav-prev'),
+      pagedNavNext: document.getElementById('paged-nav-next'),
+      pagedNavTrack: document.getElementById('paged-nav-track'),
+      pagedNavProgress: document.getElementById('paged-nav-progress'),
+      pagedNavThumb: document.getElementById('paged-nav-thumb'),
       continuousWrap: document.getElementById('continuous-wrap'),
       viewerStage: document.getElementById('viewer-stage'),
       prevBtn: document.getElementById('prev-btn'),
@@ -2421,6 +2651,8 @@
       pagedIndex: 0,
       wheelAccumulator: 0,
       wheelLockedUntil: 0,
+      pagedNavDragging: false,
+      pagedNavPreviewIndex: null,
       continuousObserver: null,
       continuousItems: new Map(),
       continuousPdfCache: new Map(),
@@ -2555,6 +2787,9 @@
       elements.mainGrid.classList.toggle('sidebar-collapsed', !state.sidebarOpen);
       elements.sidebarToggle.setAttribute('aria-expanded', String(state.sidebarOpen));
       elements.sidebarToggle.title = state.sidebarOpen ? '検索結果を閉じる' : '検索結果を開く';
+      elements.sidebarEdgeToggle.setAttribute('aria-expanded', String(state.sidebarOpen));
+      elements.sidebarEdgeToggle.title = state.sidebarOpen ? '検索結果を閉じる' : '検索結果を開く';
+      elements.sidebarEdgeToggle.textContent = state.sidebarOpen ? '‹' : '›';
 
       if (persist) {
         localStorage.setItem('pdfTextJump.sidebarOpen', String(state.sidebarOpen));
@@ -3869,6 +4104,9 @@
       const selectedCount = getExportSelectedResults().length;
 
       elements.exportCount.textContent = String(selectedCount);
+      elements.sidebarSelectionCount.textContent = `${selectedCount} / ${pageCount}`;
+      elements.sidebarSelectAll.disabled = state.exportBusy || pageCount === 0 || selectedCount === pageCount;
+      elements.sidebarClearAll.disabled = state.exportBusy || selectedCount === 0;
       elements.exportBtn.disabled = state.exportBusy || pageCount === 0;
       elements.exportSelectedCount.textContent = `${selectedCount}ページ選択中（全${pageCount}ページ）`;
       elements.exportDownloadBtn.disabled = state.exportBusy || selectedCount === 0;
@@ -4610,6 +4848,67 @@
       }
     }
 
+    function getPagedNavIndexFromClientY(clientY) {
+      const pageResults = getPageResults();
+      if (!pageResults.length) return 0;
+      const rect = elements.pagedNavTrack.getBoundingClientRect();
+      if (!rect.height) return state.pagedIndex;
+      const ratio = Math.min(1, Math.max(0, (clientY - rect.top) / rect.height));
+      return Math.round(ratio * Math.max(0, pageResults.length - 1));
+    }
+
+    function updatePagedNavigation(previewIndex = null) {
+      const pageResults = getPageResults();
+      const total = pageResults.length;
+      const isPaged = state.viewerMode === 'paged';
+      elements.pagedNav.hidden = !isPaged || total === 0;
+      elements.viewerStage.classList.toggle('paged-nav-active', isPaged && total > 0);
+
+      if (!total) {
+        elements.pagedNavTrack.setAttribute('aria-valuemin', '1');
+        elements.pagedNavTrack.setAttribute('aria-valuemax', '1');
+        elements.pagedNavTrack.setAttribute('aria-valuenow', '1');
+        elements.pagedNavThumb.textContent = '0 / 0';
+        elements.pagedNavThumb.style.top = '50%';
+        elements.pagedNavProgress.style.height = '0%';
+        elements.pagedNavPrev.disabled = true;
+        elements.pagedNavNext.disabled = true;
+        return;
+      }
+
+      const index = Math.min(total - 1, Math.max(0, previewIndex ?? state.pagedIndex));
+      const percent = total <= 1 ? 50 : (index / (total - 1)) * 100;
+      elements.pagedNavThumb.style.top = `${percent}%`;
+      elements.pagedNavThumb.textContent = `${index + 1} / ${total}`;
+      elements.pagedNavProgress.style.height = `${total <= 1 ? 50 : percent}%`;
+      elements.pagedNavTrack.setAttribute('aria-valuemin', '1');
+      elements.pagedNavTrack.setAttribute('aria-valuemax', String(total));
+      elements.pagedNavTrack.setAttribute('aria-valuenow', String(index + 1));
+      elements.pagedNavTrack.setAttribute('aria-valuetext', `ヒット ${index + 1} / ${total}`);
+      elements.pagedNavPrev.disabled = index <= 0;
+      elements.pagedNavNext.disabled = index >= total - 1;
+    }
+
+    function previewPagedNavigationFromPointer(clientY) {
+      const index = getPagedNavIndexFromClientY(clientY);
+      state.pagedNavPreviewIndex = index;
+      updatePagedNavigation(index);
+      return index;
+    }
+
+    function finishPagedNavigationDrag() {
+      if (!state.pagedNavDragging) return;
+      state.pagedNavDragging = false;
+      elements.pagedNav.classList.remove('dragging');
+      const index = state.pagedNavPreviewIndex;
+      state.pagedNavPreviewIndex = null;
+      if (Number.isInteger(index) && index !== state.pagedIndex) {
+        changePage(index + 1);
+      } else {
+        updatePagedNavigation();
+      }
+    }
+
     function updateViewerToolbar() {
       const total = state.currentPdf?.numPages || 0;
       const pageResults = getPageResults();
@@ -4669,6 +4968,7 @@
       elements.fitWidthBtn.disabled = !zoomAvailable;
       elements.zoomOutBtn.disabled = !zoomAvailable || displayScale <= MIN_SCALE;
       elements.zoomInBtn.disabled = !zoomAvailable || displayScale >= MAX_SCALE;
+      updatePagedNavigation(state.pagedNavDragging ? state.pagedNavPreviewIndex : null);
     }
 
     function requestViewerRender() {
@@ -4731,7 +5031,7 @@
 
       const effectiveScale = state.zoomMode === 'manual'
         ? scale
-        : calculateAutoScale(page, elements.viewerStage, 14, 14);
+        : calculateAutoScale(page, elements.viewerStage, state.viewerMode === 'paged' ? 72 : 14, 14);
       state.lastSingleRenderScale = effectiveScale;
 
       const viewport = page.getViewport({ scale: effectiveScale });
@@ -5203,8 +5503,65 @@
     elements.zoomOutBtn.addEventListener('click', () => changeScale(-SCALE_STEP));
     elements.zoomInBtn.addEventListener('click', () => changeScale(SCALE_STEP));
 
+
+    elements.pagedNavPrev.addEventListener('click', () => movePageBy(-1));
+    elements.pagedNavNext.addEventListener('click', () => movePageBy(1));
+
+    elements.pagedNavTrack.addEventListener('pointerdown', event => {
+      if (state.viewerMode !== 'paged' || !getPageResults().length) return;
+      event.preventDefault();
+      state.pagedNavDragging = true;
+      elements.pagedNav.classList.add('dragging');
+      try { elements.pagedNavTrack.setPointerCapture(event.pointerId); } catch {}
+      previewPagedNavigationFromPointer(event.clientY);
+    });
+
+    elements.pagedNavTrack.addEventListener('pointermove', event => {
+      if (!state.pagedNavDragging) return;
+      event.preventDefault();
+      previewPagedNavigationFromPointer(event.clientY);
+    });
+
+    elements.pagedNavTrack.addEventListener('pointerup', event => {
+      if (!state.pagedNavDragging) return;
+      event.preventDefault();
+      previewPagedNavigationFromPointer(event.clientY);
+      try { elements.pagedNavTrack.releasePointerCapture(event.pointerId); } catch {}
+      finishPagedNavigationDrag();
+    });
+
+    elements.pagedNavTrack.addEventListener('pointercancel', () => {
+      state.pagedNavDragging = false;
+      state.pagedNavPreviewIndex = null;
+      elements.pagedNav.classList.remove('dragging');
+      updatePagedNavigation();
+    });
+
+    elements.pagedNavTrack.addEventListener('keydown', event => {
+      if (state.viewerMode !== 'paged') return;
+      if (['ArrowUp', 'ArrowLeft', 'PageUp'].includes(event.key)) {
+        event.preventDefault();
+        event.stopPropagation();
+        movePageBy(-1);
+      } else if (['ArrowDown', 'ArrowRight', 'PageDown'].includes(event.key)) {
+        event.preventDefault();
+        event.stopPropagation();
+        movePageBy(1);
+      } else if (event.key === 'Home') {
+        event.preventDefault();
+        event.stopPropagation();
+        changePage(1);
+      } else if (event.key === 'End') {
+        event.preventDefault();
+        event.stopPropagation();
+        changePage(getPageResults().length);
+      }
+    });
+
     elements.sidebarToggle.addEventListener('click', () => toggleSidebar());
-    elements.sidebarClose.addEventListener('click', () => toggleSidebar(false));
+    elements.sidebarEdgeToggle.addEventListener('click', () => toggleSidebar());
+    elements.sidebarSelectAll.addEventListener('click', selectAllExportResults);
+    elements.sidebarClearAll.addEventListener('click', clearExportSelection);
 
     elements.viewerStage.addEventListener('scroll', () => {
       if (state.viewerMode === 'continuous') scheduleVisibleContinuousPages();
