@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" href="./favicon.svg?v=1" type="image/svg+xml">
   <meta name="theme-color" content="#1769aa">
-  <title>PDF Text Jump Viewer v4.4.0</title>
+  <title>PDF Text Jump Viewer v4.4.1</title>
   <style>
     :root {
       --navy: #17365f;
@@ -1433,14 +1433,74 @@
 
 
 
-    /* ===== v4.4：ヒットページ送り専用の右端ナビゲーション ===== */
+    /* ===== v4.4.1：中間幅ヘッダーの詰まり対策 ===== */
+    .app-header .field > label {
+      flex: 0 0 auto;
+    }
+
+    @media (min-width: 901px) and (max-width: 1700px) {
+      .brand { display: none; }
+      .header-row { gap: 6px; }
+      .app-header .field { flex: 0 0 auto; }
+      .catalog-trigger {
+        width: 220px;
+        min-width: 180px;
+        max-width: 220px;
+      }
+      #text-input { width: 280px; }
+      .header-status-area {
+        flex: 1 1 230px;
+        min-width: 150px;
+      }
+      #status { max-width: 125px; }
+    }
+
+    @media (min-width: 901px) and (max-width: 1300px) {
+      .catalog-trigger {
+        width: 190px;
+        min-width: 165px;
+      }
+      #text-input { width: 225px; }
+      .search-mode-btn { padding-inline: 6px; }
+      .header-status-area {
+        flex: 0 0 auto;
+        min-width: 0;
+      }
+      #status { display: none; }
+      .header-badge { padding-inline: 7px; }
+    }
+
+    @media (min-width: 901px) and (max-width: 1080px) {
+      .catalog-trigger {
+        width: 170px;
+        min-width: 150px;
+      }
+      #text-input { width: 190px; }
+      #header-selected-count,
+      #header-hit-count { font-size: 9px; }
+    }
+
+    /* ===== v4.4.1：ツールバー実高に依存しない右端ナビゲーション ===== */
     .viewer-card {
       position: relative;
     }
 
+    .viewer-body {
+      position: relative;
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .viewer-body > .viewer-stage {
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+    }
+
     .paged-nav {
       position: absolute;
-      top: calc(var(--toolbar-height) + 9px);
+      top: 9px;
       right: 7px;
       bottom: 9px;
       z-index: 25;
@@ -1543,6 +1603,11 @@
     }
 
     @media (max-width: 900px) {
+      .viewer-body {
+        min-height: 70vh;
+        overflow: hidden;
+      }
+
       .paged-nav {
         top: auto;
         right: 5px;
@@ -2227,7 +2292,7 @@
       </button>
 
       <div class="brand">
-        <div class="brand-title">PDF Text Jump Viewer <span style="font-size:10px;opacity:.65">v4.4</span></div>
+        <div class="brand-title">PDF Text Jump Viewer <span style="font-size:10px;opacity:.65">v4.4.1</span></div>
         <div class="brand-sub">サムネイルでPDFを選び、AND／OR検索・閲覧・PDF出力</div>
       </div>
 
@@ -2380,38 +2445,40 @@
           </div>
         </div>
 
-        <div id="paged-nav" class="paged-nav" hidden aria-label="ヒットページ位置ナビゲーション">
-          <button id="paged-nav-prev" class="paged-nav-step" type="button" title="前のヒットページ">▲</button>
-          <div
-            id="paged-nav-track"
-            class="paged-nav-track"
-            role="slider"
-            tabindex="0"
-            aria-label="ヒットページ位置"
-            aria-valuemin="1"
-            aria-valuemax="1"
-            aria-valuenow="1"
-          >
-            <div id="paged-nav-progress" class="paged-nav-progress"></div>
-            <div id="paged-nav-thumb" class="paged-nav-thumb">1 / 1</div>
-          </div>
-          <button id="paged-nav-next" class="paged-nav-step" type="button" title="次のヒットページ">▼</button>
-        </div>
+        <div class="viewer-body">
+          <div id="viewer-stage" class="viewer-stage">
+            <div id="empty-guide" class="empty-guide">
+              <strong>ヒットページを2つの方法で閲覧できます</strong><br>
+              「連続スクロール」は一覧確認向け、「ヒットページ送り」は1ページずつ読む用途向けです。<br><br>
+              ヒットページ送りでは、矢印キー・PageUp／PageDown・マウスホイールで前後へ移動できます。<br>
+              検索語をスペースで区切り、「すべて含む（AND）」または「どれか含む（OR）」で横断検索できます。<br>
+              「ページに合わせる」を使うと、横長PDFの1ページ全体を画面内へ収めます。
+            </div>
 
-        <div id="viewer-stage" class="viewer-stage">
-          <div id="empty-guide" class="empty-guide">
-            <strong>ヒットページを2つの方法で閲覧できます</strong><br>
-            「連続スクロール」は一覧確認向け、「ヒットページ送り」は1ページずつ読む用途向けです。<br><br>
-            ヒットページ送りでは、矢印キー・PageUp／PageDown・マウスホイールで前後へ移動できます。<br>
-            検索語をスペースで区切り、「すべて含む（AND）」または「どれか含む（OR）」で横断検索できます。<br>
-            「ページに合わせる」を使うと、横長PDFの1ページ全体を画面内へ収めます。
+            <div id="continuous-wrap" class="continuous-wrap" hidden></div>
+
+            <div id="page-wrap" hidden>
+              <canvas id="pdf-canvas"></canvas>
+              <div id="text-layer" class="textLayer"></div>
+            </div>
           </div>
 
-          <div id="continuous-wrap" class="continuous-wrap" hidden></div>
-
-          <div id="page-wrap" hidden>
-            <canvas id="pdf-canvas"></canvas>
-            <div id="text-layer" class="textLayer"></div>
+          <div id="paged-nav" class="paged-nav" hidden aria-label="ヒットページ位置ナビゲーション">
+            <button id="paged-nav-prev" class="paged-nav-step" type="button" title="前のヒットページ">▲</button>
+            <div
+              id="paged-nav-track"
+              class="paged-nav-track"
+              role="slider"
+              tabindex="0"
+              aria-label="ヒットページ位置"
+              aria-valuemin="1"
+              aria-valuemax="1"
+              aria-valuenow="1"
+            >
+              <div id="paged-nav-progress" class="paged-nav-progress"></div>
+              <div id="paged-nav-thumb" class="paged-nav-thumb">1 / 1</div>
+            </div>
+            <button id="paged-nav-next" class="paged-nav-step" type="button" title="次のヒットページ">▼</button>
           </div>
         </div>
       </section>
