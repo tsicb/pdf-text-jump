@@ -1,7 +1,7 @@
 {
   "version": 1,
   "baseDir": "indeedmarketreports/",
-  "generatedAt": "2026-09-07T12:25:19Z",
+  "generatedAt": "2026-09-07T12:26:00Z",
   "width": 800,
   "quality": 50,
   "format": "webp",
@@ -52,15 +52,6 @@
       "format": "webp"
     },
     {
-      "file": "求職者検索トレンド-2.PDF",
-      "sha256": "d483584bc89781277f9c082ad302eda34ff1574cae9734495b5d0e4e946b2f26",
-      "pages": 205,
-      "previewBase": "page-previews/files/d483584bc89781277f9c082ad302eda34ff1574cae9734495b5d0e4e946b2f26",
-      "width": 800,
-      "quality": 50,
-      "format": "webp"
-    },
-    {
       "file": "求職者検索ワードランキング.PDF",
       "sha256": "5b4eb9d9706efcddd064c921062677cd62ae30610dd1f0d0817eecddb5eb2caa",
       "pages": 51,
@@ -70,5 +61,10 @@
       "format": "webp"
     }
   ],
-  "errors": []
+  "errors": [
+    {
+      "file": "求職者検索トレンド.PDF",
+      "message": "Failed to open file '/home/runner/work/pdf-text-jump/pdf-text-jump/indeedmarketreports/求職者検索トレンド.PDF' as type PDF."
+    }
+  ]
 }
