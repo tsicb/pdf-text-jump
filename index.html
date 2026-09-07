@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" href="./favicon.svg?v=1" type="image/svg+xml">
   <meta name="theme-color" content="#1769aa">
-  <title>PDF Text Jump Viewer v4.5.0</title>
+  <title>PDF Text Jump Viewer v5.0.0</title>
   <style>
     :root {
       --navy: #17365f;
@@ -2276,7 +2276,7 @@
 
 
 
-    /* ===== v4.5.0：性能計測・ボトルネック診断 ===== */
+    /* ===== v5.0.0：検索INDEX優先・フォールバック・性能計測 ===== */
     .performance-btn {
       flex: 0 0 auto;
       min-height: 27px;
@@ -2481,7 +2481,7 @@
       </button>
 
       <div class="brand">
-        <div class="brand-title">PDF Text Jump Viewer <span style="font-size:10px;opacity:.65">v4.5.0</span></div>
+        <div class="brand-title">PDF Text Jump Viewer <span style="font-size:10px;opacity:.65">v5.0.0</span></div>
         <div class="brand-sub">サムネイルでPDFを選び、AND／OR検索・閲覧・PDF出力</div>
       </div>
 
@@ -2726,8 +2726,10 @@
               <thead>
                 <tr>
                   <th>PDF</th>
+                  <th>方式</th>
                   <th>ページ数</th>
                   <th>HIT</th>
+                  <th>INDEX取得</th>
                   <th>文書読込</th>
                   <th>ページ取得</th>
                   <th>テキスト抽出</th>
@@ -2817,6 +2819,10 @@
 
     const DEFAULT_PDF_BASE_DIR = 'indeedmarketreports/';
     const MANIFEST_URL = 'pdfs.json';
+    const SEARCH_INDEX_MANIFEST_URL = 'search-index/manifest.json';
+    const SEARCH_INDEX_DB_NAME = 'pdfTextJump.searchIndex.v1';
+    const SEARCH_INDEX_DB_STORE = 'indexes';
+    const SEARCH_INDEX_FETCH_CONCURRENCY = 4;
     const GITHUB_BRANCH = 'main';
     const MIN_SCALE = 0.7;
     const MAX_SCALE = 2.5;
@@ -2972,6 +2978,12 @@
       performanceRun: null,
       performanceHistory: [],
       catalogLoadMs: null,
+      searchBusy: false,
+      searchIndexManifest: new Map(),
+      searchIndexManifestMeta: null,
+      searchIndexManifestLoadMs: null,
+      searchIndexMemoryCache: new Map(),
+      searchIndexDbPromise: null,
       exportSelectedKeys: new Set(),
       exportBusy: false,
     };
@@ -3013,6 +3025,9 @@
         thumbnailCount: 0,
         thumbnailTotalMs: 0,
         thumbnailMaxMs: 0,
+        indexManifestLoadMs: roundMs(state.searchIndexManifestLoadMs),
+        indexAvailableFiles: selectedEntries.filter(item => getSearchIndexMeta(item.file)).length,
+        indexPrefetchMs: 0,
         completedAtIso: null,
       };
       state.performanceRun = run;
@@ -3048,6 +3063,9 @@
       if (!state.performanceRun) return;
       state.performanceRun.fileMetrics.push({
         ...metric,
+        searchSource: metric.searchSource || 'pdf-fallback',
+        indexCacheSource: metric.indexCacheSource || '',
+        indexLoadMs: roundMs(metric.indexLoadMs),
         documentLoadMs: roundMs(metric.documentLoadMs),
         pageGetMs: roundMs(metric.pageGetMs),
         textExtractMs: roundMs(metric.textExtractMs),
@@ -3083,55 +3101,94 @@
       return files.reduce((acc, item) => {
         acc.pages += item.pages || 0;
         acc.hits += item.hitPages || 0;
+        acc.indexLoadMs += item.indexLoadMs || 0;
         acc.documentLoadMs += item.documentLoadMs || 0;
         acc.pageGetMs += item.pageGetMs || 0;
         acc.textExtractMs += item.textExtractMs || 0;
         acc.searchEvalMs += item.searchEvalMs || 0;
         acc.fileTotalMs += item.totalMs || 0;
+        if (item.searchSource === 'index') {
+          acc.indexFiles += 1;
+          if (item.indexCacheSource === 'memory') acc.memoryCacheHits += 1;
+          if (item.indexCacheSource === 'indexeddb') acc.indexedDbCacheHits += 1;
+          if (item.indexCacheSource === 'network') acc.networkIndexLoads += 1;
+        } else {
+          acc.fallbackFiles += 1;
+        }
         return acc;
       }, {
         pages: 0,
         hits: 0,
+        indexLoadMs: 0,
         documentLoadMs: 0,
         pageGetMs: 0,
         textExtractMs: 0,
         searchEvalMs: 0,
         fileTotalMs: 0,
+        indexFiles: 0,
+        fallbackFiles: 0,
+        memoryCacheHits: 0,
+        indexedDbCacheHits: 0,
+        networkIndexLoads: 0,
       });
     }
 
     function buildPerformanceDiagnosis(run = state.performanceRun) {
       if (!run?.fileMetrics?.length) {
-        return 'まだ検索計測がありません。横断検索を1回実行すると、ここにボトルネック候補を表示します。';
+        return 'まだ検索計測がありません。横断検索を1回実行すると、ここに検索INDEXとPDFフォールバックの内訳を表示します。';
       }
 
       const totals = getPerformanceTotals(run);
-      const measured = Math.max(1, totals.documentLoadMs + totals.pageGetMs + totals.textExtractMs + totals.searchEvalMs);
-      const textRelated = totals.pageGetMs + totals.textExtractMs + totals.searchEvalMs;
-      const textShare = textRelated / measured;
-      const loadShare = totals.documentLoadMs / measured;
-      const avgPerPage = totals.pages ? textRelated / totals.pages : 0;
-      const avgThumb = run.thumbnailCount ? run.thumbnailTotalMs / run.thumbnailCount : 0;
-
       const messages = [];
-      if (textShare >= .55 && totals.pages >= 50) {
-        messages.push('<strong>事前検索INDEX化の効果が大きい見込みです。</strong> 全ページをPDF.jsで開いてテキスト抽出・検索する処理が計測時間の中心です。GitHub登録時にページ単位テキストをJSON化すれば、この部分の多くを利用時から切り離せます。');
-      } else if (loadShare >= .45) {
-        messages.push('<strong>PDF文書の初期読込比率が高めです。</strong> 検索INDEX化でも検索待ちは短くできますが、実ページ表示ではPDF本体の取得時間が残ります。ブラウザキャッシュ、HTTP Range、プレビュー事前生成も次候補です。');
-      } else {
-        messages.push('<strong>単一の突出した処理より、複数工程に時間が分散しています。</strong> まずページ単位INDEX化で検索時のPDF解析を除去し、その後に表示・サムネイルを個別最適化するのが安全です。');
-      }
 
-      messages.push(`全${totals.pages}ページのPDF解析系処理は平均 ${formatDuration(avgPerPage)} / ページです。`);
+      if (totals.indexFiles) {
+        messages.push(
+          `<strong>高速検索INDEXを ${totals.indexFiles} / ${run.selectedFileCount}PDF で使用しました。</strong>` +
+          ` PDF全ページのgetTextContent()を検索時に実行せず、事前生成済みテキストを検索しています。`
+        );
 
-      if (run.thumbnailCount) {
-        if (avgThumb >= 500) {
-          messages.push(`検索結果サムネイルは平均 ${formatDuration(avgThumb)} / 枚です。多数表示する場合はWebP等の事前生成にも効果が期待できます。`);
+        if (totals.fallbackFiles) {
+          messages.push(
+            `${totals.fallbackFiles}PDFはINDEX未登録・取得失敗などのため従来のPDF.js全文検索へ自動フォールバックしました。`
+          );
         } else {
-          messages.push(`検索結果サムネイルは平均 ${formatDuration(avgThumb)} / 枚で、現時点では検索本体より優先度は低そうです。`);
+          messages.push('今回の検索対象はすべてINDEX検索で処理できています。');
+        }
+
+        const cacheParts = [];
+        if (totals.memoryCacheHits) cacheParts.push(`メモリ ${totals.memoryCacheHits}件`);
+        if (totals.indexedDbCacheHits) cacheParts.push(`IndexedDB ${totals.indexedDbCacheHits}件`);
+        if (totals.networkIndexLoads) cacheParts.push(`ネットワーク ${totals.networkIndexLoads}件`);
+        if (cacheParts.length) messages.push(`INDEX取得元：${cacheParts.join(' / ')}。`);
+
+        if (run.totalSearchMs < 3000) {
+          messages.push('<strong>検索待ち時間は十分小さい水準です。</strong> 次の高速化候補は検索結果サムネイルの事前生成です。');
+        } else if (totals.fallbackFiles) {
+          messages.push('検索時間がまだ長い場合は、フォールバックしているPDFのINDEX生成状況を優先して確認してください。');
+        } else if (totals.indexLoadMs > totals.searchEvalMs * 3) {
+          messages.push('検索判定よりINDEX取得の比率が高いため、2回目検索のIndexedDBキャッシュ効果も確認してください。');
         }
       } else {
-        messages.push('サムネイル計測は、検索結果一覧の画像が生成されると追記されます。');
+        const measured = Math.max(1, totals.documentLoadMs + totals.pageGetMs + totals.textExtractMs + totals.searchEvalMs);
+        const textRelated = totals.pageGetMs + totals.textExtractMs + totals.searchEvalMs;
+        const textShare = textRelated / measured;
+        const loadShare = totals.documentLoadMs / measured;
+        if (textShare >= .55 && totals.pages >= 50) {
+          messages.push('<strong>検索INDEXがまだ使われていません。</strong> 全ページをPDF.jsで開いてテキスト抽出・検索しているため、search-index/manifest.json と生成済みINDEXを確認してください。');
+        } else if (loadShare >= .45) {
+          messages.push('<strong>PDF文書の初期読込比率が高めです。</strong> INDEXが未導入のPDFでは検索待ちが大きく残ります。');
+        } else {
+          messages.push('<strong>現在は従来のPDF全文検索です。</strong> GitHub Actionsによる検索INDEX生成が完了すると自動的にINDEX優先へ切り替わります。');
+        }
+      }
+
+      if (run.thumbnailCount) {
+        const avgThumb = run.thumbnailTotalMs / run.thumbnailCount;
+        if (avgThumb >= 500) {
+          messages.push(`検索結果サムネイルは平均 ${formatDuration(avgThumb)} / 枚です。INDEX高速化後の次候補としてWebP等の事前生成に効果が期待できます。`);
+        } else {
+          messages.push(`検索結果サムネイルは平均 ${formatDuration(avgThumb)} / 枚です。`);
+        }
       }
 
       return messages.join('<br>');
@@ -3148,9 +3205,9 @@
 
       const totals = getPerformanceTotals(run);
       const kpis = [
-        ['検索解析', formatDuration(run.totalSearchMs), `${run.selectedFileCount}PDF / ${totals.pages}ページ解析`],
-        ['テキスト抽出', formatDuration(totals.textExtractMs), 'getTextContent() 合計'],
-        ['初回ページ表示', run.resultPages === 0 ? '-' : (run.firstViewerReadyMs == null ? '計測中' : formatDuration(run.firstViewerReadyMs)), '検索開始から表示準備完了まで'],
+        ['検索解析', formatDuration(run.totalSearchMs), `${run.selectedFileCount}PDF / ${totals.pages}ページ`],
+        ['高速INDEX', `${totals.indexFiles} / ${run.selectedFileCount}PDF`, totals.fallbackFiles ? `フォールバック ${totals.fallbackFiles}PDF` : '全対象をINDEX検索'],
+        ['INDEX準備', formatDuration(run.indexPrefetchMs || 0), `並列取得・個別合計 ${formatDuration(totals.indexLoadMs)}`],
         ['HIT', `${run.resultPages}ページ`, `${run.searchTerms.join(' / ')}・${String(run.searchMode).toUpperCase()}`],
       ];
 
@@ -3175,10 +3232,15 @@
       elements.performanceTbody.replaceChildren();
       run.fileMetrics.forEach(metric => {
         const row = document.createElement('tr');
+        const sourceLabel = metric.searchSource === 'index'
+          ? `INDEX${metric.indexCacheSource ? ` (${metric.indexCacheSource})` : ''}`
+          : 'PDF.js';
         const values = [
           metric.label || metric.file,
+          sourceLabel,
           String(metric.pages || 0),
           String(metric.hitPages || 0),
+          formatDuration(metric.indexLoadMs),
           formatDuration(metric.documentLoadMs),
           formatDuration(metric.pageGetMs),
           formatDuration(metric.textExtractMs),
@@ -3207,6 +3269,9 @@
         `解析ページ: ${totals.pages}ページ`,
         `HIT: ${run.resultPages}ページ`,
         `検索解析: ${formatDuration(run.totalSearchMs)}`,
+        `検索INDEX: ${totals.indexFiles}/${run.selectedFileCount}PDF（フォールバック ${totals.fallbackFiles}PDF）`,
+        `INDEX事前準備（実時間）: ${formatDuration(run.indexPrefetchMs || 0)}`,
+        `INDEX取得個別合計（並列処理のため重複あり）: ${formatDuration(totals.indexLoadMs)}`,
         `初回ページ表示: ${run.firstViewerReadyMs == null ? '未計測' : formatDuration(run.firstViewerReadyMs)}`,
         `文書読込合計: ${formatDuration(totals.documentLoadMs)}`,
         `ページ取得合計: ${formatDuration(totals.pageGetMs)}`,
@@ -3219,8 +3284,10 @@
       run.fileMetrics.forEach(metric => {
         lines.push(
           `- ${metric.label || metric.file}: ${metric.pages}p / HIT ${metric.hitPages} / ` +
-          `load ${formatDuration(metric.documentLoadMs)} / page ${formatDuration(metric.pageGetMs)} / ` +
-          `text ${formatDuration(metric.textExtractMs)} / eval ${formatDuration(metric.searchEvalMs)} / total ${formatDuration(metric.totalMs)}`
+          `source ${metric.searchSource === 'index' ? `INDEX:${metric.indexCacheSource || '-'}` : 'PDF.js'} / ` +
+          `index ${formatDuration(metric.indexLoadMs)} / load ${formatDuration(metric.documentLoadMs)} / ` +
+          `page ${formatDuration(metric.pageGetMs)} / text ${formatDuration(metric.textExtractMs)} / ` +
+          `eval ${formatDuration(metric.searchEvalMs)} / total ${formatDuration(metric.totalMs)}`
         );
       });
       return lines.join('\n');
@@ -3254,7 +3321,7 @@
       const run = state.performanceRun;
       if (!run) return;
       const payload = {
-        viewerVersion: '4.5.0',
+        viewerVersion: '5.0.0',
         userAgent: navigator.userAgent,
         catalogLoadMs: state.catalogLoadMs,
         run: structuredCloneSafe(run),
@@ -3277,8 +3344,10 @@
       console.log(performanceReportText(run));
       console.table(run.fileMetrics.map(metric => ({
         PDF: metric.label || metric.file,
+        source: metric.searchSource === 'index' ? `INDEX:${metric.indexCacheSource || '-'}` : 'PDF.js',
         pages: metric.pages,
         hits: metric.hitPages,
+        indexLoadMs: metric.indexLoadMs,
         documentLoadMs: metric.documentLoadMs,
         pageGetMs: metric.pageGetMs,
         textExtractMs: metric.textExtractMs,
@@ -3474,6 +3543,220 @@
         .normalize('NFKC')
         .replace(/[\s\u00A0\u2000-\u200B\u3000]+/g, '')
         .toLocaleLowerCase('ja-JP');
+    }
+
+    function canonicalFileKey(value) {
+      return String(value || '')
+        .replaceAll('\\', '/')
+        .replace(/^\.\//, '')
+        .normalize('NFC');
+    }
+
+    function openSearchIndexDb() {
+      if (!('indexedDB' in window)) return Promise.resolve(null);
+      if (state.searchIndexDbPromise) return state.searchIndexDbPromise;
+
+      state.searchIndexDbPromise = new Promise(resolve => {
+        let settled = false;
+        try {
+          const request = indexedDB.open(SEARCH_INDEX_DB_NAME, 1);
+          request.onupgradeneeded = () => {
+            const db = request.result;
+            if (!db.objectStoreNames.contains(SEARCH_INDEX_DB_STORE)) {
+              db.createObjectStore(SEARCH_INDEX_DB_STORE, { keyPath: 'file' });
+            }
+          };
+          request.onsuccess = () => {
+            settled = true;
+            resolve(request.result);
+          };
+          request.onerror = () => {
+            console.warn('検索INDEX用IndexedDBを開けませんでした。メモリキャッシュのみ使用します。', request.error);
+            settled = true;
+            resolve(null);
+          };
+          request.onblocked = () => {
+            console.warn('検索INDEX用IndexedDBがブロックされています。');
+            if (!settled) resolve(null);
+          };
+        } catch (error) {
+          console.warn('検索INDEX用IndexedDBを利用できません。', error);
+          resolve(null);
+        }
+      });
+
+      return state.searchIndexDbPromise;
+    }
+
+    async function readCachedSearchIndex(file, version) {
+      const db = await openSearchIndexDb();
+      if (!db) return null;
+      return new Promise(resolve => {
+        try {
+          const tx = db.transaction(SEARCH_INDEX_DB_STORE, 'readonly');
+          const request = tx.objectStore(SEARCH_INDEX_DB_STORE).get(canonicalFileKey(file));
+          request.onsuccess = () => {
+            const record = request.result;
+            resolve(record && record.version === version ? record.payload : null);
+          };
+          request.onerror = () => resolve(null);
+        } catch {
+          resolve(null);
+        }
+      });
+    }
+
+    async function writeCachedSearchIndex(file, version, payload) {
+      const db = await openSearchIndexDb();
+      if (!db) return;
+      await new Promise(resolve => {
+        try {
+          const tx = db.transaction(SEARCH_INDEX_DB_STORE, 'readwrite');
+          tx.objectStore(SEARCH_INDEX_DB_STORE).put({
+            file: canonicalFileKey(file),
+            version,
+            payload,
+            savedAt: Date.now(),
+          });
+          tx.oncomplete = () => resolve();
+          tx.onerror = () => resolve();
+          tx.onabort = () => resolve();
+        } catch {
+          resolve();
+        }
+      });
+    }
+
+    function normalizeSearchIndexManifestEntries(data) {
+      const rawFiles = Array.isArray(data?.files)
+        ? data.files
+        : data?.files && typeof data.files === 'object'
+          ? Object.entries(data.files).map(([file, value]) => ({ file, ...(value || {}) }))
+          : [];
+
+      const map = new Map();
+      rawFiles.forEach(raw => {
+        const file = String(raw?.file || '').trim();
+        const index = String(raw?.index || raw?.url || '').trim();
+        if (!file || !index || raw?.error) return;
+        map.set(canonicalFileKey(file), {
+          file,
+          index,
+          pages: Math.max(0, Number.parseInt(raw.pages, 10) || 0),
+          sha256: String(raw.sha256 || raw.hash || '').trim(),
+          sizeBytes: Math.max(0, Number(raw.sizeBytes) || 0),
+        });
+      });
+      return map;
+    }
+
+    async function loadSearchIndexManifest() {
+      const startedAt = perfNow();
+      state.searchIndexManifest = new Map();
+      state.searchIndexManifestMeta = null;
+
+      try {
+        const response = await fetch(`${SEARCH_INDEX_MANIFEST_URL}?v=${Date.now()}`, { cache: 'no-store' });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        const manifest = normalizeSearchIndexManifestEntries(data);
+        if (!manifest.size) throw new Error('利用可能なINDEXがありません。');
+
+        state.searchIndexManifest = manifest;
+        state.searchIndexManifestMeta = {
+          version: data?.version || 1,
+          generatedAt: data?.generatedAt || '',
+          normalization: data?.normalization || '',
+          fileCount: manifest.size,
+          errors: Array.isArray(data?.errors) ? data.errors : [],
+        };
+        return manifest.size;
+      } catch (error) {
+        console.info('検索INDEXを使用できないため、必要時はPDF.js全文検索へフォールバックします。', error);
+        return 0;
+      } finally {
+        state.searchIndexManifestLoadMs = perfNow() - startedAt;
+      }
+    }
+
+    function getSearchIndexMeta(file) {
+      return state.searchIndexManifest.get(canonicalFileKey(file)) || null;
+    }
+
+    function searchIndexVersion(meta) {
+      return meta?.sha256 || `${state.searchIndexManifestMeta?.generatedAt || 'v1'}:${meta?.index || ''}`;
+    }
+
+    async function loadSearchIndexPayload(entry) {
+      const meta = getSearchIndexMeta(entry.file);
+      if (!meta) throw new Error('検索INDEX未登録');
+
+      const version = searchIndexVersion(meta);
+      const memoryKey = `${canonicalFileKey(entry.file)}::${version}`;
+      const memoryPayload = state.searchIndexMemoryCache.get(memoryKey);
+      if (memoryPayload) {
+        return { payload: memoryPayload, source: 'memory', meta };
+      }
+
+      const storedPayload = await readCachedSearchIndex(entry.file, version);
+      if (storedPayload) {
+        state.searchIndexMemoryCache.set(memoryKey, storedPayload);
+        return { payload: storedPayload, source: 'indexeddb', meta };
+      }
+
+      const cacheToken = encodeURIComponent(String(version).slice(0, 24));
+      const separator = meta.index.includes('?') ? '&' : '?';
+      const response = await fetch(`${meta.index}${separator}v=${cacheToken}`, { cache: 'force-cache' });
+      if (!response.ok) throw new Error(`検索INDEX取得失敗：HTTP ${response.status}`);
+      const payload = await response.json();
+
+      if (!Array.isArray(payload?.pages)) {
+        throw new Error('検索INDEX形式が不正です。pages配列がありません。');
+      }
+      if (payload.file && canonicalFileKey(payload.file) !== canonicalFileKey(entry.file)) {
+        throw new Error(`検索INDEXのPDF名が一致しません：${payload.file}`);
+      }
+      if (meta.sha256 && payload.sha256 && meta.sha256 !== payload.sha256) {
+        throw new Error('検索INDEXのバージョンが一致しません。');
+      }
+
+      state.searchIndexMemoryCache.set(memoryKey, payload);
+      await writeCachedSearchIndex(entry.file, version, payload);
+      return { payload, source: 'network', meta };
+    }
+
+    async function prepareSearchIndexes(entries, serial) {
+      const prepared = new Map();
+      const queue = entries.filter(entry => getSearchIndexMeta(entry.file));
+      if (!queue.length) return prepared;
+
+      let cursor = 0;
+      const worker = async () => {
+        while (cursor < queue.length) {
+          const index = cursor++;
+          const entry = queue[index];
+          if (serial !== state.searchSerial) throw new Error('検索が中断されました。');
+          const startedAt = perfNow();
+          try {
+            const loaded = await loadSearchIndexPayload(entry);
+            prepared.set(canonicalFileKey(entry.file), {
+              ...loaded,
+              loadMs: perfNow() - startedAt,
+            });
+          } catch (error) {
+            console.warn(`検索INDEXを利用できません：${entry.file}`, error);
+            prepared.set(canonicalFileKey(entry.file), {
+              error,
+              loadMs: perfNow() - startedAt,
+            });
+          }
+          setStatus(`高速検索INDEXを準備中：${prepared.size} / ${queue.length}PDF`);
+        }
+      };
+
+      const workerCount = Math.min(SEARCH_INDEX_FETCH_CONCURRENCY, queue.length);
+      await Promise.all(Array.from({ length: workerCount }, () => worker()));
+      return prepared;
     }
 
     function parseSearchTerms(rawText) {
@@ -3762,14 +4045,22 @@
       }
 
       renderCatalog();
+      const indexedCount = await loadSearchIndexManifest();
       state.catalogLoadMs = perfNow() - catalogLoadStartedAt;
       elements.catalogTrigger.disabled = false;
       elements.searchBtn.disabled = false;
 
+      const selectedIndexedCount = state.catalog.filter(
+        item => state.selectedFiles.has(item.file) && getSearchIndexMeta(item.file)
+      ).length;
+      const indexMessage = indexedCount
+        ? `高速検索INDEX：選択中 ${selectedIndexedCount} / ${state.selectedFiles.size}PDF。`
+        : '高速検索INDEXは未検出です。必要時は従来のPDF全文検索を使用します。';
+
       setStatus(
         `${state.catalog.length}件のPDFを読み込みました（${state.catalogSource}）。` +
-        `${state.selectedFiles.size}件を検索対象にしています。PDF選択画面で代表ページを確認できます。`,
-        'success'
+        `${state.selectedFiles.size}件を検索対象にしています。${indexMessage}`,
+        indexedCount ? 'success' : 'warning'
       );
 
       if (initial.text && state.selectedFiles.size) {
@@ -4112,13 +4403,16 @@
       return `${roughStart > 0 ? '…' : ''}${snippet}${roughStart + 120 < plain.length ? '…' : ''}`;
     }
 
-    async function searchOnePdf(entry, searchTerms, searchMode, fileIndex, fileTotal, serial) {
+    async function searchOnePdfLegacy(entry, searchTerms, searchMode, fileIndex, fileTotal, serial, failedIndexLoadMs = 0) {
       const path = buildPdfPath(entry.file);
       const metric = {
         file: entry.file,
         label: entry.label,
         pages: 0,
         hitPages: 0,
+        searchSource: 'pdf-fallback',
+        indexCacheSource: '',
+        indexLoadMs: failedIndexLoadMs,
         documentLoadMs: 0,
         pageGetMs: 0,
         textExtractMs: 0,
@@ -4185,6 +4479,118 @@
       return results;
     }
 
+    function createIndexSnippet(normalizedText, searchTerms) {
+      const text = String(normalizedText || '');
+      if (!text) return '';
+      const indices = (searchTerms || [])
+        .map(term => text.indexOf(term.normalized || normalizeForSearch(term.term || term)))
+        .filter(index => index >= 0);
+      const index = indices.length ? Math.min(...indices) : 0;
+      const start = Math.max(0, index - 32);
+      const snippet = text.slice(start, start + 130);
+      return `${start > 0 ? '…' : ''}${snippet}${start + 130 < text.length ? '…' : ''}`;
+    }
+
+    async function searchOnePdfFromIndex(
+      entry,
+      searchTerms,
+      searchMode,
+      fileIndex,
+      fileTotal,
+      serial,
+      preparedRecord
+    ) {
+      const fileStartedAt = perfNow();
+      const payload = preparedRecord?.payload;
+      if (!payload?.pages) throw new Error('検索INDEXを読み込めません。');
+
+      const metric = {
+        file: entry.file,
+        label: entry.label,
+        pages: Number(payload.pageCount || payload.pages.length || preparedRecord?.meta?.pages || 0),
+        hitPages: 0,
+        searchSource: 'index',
+        indexCacheSource: preparedRecord?.source || '',
+        indexLoadMs: preparedRecord?.loadMs || 0,
+        documentLoadMs: 0,
+        pageGetMs: 0,
+        textExtractMs: 0,
+        searchEvalMs: 0,
+        totalMs: 0,
+      };
+      const results = [];
+      const pages = payload.pages;
+      const evalStartedAt = perfNow();
+
+      for (let index = 0; index < pages.length; index++) {
+        if (serial !== state.searchSerial) throw new Error('検索が中断されました。');
+        const indexedPage = pages[index] || {};
+        const pageNumber = Math.max(1, Number.parseInt(indexedPage.p ?? indexedPage.page ?? (index + 1), 10) || (index + 1));
+        const normalizedPageText = String(indexedPage.t ?? indexedPage.text ?? '');
+        const match = evaluatePageSearch(normalizedPageText, searchTerms, searchMode);
+
+        if (match.isHit) {
+          results.push({
+            file: entry.file,
+            label: entry.label,
+            pageNumber,
+            hitCount: match.hitCount,
+            matchedTerms: match.matchedTerms,
+            matchedTermCount: match.matchedTermCount,
+            totalTermCount: match.totalTermCount,
+            searchMode,
+            snippet: createIndexSnippet(normalizedPageText, searchTerms),
+          });
+        }
+
+        if (index === 0 || (index + 1) % 250 === 0 || index === pages.length - 1) {
+          const fileProgress = (index + 1) / Math.max(1, pages.length);
+          const totalProgress = ((fileIndex + fileProgress) / fileTotal) * 100;
+          setProgress(totalProgress, true);
+          setStatus(
+            `高速INDEX検索中：${entry.label} ${index + 1} / ${pages.length}ページ ` +
+            `（${fileIndex + 1} / ${fileTotal}ファイル）`
+          );
+          if ((index + 1) % 1000 === 0) {
+            await new Promise(resolve => setTimeout(resolve, 0));
+          }
+        }
+      }
+
+      metric.searchEvalMs = perfNow() - evalStartedAt;
+      metric.hitPages = results.length;
+      metric.totalMs = perfNow() - fileStartedAt + metric.indexLoadMs;
+      recordFilePerformance(metric);
+      return results;
+    }
+
+    async function searchOnePdf(
+      entry,
+      searchTerms,
+      searchMode,
+      fileIndex,
+      fileTotal,
+      serial,
+      preparedIndexes
+    ) {
+      const key = canonicalFileKey(entry.file);
+      const prepared = preparedIndexes?.get(key);
+
+      if (prepared?.payload) {
+        return searchOnePdfFromIndex(
+          entry, searchTerms, searchMode, fileIndex, fileTotal, serial, prepared
+        );
+      }
+
+      if (prepared?.error) {
+        console.info(`PDF.js全文検索へフォールバック：${entry.file}`, prepared.error);
+      }
+
+      return searchOnePdfLegacy(
+        entry, searchTerms, searchMode, fileIndex, fileTotal, serial, prepared?.loadMs || 0
+      );
+    }
+
     async function runCrossSearch() {
       const searchText = elements.textInput.value.trim();
       if (!searchText) {
@@ -4217,6 +4623,7 @@
       await destroyCurrentPdf();
 
       beginPerformanceRun({ searchText, searchTerms, searchMode: executedSearchMode, selectedEntries });
+      state.searchBusy = true;
       resetResultThumbnailSystem({ clearCache: true });
       state.searchText = searchText;
       state.searchTerms = searchTerms;
@@ -4234,6 +4641,12 @@
       updateUrlState();
 
       try {
+        const indexPrepareStartedAt = perfNow();
+        const preparedIndexes = await prepareSearchIndexes(selectedEntries, serial);
+        if (state.performanceRun) {
+          state.performanceRun.indexPrefetchMs = perfNow() - indexPrepareStartedAt;
+        }
+
         for (let fileIndex = 0; fileIndex < selectedEntries.length; fileIndex++) {
           const entry = selectedEntries[fileIndex];
 
@@ -4244,7 +4657,8 @@
               executedSearchMode,
               fileIndex,
               selectedEntries.length,
-              serial
+              serial,
+              preparedIndexes
             );
             state.results.push(...fileResults);
             fileResults.forEach(result => state.exportSelectedKeys.add(resultKey(result)));
@@ -4282,17 +4696,27 @@
             : state.viewerMode === 'paged'
               ? 'ヒットページ送りで表示しています。'
               : '最初のヒットページを元PDF表示で開いています。';
+          const perfTotals = getPerformanceTotals(state.performanceRun);
+          const sourceMessage = perfTotals.indexFiles
+            ? ` 高速INDEX ${perfTotals.indexFiles}/${selectedEntries.length}PDF` +
+              `${perfTotals.fallbackFiles ? `・PDF全文検索 ${perfTotals.fallbackFiles}PDF` : ''}。`
+            : ' PDF全文検索で処理しました。';
           setStatus(
             `検索完了：${searchModeLabel(executedSearchMode)}で「${state.searchTerms.map(item => item.term).join(' / ')}」を` +
             `${selectedEntries.length}件のPDFから検索し、${pageResults.length}ページで見つけました。${modeMessage}` +
+            sourceMessage +
             `${errorCount ? ` 読込失敗：${errorCount}件。` : ''}`,
             errorCount ? 'warning' : 'success'
           );
         } else {
           renderViewerMode();
+          const perfTotals = getPerformanceTotals(state.performanceRun);
+          const sourceMessage = perfTotals.indexFiles
+            ? ` 高速INDEX ${perfTotals.indexFiles}/${selectedEntries.length}PDFで検索しました。`
+            : ' PDF全文検索で処理しました。';
           setStatus(
             `検索完了：${searchModeLabel(executedSearchMode)}で「${state.searchTerms.map(item => item.term).join(' / ')}」は` +
-            '選択したPDF内で見つかりませんでした。' +
+            '選択したPDF内で見つかりませんでした。' + sourceMessage +
             `${errorCount ? ` 読込失敗：${errorCount}件。` : ''}`,
             'warning'
           );
@@ -4308,6 +4732,8 @@
         console.error(error);
         setStatus(error.message, 'warning');
       } finally {
+        state.searchBusy = false;
+        requestAnimationFrame(() => setupResultThumbnailObserver());
         setTimeout(() => setProgress(0, false), 800);
         elements.searchBtn.disabled = false;
         elements.catalogTrigger.disabled = false;
@@ -4479,7 +4905,7 @@
     }
 
     function setupResultThumbnailObserver() {
-      if (!state.sidebarOpen || !elements.resultsList.isConnected) return;
+      if (state.searchBusy || !state.sidebarOpen || !elements.resultsList.isConnected) return;
 
       if (state.resultThumbnailObserver) {
         state.resultThumbnailObserver.disconnect();
