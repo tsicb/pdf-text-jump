@@ -2,63 +2,63 @@
   "version": 1,
   "normalization": "NFKC-remove-whitespace-lower-ja-v1",
   "baseDir": "indeedmarketreports/",
-  "generatedAt": "2026-09-07T04:23:40.480Z",
+  "generatedAt": "2026-09-07T12:24:50.088Z",
   "files": [
     {
       "file": "Indeed PLUS 職種カテゴリー別トレンド.PDF",
-      "index": "search-index/files/a66e372e2115a910fd1a50e9be6dd1054c335be46a9c92da581bf977e75566f6.json",
+      "index": "search-index/files/cf5e97b5876aa45ee1311a1e71f9475fbe140da76007c87fbe6d858ce4c6e7aa.json",
       "pages": 578,
-      "textChars": 188152,
-      "sizeBytes": 79053977,
-      "sha256": "a66e372e2115a910fd1a50e9be6dd1054c335be46a9c92da581bf977e75566f6"
+      "textChars": 188131,
+      "sizeBytes": 63859669,
+      "sha256": "cf5e97b5876aa45ee1311a1e71f9475fbe140da76007c87fbe6d858ce4c6e7aa"
     },
     {
       "file": "Indeed PLUS 職種別トレンド.PDF",
-      "index": "search-index/files/a1caa2787f8869a58066c9aa97d35cb4e0f279ecfad6ff95810939d3e408daba.json",
+      "index": "search-index/files/e96ef0c84de805940ea381ad99a70e25c42c60d44d9d0e55b018334849d8f173.json",
       "pages": 378,
-      "textChars": 200943,
-      "sizeBytes": 43292027,
-      "sha256": "a1caa2787f8869a58066c9aa97d35cb4e0f279ecfad6ff95810939d3e408daba"
+      "textChars": 200226,
+      "sizeBytes": 43276984,
+      "sha256": "e96ef0c84de805940ea381ad99a70e25c42c60d44d9d0e55b018334849d8f173"
     },
     {
       "file": "Indeed PLUS職種カテゴリー別 トレンド考察・需給変化.PDF",
-      "index": "search-index/files/5f0d308a80993c504cba9a5fd28b2da29324d3a5d3c4de2b92714eb97d8a99da.json",
+      "index": "search-index/files/38c2730b1773a5ff57824d11833dd0d59ebcbbaca5ec99d9a3642276f47bc9c8.json",
       "pages": 291,
-      "textChars": 197949,
-      "sizeBytes": 58595103,
-      "sha256": "5f0d308a80993c504cba9a5fd28b2da29324d3a5d3c4de2b92714eb97d8a99da"
+      "textChars": 197643,
+      "sizeBytes": 24801191,
+      "sha256": "38c2730b1773a5ff57824d11833dd0d59ebcbbaca5ec99d9a3642276f47bc9c8"
     },
     {
       "file": "Indeed 職種別キーワードレポート.PDF",
-      "index": "search-index/files/1bbcefafa021c6f2bd3e963ac16b7664d3749959d8057a875d2d113ff4dddced.json",
+      "index": "search-index/files/368c0ca6fad2c528a4657b7918f08b8bcec791a4917cff77a73511a70af589f0.json",
       "pages": 365,
-      "textChars": 274711,
-      "sizeBytes": 75486911,
-      "sha256": "1bbcefafa021c6f2bd3e963ac16b7664d3749959d8057a875d2d113ff4dddced"
+      "textChars": 275084,
+      "sizeBytes": 47803785,
+      "sha256": "368c0ca6fad2c528a4657b7918f08b8bcec791a4917cff77a73511a70af589f0"
     },
     {
       "file": "JP 厚生労働省の有効求人倍率推移レポート.PDF",
-      "index": "search-index/files/33a5e47b0c94d2ed9580a7341f56e2ddd0906f9a3e1f52e1bac43a0aa75e015d.json",
+      "index": "search-index/files/83211cc73d5ec17a86baf9873eeb5ed32cdd9bc4f0a09b4263256b0bbd3fe57d.json",
       "pages": 120,
-      "textChars": 46174,
-      "sizeBytes": 8703458,
-      "sha256": "33a5e47b0c94d2ed9580a7341f56e2ddd0906f9a3e1f52e1bac43a0aa75e015d"
+      "textChars": 46148,
+      "sizeBytes": 8671245,
+      "sha256": "83211cc73d5ec17a86baf9873eeb5ed32cdd9bc4f0a09b4263256b0bbd3fe57d"
     },
     {
       "file": "求職者検索トレンド-2.PDF",
-      "index": "search-index/files/37cf70534443026b40c6f32c371371360a24fc2db311c20fd1856bf1372a45b4.json",
+      "index": "search-index/files/d483584bc89781277f9c082ad302eda34ff1574cae9734495b5d0e4e946b2f26.json",
       "pages": 205,
       "textChars": 108780,
-      "sizeBytes": 1874793,
-      "sha256": "37cf70534443026b40c6f32c371371360a24fc2db311c20fd1856bf1372a45b4"
+      "sizeBytes": 11867809,
+      "sha256": "d483584bc89781277f9c082ad302eda34ff1574cae9734495b5d0e4e946b2f26"
     },
     {
       "file": "求職者検索ワードランキング.PDF",
-      "index": "search-index/files/9c5b89272019afa17ea3220b87919edb898308f3ac704d7a5ff11fe897d43eda.json",
+      "index": "search-index/files/5b4eb9d9706efcddd064c921062677cd62ae30610dd1f0d0817eecddb5eb2caa.json",
       "pages": 51,
-      "textChars": 44846,
-      "sizeBytes": 2414028,
-      "sha256": "9c5b89272019afa17ea3220b87919edb898308f3ac704d7a5ff11fe897d43eda"
+      "textChars": 44571,
+      "sizeBytes": 2231200,
+      "sha256": "5b4eb9d9706efcddd064c921062677cd62ae30610dd1f0d0817eecddb5eb2caa"
     }
   ],
   "errors": []
