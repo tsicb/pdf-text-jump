@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "normalization": "NFKC-remove-whitespace-lower-ja-v1",
+  "baseDir": "indeedmarketreports/",
+  "generatedAt": "2026-09-07T04:23:40.480Z",
+  "files": [
+    {
+      "file": "Indeed PLUS 職種カテゴリー別トレンド.PDF",
+      "index": "search-index/files/a66e372e2115a910fd1a50e9be6dd1054c335be46a9c92da581bf977e75566f6.json",
+      "pages": 578,
+      "textChars": 188152,
+      "sizeBytes": 79053977,
+      "sha256": "a66e372e2115a910fd1a50e9be6dd1054c335be46a9c92da581bf977e75566f6"
+    },
+    {
+      "file": "Indeed PLUS 職種別トレンド.PDF",
+      "index": "search-index/files/a1caa2787f8869a58066c9aa97d35cb4e0f279ecfad6ff95810939d3e408daba.json",
+      "pages": 378,
+      "textChars": 200943,
+      "sizeBytes": 43292027,
+      "sha256": "a1caa2787f8869a58066c9aa97d35cb4e0f279ecfad6ff95810939d3e408daba"
+    },
+    {
+      "file": "Indeed PLUS職種カテゴリー別 トレンド考察・需給変化.PDF",
+      "index": "search-index/files/5f0d308a80993c504cba9a5fd28b2da29324d3a5d3c4de2b92714eb97d8a99da.json",
+      "pages": 291,
+      "textChars": 197949,
+      "sizeBytes": 58595103,
+      "sha256": "5f0d308a80993c504cba9a5fd28b2da29324d3a5d3c4de2b92714eb97d8a99da"
+    },
+    {
+      "file": "Indeed 職種別キーワードレポート.PDF",
+      "index": "search-index/files/1bbcefafa021c6f2bd3e963ac16b7664d3749959d8057a875d2d113ff4dddced.json",
+      "pages": 365,
+      "textChars": 274711,
+      "sizeBytes": 75486911,
+      "sha256": "1bbcefafa021c6f2bd3e963ac16b7664d3749959d8057a875d2d113ff4dddced"
+    },
+    {
+      "file": "JP 厚生労働省の有効求人倍率推移レポート.PDF",
+      "index": "search-index/files/33a5e47b0c94d2ed9580a7341f56e2ddd0906f9a3e1f52e1bac43a0aa75e015d.json",
+      "pages": 120,
+      "textChars": 46174,
+      "sizeBytes": 8703458,
+      "sha256": "33a5e47b0c94d2ed9580a7341f56e2ddd0906f9a3e1f52e1bac43a0aa75e015d"
+    },
+    {
+      "file": "求職者検索トレンド-2.PDF",
+      "index": "search-index/files/37cf70534443026b40c6f32c371371360a24fc2db311c20fd1856bf1372a45b4.json",
+      "pages": 205,
+      "textChars": 108780,
+      "sizeBytes": 1874793,
+      "sha256": "37cf70534443026b40c6f32c371371360a24fc2db311c20fd1856bf1372a45b4"
+    },
+    {
+      "file": "求職者検索ワードランキング.PDF",
+      "index": "search-index/files/9c5b89272019afa17ea3220b87919edb898308f3ac704d7a5ff11fe897d43eda.json",
+      "pages": 51,
+      "textChars": 44846,
+      "sizeBytes": 2414028,
+      "sha256": "9c5b89272019afa17ea3220b87919edb898308f3ac704d7a5ff11fe897d43eda"
+    }
+  ],
+  "errors": []
+}
