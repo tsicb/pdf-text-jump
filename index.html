@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" href="./favicon.svg?v=1" type="image/svg+xml">
   <meta name="theme-color" content="#1769aa">
-  <title>PDF Text Jump Viewer v5.1.0</title>
+  <title>PDF Text Jump Viewer v5.2.0</title>
   <style>
     :root {
       --navy: #17365f;
@@ -2463,6 +2463,99 @@
       .performance-dialog { width: 100%; max-height: 98vh; border-radius: 10px; }
     }
 
+
+
+    /* ===== v5.2.0：事前ページプレビュー・表示先行・PDFキャッシュ改善 ===== */
+    .viewer-stage {
+      position: relative;
+    }
+
+    .viewer-preview {
+      position: absolute;
+      inset: 6px;
+      z-index: 8;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      pointer-events: none;
+      background: rgba(242, 245, 248, .94);
+    }
+
+    .viewer-preview[hidden] { display: none !important; }
+
+    .viewer-preview img {
+      max-width: 100%;
+      max-height: 100%;
+      display: block;
+      object-fit: contain;
+      background: #fff;
+      box-shadow: 0 5px 24px rgba(15, 23, 42, .2);
+    }
+
+    .viewer-preview-badge {
+      position: absolute;
+      right: 12px;
+      bottom: 12px;
+      min-height: 24px;
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 0 9px;
+      background: rgba(15, 42, 86, .78);
+      color: #fff;
+      font-size: 9px;
+      font-weight: 900;
+      backdrop-filter: blur(4px);
+    }
+
+    #page-wrap canvas {
+      position: relative;
+      z-index: 2;
+    }
+
+    #page-wrap .textLayer { z-index: 3; }
+
+    .continuous-page-surface {
+      position: relative;
+    }
+
+    .continuous-page-preview {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: contain;
+      background: #fff;
+    }
+
+    .continuous-page-surface canvas {
+      position: relative;
+      z-index: 2;
+    }
+
+    .continuous-page-surface .textLayer { z-index: 3; }
+
+    .result-thumb-media[data-preview-source="static"]::after {
+      content: "PREVIEW";
+      position: absolute;
+      right: 7px;
+      top: 7px;
+      z-index: 2;
+      min-height: 19px;
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 0 6px;
+      background: rgba(15, 42, 86, .72);
+      color: #fff;
+      font-size: 7px;
+      font-weight: 900;
+      letter-spacing: .03em;
+      pointer-events: none;
+    }
+
   </style>
 </head>
 <body>
@@ -2481,7 +2574,7 @@
       </button>
 
       <div class="brand">
-        <div class="brand-title">PDF Text Jump Viewer <span style="font-size:10px;opacity:.65">v5.1.0</span></div>
+        <div class="brand-title">PDF Text Jump Viewer <span style="font-size:10px;opacity:.65">v5.2.0</span></div>
         <div class="brand-sub">サムネイルでPDFを選び、AND／OR検索・閲覧・PDF出力</div>
       </div>
 
@@ -2647,6 +2740,11 @@
 
             <div id="continuous-wrap" class="continuous-wrap" hidden></div>
 
+            <div id="viewer-preview" class="viewer-preview" hidden aria-hidden="true">
+              <img id="viewer-preview-img" alt="ページの高速プレビュー">
+              <span class="viewer-preview-badge">高速プレビュー</span>
+            </div>
+
             <div id="page-wrap" hidden>
               <canvas id="pdf-canvas"></canvas>
               <div id="text-layer" class="textLayer"></div>
@@ -2689,7 +2787,7 @@
       <div class="catalog-actions">
         <button id="select-all-btn" class="mini-btn" type="button">すべて選択</button>
         <button id="clear-all-btn" class="mini-btn" type="button">選択解除</button>
-        <div class="catalog-actions-note">カード全体をクリックして選択できます。サムネイルは初回表示時にPDFから自動生成します。</div>
+        <div class="catalog-actions-note">カード全体をクリックして選択できます。事前プレビューがあれば即表示し、無い場合だけPDFから生成します。</div>
       </div>
 
       <div id="catalog-list" class="catalog-list"></div>
@@ -2820,6 +2918,7 @@
     const DEFAULT_PDF_BASE_DIR = 'indeedmarketreports/';
     const MANIFEST_URL = 'pdfs.json';
     const SEARCH_INDEX_MANIFEST_URL = 'search-index/manifest.json';
+    const PAGE_PREVIEW_MANIFEST_URL = 'page-previews/manifest.json';
     const SEARCH_INDEX_DB_NAME = 'pdfTextJump.searchIndex.v1';
     const SEARCH_INDEX_DB_STORE = 'indexes';
     const SEARCH_INDEX_FETCH_CONCURRENCY = 4;
@@ -2831,7 +2930,8 @@
     const CONTINUOUS_RENDER_MARGIN = 900;
     const PAGE_TURN_WHEEL_THRESHOLD = 45;
     const PAGE_TURN_COOLDOWN_MS = 420;
-    const SHARED_PDF_CACHE_LIMIT = 4;
+    const SHARED_PDF_CACHE_LIMIT = 5;
+    const SHARED_PDF_WARM_MS = 60000;
     const RESULT_THUMBNAIL_CONCURRENCY = 1;
     const RESULT_THUMBNAIL_IDLE_TIMEOUT_MS = 1200;
     const NEIGHBOR_PREFETCH_IDLE_TIMEOUT_MS = 900;
@@ -2896,6 +2996,8 @@
       pagedNavThumb: document.getElementById('paged-nav-thumb'),
       continuousWrap: document.getElementById('continuous-wrap'),
       viewerStage: document.getElementById('viewer-stage'),
+      viewerPreview: document.getElementById('viewer-preview'),
+      viewerPreviewImg: document.getElementById('viewer-preview-img'),
       prevBtn: document.getElementById('prev-btn'),
       nextBtn: document.getElementById('next-btn'),
       pageInput: document.getElementById('page-input'),
@@ -2994,6 +3096,11 @@
       searchIndexManifestLoadMs: null,
       searchIndexMemoryCache: new Map(),
       searchIndexDbPromise: null,
+      pagePreviewManifest: new Map(),
+      pagePreviewManifestMeta: null,
+      pagePreviewManifestLoadMs: null,
+      pagePreviewUnavailable: new Set(),
+      viewerPreviewToken: 0,
       exportSelectedKeys: new Set(),
       exportBusy: false,
     };
@@ -3064,12 +3171,15 @@
         promise: null,
         pinCount: 0,
         activeCount: 0,
+        warmUntil: 0,
         lastUsed: ++state.sharedPdfUseSerial,
       };
+      const sharedLoadStartedAt = perfNow();
       record.promise = loadingTask.promise
         .then(pdf => {
           record.pdf = pdf;
           touchSharedPdfRecord(record);
+          recordSharedPdfLoadPerformance(perfNow() - sharedLoadStartedAt);
           return pdf;
         })
         .catch(error => {
@@ -3083,9 +3193,10 @@
       return { record, cacheHit: false };
     }
 
-    async function withSharedPdf(file, callback) {
+    async function withSharedPdf(file, callback, options = {}) {
       const { record, cacheHit } = getOrCreateSharedPdfRecord(file);
       record.activeCount += 1;
+      if (options.warm) record.warmUntil = Math.max(record.warmUntil || 0, Date.now() + SHARED_PDF_WARM_MS);
       touchSharedPdfRecord(record);
       trimSharedPdfCache();
       try {
@@ -3122,9 +3233,15 @@
 
     function trimSharedPdfCache() {
       if (state.sharedPdfCache.size <= SHARED_PDF_CACHE_LIMIT) return;
+      const now = Date.now();
       const candidates = [...state.sharedPdfCache.values()]
         .filter(record => record.pinCount === 0 && record.activeCount === 0)
-        .sort((a, b) => a.lastUsed - b.lastUsed);
+        .sort((a, b) => {
+          const aWarm = (a.warmUntil || 0) > now ? 1 : 0;
+          const bWarm = (b.warmUntil || 0) > now ? 1 : 0;
+          if (aWarm !== bWarm) return aWarm - bWarm;
+          return a.lastUsed - b.lastUsed;
+        });
 
       while (state.sharedPdfCache.size > SHARED_PDF_CACHE_LIMIT && candidates.length) {
         const record = candidates.shift();
@@ -3146,6 +3263,16 @@
         if (record.pdf) record.pdf.destroy().catch(() => {});
         else if (record.loadingTask?.destroy) Promise.resolve(record.loadingTask.destroy()).catch(() => {});
       }
+    }
+
+    function recordSharedPdfLoadPerformance(durationMs) {
+      const run = state.performanceRun;
+      if (!run) return;
+      const value = Math.max(0, Number(durationMs) || 0);
+      run.sharedPdfLoadCount += 1;
+      run.sharedPdfLoadTotalMs += value;
+      run.sharedPdfLoadMaxMs = Math.max(run.sharedPdfLoadMaxMs, value);
+      if (run.completedAtIso) renderPerformanceReport();
     }
 
     function recordViewerDocumentOpen(durationMs, cacheHit) {
@@ -3227,11 +3354,24 @@
         neighborPrefetchTotalMs: 0,
         sharedPdfCacheHits: 0,
         sharedPdfCacheMisses: 0,
+        sharedPdfLoadCount: 0,
+        sharedPdfLoadTotalMs: 0,
+        sharedPdfLoadMaxMs: 0,
+        firstPreviewReadyMs: null,
+        firstPreviewAfterSearchMs: null,
+        staticPreviewLoadCount: 0,
+        staticPreviewLoadTotalMs: 0,
+        staticPreviewLoadMaxMs: 0,
+        staticPreviewErrorCount: 0,
         firstResultThumbnailMs: null,
+        thumbnailAttemptCount: 0,
+        thumbnailCancelledCount: 0,
         thumbnailCount: 0,
         thumbnailTotalMs: 0,
         thumbnailMaxMs: 0,
         indexManifestLoadMs: roundMs(state.searchIndexManifestLoadMs),
+        pagePreviewManifestLoadMs: roundMs(state.pagePreviewManifestLoadMs),
+        pagePreviewAvailableFiles: selectedEntries.filter(item => getPagePreviewMeta(item.file)).length,
         indexAvailableFiles: selectedEntries.filter(item => getSearchIndexMeta(item.file)).length,
         indexPrefetchMs: 0,
         completedAtIso: null,
@@ -3292,10 +3432,43 @@
       if (run.completedAtIso) renderPerformanceReport();
     }
 
-    function recordResultThumbnailPerformance(durationMs) {
+    function markFirstPreviewReady() {
+      const run = state.performanceRun;
+      if (!run || run.firstPreviewReadyMs != null) return;
+      const now = perfNow();
+      run.firstPreviewReadyMs = now - run.startedAtPerf;
+      if (run.searchCompletedAtPerf != null) {
+        run.firstPreviewAfterSearchMs = Math.max(0, now - run.searchCompletedAtPerf);
+      }
+      if (run.completedAtIso) renderPerformanceReport();
+    }
+
+    function recordStaticPreviewPerformance(durationMs, ok = true) {
+      const run = state.performanceRun;
+      if (!run) return;
+      if (!ok) {
+        run.staticPreviewErrorCount += 1;
+        return;
+      }
+      const value = Math.max(0, Number(durationMs) || 0);
+      run.staticPreviewLoadCount += 1;
+      run.staticPreviewLoadTotalMs += value;
+      run.staticPreviewLoadMaxMs = Math.max(run.staticPreviewLoadMaxMs, value);
+      markFirstPreviewReady();
+      if (run.completedAtIso && (run.staticPreviewLoadCount <= 3 || run.staticPreviewLoadCount % 20 === 0)) {
+        renderPerformanceReport();
+      }
+    }
+
+    function recordResultThumbnailPerformance(durationMs, outcome = 'success') {
       const run = state.performanceRun;
       if (!run) return;
       const value = Math.max(0, Number(durationMs) || 0);
+      run.thumbnailAttemptCount += 1;
+      if (outcome === 'cancelled') {
+        run.thumbnailCancelledCount += 1;
+        return;
+      }
       run.thumbnailCount += 1;
       run.thumbnailTotalMs += value;
       run.thumbnailMaxMs = Math.max(run.thumbnailMaxMs, value);
@@ -3395,7 +3568,7 @@
 
       if (run.firstViewerAfterSearchMs != null) {
         if (run.firstViewerAfterSearchMs >= 1200) {
-          messages.push(`<strong>検索完了後の初回PDF表示に ${formatDuration(run.firstViewerAfterSearchMs)} かかっています。</strong> v5.1では中央ビューアを最優先にし、サムネイルはアイドル時へ後回しにしています。`);
+          messages.push(`<strong>検索完了後の初回PDF表示に ${formatDuration(run.firstViewerAfterSearchMs)} かかっています。</strong> v5.2では中央ビューアを優先し、事前画像を先に見せてPDF本体は裏で準備します。`);
         } else {
           messages.push(`検索完了後の初回PDF表示は ${formatDuration(run.firstViewerAfterSearchMs)} です。`);
         }
@@ -3416,6 +3589,16 @@
 
       if (run.sharedPdfCacheHits || run.sharedPdfCacheMisses) {
         messages.push(`PDF文書共有キャッシュ：HIT ${run.sharedPdfCacheHits}回 / 新規読込 ${run.sharedPdfCacheMisses}回。最大${SHARED_PDF_CACHE_LIMIT}文書をLRU保持します。`);
+      }
+
+      if (run.staticPreviewLoadCount) {
+        messages.push(`事前ページプレビューを${run.staticPreviewLoadCount}画像読み込みました。最初の見た目はPDF.js本描画より先に出せるため、巨大PDF初回読込の待ち時間を隠せます。`);
+      } else if (run.pagePreviewAvailableFiles) {
+        messages.push('事前ページプレビューは利用可能ですが、この計測ではまだ表示対象に読み込まれていません。');
+      }
+
+      if (run.sharedPdfLoadMaxMs >= 1000) {
+        messages.push(`<strong>PDF本体の初回読込最大 ${formatDuration(run.sharedPdfLoadMaxMs)} が残っています。</strong> v5.2では事前画像を先に表示し、実PDFは裏で準備します。`);
       }
 
       if (run.thumbnailCount) {
@@ -3449,7 +3632,9 @@
       const kpis = [
         ['検索解析', formatDuration(run.totalSearchMs), `${run.selectedFileCount}PDF / ${totals.pages}ページ`],
         ['高速INDEX', `${totals.indexFiles} / ${run.selectedFileCount}PDF`, totals.fallbackFiles ? `フォールバック ${totals.fallbackFiles}PDF` : '全対象をINDEX検索'],
-        ['検索後→初回表示', run.firstViewerAfterSearchMs == null ? '未計測' : formatDuration(run.firstViewerAfterSearchMs), `検索開始から ${run.firstViewerReadyMs == null ? '-' : formatDuration(run.firstViewerReadyMs)}`],
+        ['検索後→プレビュー', run.firstPreviewAfterSearchMs == null ? '未計測' : formatDuration(run.firstPreviewAfterSearchMs), `${run.staticPreviewLoadCount}画像 / エラー ${run.staticPreviewErrorCount}`],
+        ['検索後→実PDF', run.firstViewerAfterSearchMs == null ? '未計測' : formatDuration(run.firstViewerAfterSearchMs), `検索開始から ${run.firstViewerReadyMs == null ? '-' : formatDuration(run.firstViewerReadyMs)}`],
+        ['PDF初回読込', run.sharedPdfLoadCount ? formatDuration(run.sharedPdfLoadMaxMs) : 'Cacheのみ', `${run.sharedPdfLoadCount}回 / 合計 ${formatDuration(run.sharedPdfLoadTotalMs)}`],
         ['PDF描画', run.viewerRenderCount ? formatDuration(avgViewerRender) : '未計測', `${run.viewerRenderCount}回 / 最大 ${run.viewerRenderCount ? formatDuration(run.viewerRenderMaxMs) : '-'}`],
         ['Canvas', formatDuration(run.viewerCanvasRenderMs || 0), '中央ビューア描画合計'],
         ['TextLayer', formatDuration(run.viewerTextLayerMs || 0), `文字抽出 ${formatDuration(run.viewerTextExtractMs || 0)}`],
@@ -3518,8 +3703,12 @@
         `検索INDEX: ${totals.indexFiles}/${run.selectedFileCount}PDF（フォールバック ${totals.fallbackFiles}PDF）`,
         `INDEX事前準備（実時間）: ${formatDuration(run.indexPrefetchMs || 0)}`,
         `INDEX取得個別合計（並列処理のため重複あり）: ${formatDuration(totals.indexLoadMs)}`,
-        `初回ページ表示（検索開始から）: ${run.firstViewerReadyMs == null ? '未計測' : formatDuration(run.firstViewerReadyMs)}`,
-        `初回ページ表示（検索完了後）: ${run.firstViewerAfterSearchMs == null ? '未計測' : formatDuration(run.firstViewerAfterSearchMs)}`,
+        `初回事前プレビュー（検索開始から）: ${run.firstPreviewReadyMs == null ? '未計測' : formatDuration(run.firstPreviewReadyMs)}`,
+        `初回事前プレビュー（検索完了後）: ${run.firstPreviewAfterSearchMs == null ? '未計測' : formatDuration(run.firstPreviewAfterSearchMs)}`,
+        `事前プレビュー: ${run.staticPreviewLoadCount}画像 / 合計 ${formatDuration(run.staticPreviewLoadTotalMs)} / 最大 ${formatDuration(run.staticPreviewLoadMaxMs)} / エラー ${run.staticPreviewErrorCount}`,
+        `初回実PDF表示（検索開始から）: ${run.firstViewerReadyMs == null ? '未計測' : formatDuration(run.firstViewerReadyMs)}`,
+        `初回実PDF表示（検索完了後）: ${run.firstViewerAfterSearchMs == null ? '未計測' : formatDuration(run.firstViewerAfterSearchMs)}`,
+        `PDF共有文書の新規読込: ${run.sharedPdfLoadCount}回 / 合計 ${formatDuration(run.sharedPdfLoadTotalMs)} / 最大 ${formatDuration(run.sharedPdfLoadMaxMs)}`,
         `中央PDF文書取得: ${run.viewerDocumentOpenCount}回 / 合計 ${formatDuration(run.viewerDocumentOpenTotalMs)} / 最大 ${formatDuration(run.viewerDocumentOpenMaxMs)} / cache HIT ${run.viewerDocumentCacheHits}`,
         `中央PDF描画: ${run.viewerRenderCount}回 / 合計 ${formatDuration(run.viewerRenderTotalMs)} / 平均 ${run.viewerRenderCount ? formatDuration(run.viewerRenderTotalMs / run.viewerRenderCount) : '-'}`,
         `  ページ取得: ${formatDuration(run.viewerPageGetMs)} / Canvas: ${formatDuration(run.viewerCanvasRenderMs)} / 文字抽出: ${formatDuration(run.viewerTextExtractMs)} / TextLayer: ${formatDuration(run.viewerTextLayerMs)} / highlight: ${formatDuration(run.viewerHighlightMs)}`,
@@ -3529,7 +3718,7 @@
         `ページ取得合計: ${formatDuration(totals.pageGetMs)}`,
         `テキスト抽出合計: ${formatDuration(totals.textExtractMs)}`,
         `検索判定等合計: ${formatDuration(totals.searchEvalMs)}`,
-        `サムネイル: ${run.thumbnailCount}枚 / 平均 ${run.thumbnailCount ? formatDuration(run.thumbnailTotalMs / run.thumbnailCount) : '-'}`,
+        `PDF.jsサムネイル: ${run.thumbnailCount}枚 / 試行 ${run.thumbnailAttemptCount} / cancel ${run.thumbnailCancelledCount} / 平均 ${run.thumbnailCount ? formatDuration(run.thumbnailTotalMs / run.thumbnailCount) : '-'}`,
         '',
         'PDF別:',
       ];
@@ -3573,7 +3762,7 @@
       const run = state.performanceRun;
       if (!run) return;
       const payload = {
-        viewerVersion: '5.1.0',
+        viewerVersion: '5.2.0',
         userAgent: navigator.userAgent,
         catalogLoadMs: state.catalogLoadMs,
         run: structuredCloneSafe(run),
@@ -3933,6 +4122,122 @@
 
     function getSearchIndexMeta(file) {
       return state.searchIndexManifest.get(canonicalFileKey(file)) || null;
+    }
+
+    function normalizePagePreviewManifestEntries(data) {
+      const rawFiles = Array.isArray(data?.files) ? data.files : [];
+      const map = new Map();
+      rawFiles.forEach(raw => {
+        const file = String(raw?.file || '').trim();
+        const previewBase = String(raw?.previewBase || raw?.base || '').trim().replace(/\/+$/, '');
+        if (!file || !previewBase || raw?.error) return;
+        map.set(canonicalFileKey(file), {
+          file,
+          previewBase,
+          pages: Math.max(0, Number.parseInt(raw.pages, 10) || 0),
+          sha256: String(raw.sha256 || '').trim(),
+          format: String(raw.format || data?.format || 'webp').replace(/^\./, ''),
+          width: Math.max(0, Number.parseInt(raw.width || data?.width, 10) || 0),
+        });
+      });
+      return map;
+    }
+
+    async function loadPagePreviewManifest() {
+      const startedAt = perfNow();
+      state.pagePreviewManifest = new Map();
+      state.pagePreviewManifestMeta = null;
+      try {
+        const response = await fetch(`${PAGE_PREVIEW_MANIFEST_URL}?v=${Date.now()}`, { cache: 'no-store' });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        const manifest = normalizePagePreviewManifestEntries(data);
+        if (!manifest.size) throw new Error('利用可能な事前プレビューがありません。');
+        state.pagePreviewManifest = manifest;
+        state.pagePreviewManifestMeta = {
+          version: data?.version || 1,
+          generatedAt: data?.generatedAt || '',
+          fileCount: manifest.size,
+          width: Number(data?.width) || 0,
+          format: String(data?.format || 'webp'),
+        };
+        return manifest.size;
+      } catch (error) {
+        console.info('事前ページプレビューを使用できません。PDF.js描画へ自動フォールバックします。', error);
+        return 0;
+      } finally {
+        state.pagePreviewManifestLoadMs = perfNow() - startedAt;
+      }
+    }
+
+    function getPagePreviewMeta(file) {
+      return state.pagePreviewManifest.get(canonicalFileKey(file)) || null;
+    }
+
+    function getPagePreviewUrl(file, pageNumber) {
+      const meta = getPagePreviewMeta(file);
+      const page = Math.max(1, Number.parseInt(pageNumber, 10) || 1);
+      if (!meta || (meta.pages && page > meta.pages)) return '';
+      const key = `${canonicalFileKey(file)}::${page}`;
+      if (state.pagePreviewUnavailable.has(key)) return '';
+      return `${meta.previewBase}/p${String(page).padStart(4, '0')}.${meta.format || 'webp'}`;
+    }
+
+    function markPagePreviewUnavailable(file, pageNumber) {
+      state.pagePreviewUnavailable.add(`${canonicalFileKey(file)}::${Math.max(1, Number.parseInt(pageNumber, 10) || 1)}`);
+    }
+
+    function loadStaticPreviewImage(image, result, { onLoad = null, onError = null } = {}) {
+      const url = getPagePreviewUrl(result.file, result.pageNumber);
+      if (!url) return false;
+      const startedAt = perfNow();
+      image.decoding = 'async';
+      image.loading = 'eager';
+      image.onload = () => {
+        recordStaticPreviewPerformance(perfNow() - startedAt, true);
+        if (typeof onLoad === 'function') onLoad(image);
+      };
+      image.onerror = () => {
+        markPagePreviewUnavailable(result.file, result.pageNumber);
+        recordStaticPreviewPerformance(perfNow() - startedAt, false);
+        if (typeof onError === 'function') onError(image);
+      };
+      image.src = url;
+      return true;
+    }
+
+    function hideViewerPreview() {
+      state.viewerPreviewToken += 1;
+      elements.viewerPreview.hidden = true;
+      elements.viewerPreview.setAttribute('aria-hidden', 'true');
+      elements.viewerPreviewImg.removeAttribute('src');
+    }
+
+    function showViewerPreview(result) {
+      const url = getPagePreviewUrl(result.file, result.pageNumber);
+      if (!url) {
+        hideViewerPreview();
+        return false;
+      }
+      const token = ++state.viewerPreviewToken;
+      elements.viewerPreview.hidden = false;
+      elements.viewerPreview.setAttribute('aria-hidden', 'false');
+      const image = elements.viewerPreviewImg;
+      const startedAt = perfNow();
+      image.alt = `${result.label} ${result.pageNumber}ページの高速プレビュー`;
+      image.onload = () => {
+        if (token !== state.viewerPreviewToken) return;
+        recordStaticPreviewPerformance(perfNow() - startedAt, true);
+        markFirstPreviewReady();
+      };
+      image.onerror = () => {
+        if (token !== state.viewerPreviewToken) return;
+        markPagePreviewUnavailable(result.file, result.pageNumber);
+        recordStaticPreviewPerformance(perfNow() - startedAt, false);
+        hideViewerPreview();
+      };
+      image.src = url;
+      return true;
     }
 
     function searchIndexVersion(meta) {
@@ -4297,7 +4602,10 @@
       }
 
       renderCatalog();
-      const indexedCount = await loadSearchIndexManifest();
+      const [indexedCount, previewCount] = await Promise.all([
+        loadSearchIndexManifest(),
+        loadPagePreviewManifest(),
+      ]);
       state.catalogLoadMs = perfNow() - catalogLoadStartedAt;
       elements.catalogTrigger.disabled = false;
       elements.searchBtn.disabled = false;
@@ -4308,10 +4616,16 @@
       const indexMessage = indexedCount
         ? `高速検索INDEX：選択中 ${selectedIndexedCount} / ${state.selectedFiles.size}PDF。`
         : '高速検索INDEXは未検出です。必要時は従来のPDF全文検索を使用します。';
+      const selectedPreviewCount = state.catalog.filter(
+        item => state.selectedFiles.has(item.file) && getPagePreviewMeta(item.file)
+      ).length;
+      const previewMessage = previewCount
+        ? `事前プレビュー：選択中 ${selectedPreviewCount} / ${state.selectedFiles.size}PDF。`
+        : '事前プレビュー未検出。';
 
       setStatus(
         `${state.catalog.length}件のPDFを読み込みました（${state.catalogSource}）。` +
-        `${state.selectedFiles.size}件を検索対象にしています。${indexMessage}`,
+        `${state.selectedFiles.size}件を検索対象にしています。${indexMessage}${previewMessage}`,
         indexedCount ? 'success' : 'warning'
       );
 
@@ -4353,10 +4667,33 @@
           thumbnail.dataset.thumbnailPage = String(item.thumbnailPage || 1);
 
           const cachedThumbnail = state.thumbnailCache.get(item.file);
+          const staticPreviewUrl = !cachedThumbnail?.dataUrl
+            ? getPagePreviewUrl(item.file, item.thumbnailPage || 1)
+            : '';
           if (cachedThumbnail?.dataUrl) {
             const image = document.createElement('img');
             image.src = cachedThumbnail.dataUrl;
             image.alt = `${item.label}の代表ページ`;
+            thumbnail.appendChild(image);
+          } else if (staticPreviewUrl) {
+            const image = document.createElement('img');
+            image.alt = `${item.label}の代表ページ`;
+            image.loading = 'lazy';
+            thumbnail.dataset.previewSource = 'static';
+            const startedAt = perfNow();
+            image.onload = () => recordStaticPreviewPerformance(perfNow() - startedAt, true);
+            image.onerror = () => {
+              markPagePreviewUnavailable(item.file, item.thumbnailPage || 1);
+              recordStaticPreviewPerformance(perfNow() - startedAt, false);
+              delete thumbnail.dataset.previewSource;
+              image.remove();
+              const stateLabel = document.createElement('div');
+              stateLabel.className = 'catalog-thumbnail-state';
+              stateLabel.textContent = 'プレビューを準備中…';
+              thumbnail.insertBefore(stateLabel, thumbnail.querySelector('.catalog-page-badge'));
+              enqueueCatalogThumbnail(thumbnail);
+            };
+            image.src = staticPreviewUrl;
             thumbnail.appendChild(image);
           } else {
             const stateLabel = document.createElement('div');
@@ -4502,6 +4839,7 @@
       });
 
       slots.forEach(slot => {
+        if (slot.dataset.previewSource === 'static' && slot.querySelector('img')) return;
         if (state.thumbnailCache.has(slot.dataset.file)) {
           applyCatalogThumbnailToSlot(slot, state.thumbnailCache.get(slot.dataset.file));
         } else {
@@ -5194,6 +5532,7 @@
           applyResultThumbnailToSlot(slot, cached, result);
           return;
         }
+        if (applyStaticResultPreviewToSlot(slot, result, cacheKey)) return;
         enqueueResultThumbnail(result, cacheKey);
       };
 
@@ -5221,6 +5560,39 @@
         if (cached && result) applyResultThumbnailToSlot(slot, cached, result);
         else state.resultThumbnailObserver.observe(slot);
       });
+    }
+
+    function applyStaticResultPreviewToSlot(slot, result, cacheKey) {
+      const url = getPagePreviewUrl(result.file, result.pageNumber);
+      if (!url || slot.dataset.staticPreviewPending === 'true') return false;
+
+      slot.dataset.staticPreviewPending = 'true';
+      slot.dataset.previewSource = 'static';
+      const image = document.createElement('img');
+      image.alt = `${result.label} ${result.pageNumber}ページの事前プレビュー`;
+      image.loading = 'lazy';
+      const startedAt = perfNow();
+      image.onload = () => {
+        slot.dataset.staticPreviewPending = 'false';
+        recordStaticPreviewPerformance(perfNow() - startedAt, true);
+        markFirstPreviewReady();
+        markResultThumbnailBusy(cacheKey, false);
+      };
+      image.onerror = () => {
+        slot.dataset.staticPreviewPending = 'false';
+        delete slot.dataset.previewSource;
+        markPagePreviewUnavailable(result.file, result.pageNumber);
+        recordStaticPreviewPerformance(perfNow() - startedAt, false);
+        slot.replaceChildren();
+        const loading = document.createElement('div');
+        loading.className = 'result-thumb-state';
+        loading.textContent = 'ページサムネイルを準備中…';
+        slot.appendChild(loading);
+        enqueueResultThumbnail(result, cacheKey);
+      };
+      slot.replaceChildren(image);
+      image.src = url;
+      return true;
     }
 
     function enqueueResultThumbnail(result, cacheKey = resultThumbnailCacheKey(result)) {
@@ -5346,6 +5718,7 @@
 
     async function generateResultThumbnail(result) {
       const thumbnailStartedAt = perfNow();
+      let outcome = 'success';
       try {
         return await withSharedPdf(result.file, async pdf => {
           const page = await pdf.getPage(result.pageNumber);
@@ -5406,8 +5779,12 @@
             height: canvas.height,
           };
         });
+      } catch (error) {
+        if (isRenderingCancelledError(error)) outcome = 'cancelled';
+        else outcome = 'error';
+        throw error;
       } finally {
-        recordResultThumbnailPerformance(perfNow() - thumbnailStartedAt);
+        recordResultThumbnailPerformance(perfNow() - thumbnailStartedAt, outcome);
       }
     }
 
@@ -5570,6 +5947,7 @@
         'page-fit-active',
         !isContinuous && state.zoomMode === 'fit-page'
       );
+      if (isContinuous && !elements.viewerPreview.hidden) hideViewerPreview();
 
       if (isContinuous) {
         elements.currentFileLabel.textContent = pageResults.length
@@ -5743,6 +6121,31 @@
         const surface = document.createElement('div');
         surface.className = 'continuous-page-surface';
 
+        const preview = document.createElement('img');
+        preview.className = 'continuous-page-preview';
+        preview.alt = `${result.label} ${result.pageNumber}ページの高速プレビュー`;
+        preview.hidden = true;
+        preview.loading = 'lazy';
+        preview.decoding = 'async';
+        const previewUrl = getPagePreviewUrl(result.file, result.pageNumber);
+        if (previewUrl) {
+          surface.style.width = '800px';
+          surface.style.maxWidth = '100%';
+          const startedAt = perfNow();
+          preview.onload = () => {
+            recordStaticPreviewPerformance(perfNow() - startedAt, true);
+            preview.hidden = false;
+            status.hidden = true;
+            markFirstPreviewReady();
+          };
+          preview.onerror = () => {
+            markPagePreviewUnavailable(result.file, result.pageNumber);
+            recordStaticPreviewPerformance(perfNow() - startedAt, false);
+            preview.hidden = true;
+          };
+          preview.src = previewUrl;
+        }
+
         const canvas = document.createElement('canvas');
         const textLayer = document.createElement('div');
         textLayer.className = 'textLayer';
@@ -5751,7 +6154,7 @@
         status.className = 'continuous-render-status';
         status.textContent = '画面に近づくとページを読み込みます。';
 
-        surface.append(canvas, textLayer, status);
+        surface.append(preview, canvas, textLayer, status);
         body.appendChild(surface);
         card.append(head, body);
         elements.continuousWrap.appendChild(card);
@@ -5765,6 +6168,7 @@
           canvas,
           textLayer,
           status,
+          preview,
           renderedScale: null,
           renderedSignature: '',
           requestToken: 0,
@@ -5852,14 +6256,17 @@
     }
 
     async function renderContinuousItemSnapshot(item, token, signature) {
-      item.status.hidden = false;
+      const totalStartedAt = perfNow();
+      item.status.hidden = Boolean(item.preview && !item.preview.hidden);
       item.status.dataset.kind = '';
       item.status.textContent = `${item.result.pageNumber}ページを読み込んでいます。`;
 
       await withSharedPdf(item.result.file, async pdf => {
         if (!isCurrentContinuousRequest(item, token)) return;
 
+        const pageGetStartedAt = perfNow();
         const page = await pdf.getPage(item.result.pageNumber);
+        const pageGetMs = perfNow() - pageGetStartedAt;
         if (!isCurrentContinuousRequest(item, token)) return;
 
         const effectiveScale = calculateAutoScale(page, item.body, 10, 10);
@@ -5881,6 +6288,7 @@
         item.textLayer.style.height = `${viewport.height}px`;
         item.textLayer.style.setProperty('--scale-factor', String(effectiveScale));
 
+        const canvasStartedAt = perfNow();
         const renderTask = page.render({
           canvasContext: context,
           viewport,
@@ -5898,27 +6306,43 @@
         } finally {
           if (item.renderTask === renderTask) item.renderTask = null;
         }
+        const canvasRenderMs = perfNow() - canvasStartedAt;
+        if (item.preview) item.preview.hidden = true;
+        markFirstViewerReady();
 
         if (!isCurrentContinuousRequest(item, token)) return;
 
+        const textExtractStartedAt = perfNow();
         const textContent = await page.getTextContent();
+        const textExtractMs = perfNow() - textExtractStartedAt;
         if (!isCurrentContinuousRequest(item, token)) return;
 
+        const textLayerStartedAt = perfNow();
         const textLayer = new pdfjsLib.TextLayer({
           textContentSource: textContent,
           container: item.textLayer,
           viewport,
         });
         await textLayer.render();
+        const textLayerMs = perfNow() - textLayerStartedAt;
 
         if (!isCurrentContinuousRequest(item, token)) return;
 
+        const highlightStartedAt = perfNow();
         highlightSearchTermsInLayer(item.textLayer, state.searchTerms);
+        const highlightMs = perfNow() - highlightStartedAt;
         item.renderedScale = effectiveScale;
         item.renderedSignature = signature;
         item.status.hidden = true;
         item.status.dataset.kind = '';
-        markFirstViewerReady();
+        recordViewerRenderPerformance({
+          pageGetMs,
+          canvasRenderMs,
+          textExtractMs,
+          textLayerMs,
+          highlightMs,
+          totalMs: perfNow() - totalStartedAt,
+        });
       });
     }
 
@@ -6110,6 +6534,7 @@
 
       await waitForActiveRenderToStop();
 
+      hideViewerPreview();
       elements.textLayer.replaceChildren();
       elements.canvas.width = 1;
       elements.canvas.height = 1;
@@ -6179,7 +6604,11 @@
         if (!sameFile) {
           await destroyCurrentPdf();
           if (openSerial !== state.viewerOpenSerial) return;
+        }
 
+        showViewerPreview(result);
+
+        if (!sameFile) {
           setStatus(`PDFを表示しています：${result.label}`);
           const openStartedAt = perfNow();
           const pinned = await pinSharedPdf(result.file);
@@ -6275,7 +6704,7 @@
                 page.getOperatorList(),
                 page.getTextContent(),
               ]);
-            });
+            }, { warm: true });
             recordNeighborPrefetchPerformance(perfNow() - startedAt);
           } catch (error) {
             console.info('隣接ヒットページの先読みをスキップしました。', error);
@@ -6524,6 +6953,8 @@
         }
       }
       const canvasRenderMs = perfNow() - canvasStartedAt;
+      hideViewerPreview();
+      markFirstViewerReady();
 
       if (
         serial !== state.renderSerial ||
