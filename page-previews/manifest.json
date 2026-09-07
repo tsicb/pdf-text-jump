@@ -1,0 +1,74 @@
+{
+  "version": 1,
+  "baseDir": "indeedmarketreports/",
+  "generatedAt": "2026-09-07T08:07:24Z",
+  "width": 800,
+  "quality": 50,
+  "format": "webp",
+  "files": [
+    {
+      "file": "Indeed PLUS 職種カテゴリー別トレンド.PDF",
+      "sha256": "a66e372e2115a910fd1a50e9be6dd1054c335be46a9c92da581bf977e75566f6",
+      "pages": 578,
+      "previewBase": "page-previews/files/a66e372e2115a910fd1a50e9be6dd1054c335be46a9c92da581bf977e75566f6",
+      "width": 800,
+      "quality": 50,
+      "format": "webp"
+    },
+    {
+      "file": "Indeed PLUS 職種別トレンド.PDF",
+      "sha256": "a1caa2787f8869a58066c9aa97d35cb4e0f279ecfad6ff95810939d3e408daba",
+      "pages": 378,
+      "previewBase": "page-previews/files/a1caa2787f8869a58066c9aa97d35cb4e0f279ecfad6ff95810939d3e408daba",
+      "width": 800,
+      "quality": 50,
+      "format": "webp"
+    },
+    {
+      "file": "Indeed PLUS職種カテゴリー別 トレンド考察・需給変化.PDF",
+      "sha256": "5f0d308a80993c504cba9a5fd28b2da29324d3a5d3c4de2b92714eb97d8a99da",
+      "pages": 291,
+      "previewBase": "page-previews/files/5f0d308a80993c504cba9a5fd28b2da29324d3a5d3c4de2b92714eb97d8a99da",
+      "width": 800,
+      "quality": 50,
+      "format": "webp"
+    },
+    {
+      "file": "Indeed 職種別キーワードレポート.PDF",
+      "sha256": "1bbcefafa021c6f2bd3e963ac16b7664d3749959d8057a875d2d113ff4dddced",
+      "pages": 365,
+      "previewBase": "page-previews/files/1bbcefafa021c6f2bd3e963ac16b7664d3749959d8057a875d2d113ff4dddced",
+      "width": 800,
+      "quality": 50,
+      "format": "webp"
+    },
+    {
+      "file": "JP 厚生労働省の有効求人倍率推移レポート.PDF",
+      "sha256": "33a5e47b0c94d2ed9580a7341f56e2ddd0906f9a3e1f52e1bac43a0aa75e015d",
+      "pages": 120,
+      "previewBase": "page-previews/files/33a5e47b0c94d2ed9580a7341f56e2ddd0906f9a3e1f52e1bac43a0aa75e015d",
+      "width": 800,
+      "quality": 50,
+      "format": "webp"
+    },
+    {
+      "file": "求職者検索トレンド-2.PDF",
+      "sha256": "37cf70534443026b40c6f32c371371360a24fc2db311c20fd1856bf1372a45b4",
+      "pages": 205,
+      "previewBase": "page-previews/files/37cf70534443026b40c6f32c371371360a24fc2db311c20fd1856bf1372a45b4",
+      "width": 800,
+      "quality": 50,
+      "format": "webp"
+    },
+    {
+      "file": "求職者検索ワードランキング.PDF",
+      "sha256": "9c5b89272019afa17ea3220b87919edb898308f3ac704d7a5ff11fe897d43eda",
+      "pages": 51,
+      "previewBase": "page-previews/files/9c5b89272019afa17ea3220b87919edb898308f3ac704d7a5ff11fe897d43eda",
+      "width": 800,
+      "quality": 50,
+      "format": "webp"
+    }
+  ],
+  "errors": []
+}
