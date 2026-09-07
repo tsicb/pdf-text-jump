@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" href="./favicon.svg?v=1" type="image/svg+xml">
   <meta name="theme-color" content="#1769aa">
-  <title>PDF Text Jump Viewer v5.3.0</title>
+  <title>PDF Text Jump Viewer v5.3.1</title>
   <style>
     :root {
       --navy: #17365f;
@@ -2557,7 +2557,7 @@
     }
 
 
-    /* ===== v5.3.0：WebP主体・必要ページだけ高品質PDFへ昇格 ===== */
+    /* ===== v5.3.1：WebP主体・必要ページだけ高品質PDFへ昇格 ===== */
     .continuous-page-card[data-quality="preview"] .continuous-page-head::after {
       content: "PREVIEW";
       flex: 0 0 auto;
@@ -2629,7 +2629,7 @@
       </button>
 
       <div class="brand">
-        <div class="brand-title">PDF Text Jump Viewer <span style="font-size:10px;opacity:.65">v5.3.0</span></div>
+        <div class="brand-title">PDF Text Jump Viewer <span style="font-size:10px;opacity:.65">v5.3.1</span></div>
         <div class="brand-sub">サムネイルでPDFを選び、AND／OR検索・閲覧・PDF出力</div>
       </div>
 
@@ -2984,6 +2984,9 @@
     const MAX_CONTINUOUS_PAGES = 100;
     const CONTINUOUS_MAX_PROMOTED = 2;
     const CONTINUOUS_PROMOTION_EDGE_PX = 80;
+    const CONTINUOUS_PROMOTION_SETTLE_MS = 220;
+    const CONTINUOUS_DEMOTION_VIEWPORTS = 1.75;
+    const CONTINUOUS_MIN_RETAIN_MS = 1200;
     const PAGE_TURN_WHEEL_THRESHOLD = 45;
     const PAGE_TURN_COOLDOWN_MS = 420;
     const SHARED_PDF_CACHE_LIMIT = 5;
@@ -3139,6 +3142,8 @@
       continuousItems: new Map(),
       continuousGeneration: 0,
       continuousPromotionRaf: 0,
+      continuousPromotionTimer: null,
+      continuousScrollingUntil: 0,
       continuousPromotionKeys: new Set(),
       continuousRenderQueue: [],
       continuousRenderActiveKey: '',
@@ -3611,7 +3616,7 @@
         if (cacheParts.length) messages.push(`INDEX取得元：${cacheParts.join(' / ')}。`);
 
         if (run.totalSearchMs < 3000) {
-          messages.push('<strong>検索待ち時間は十分小さい水準です。</strong> v5.3では事前WebPを主表示にして、必要なページだけPDF.jsで高品質化します。');
+          messages.push('<strong>検索待ち時間は十分小さい水準です。</strong> v5.3.1では事前WebPを主表示にして、必要なページだけPDF.jsで高品質化します。');
         } else if (totals.fallbackFiles) {
           messages.push('検索時間がまだ長い場合は、フォールバックしているPDFのINDEX生成状況を優先して確認してください。');
         } else if (totals.indexLoadMs > totals.searchEvalMs * 3) {
@@ -3633,7 +3638,7 @@
 
       if (run.firstViewerAfterSearchMs != null) {
         if (run.firstViewerAfterSearchMs >= 1200) {
-          messages.push(`<strong>検索完了後の初回PDF表示に ${formatDuration(run.firstViewerAfterSearchMs)} かかっています。</strong> v5.3ではWebPを主表示にし、画面中央付近の必要ページだけ高品質PDFへ昇格します。`);
+          messages.push(`<strong>検索完了後の初回PDF表示に ${formatDuration(run.firstViewerAfterSearchMs)} かかっています。</strong> v5.3.1ではWebPを主表示にし、画面中央付近の必要ページだけ高品質PDFへ昇格します。`);
         } else {
           messages.push(`検索完了後の初回PDF表示は ${formatDuration(run.firstViewerAfterSearchMs)} です。`);
         }
@@ -3657,13 +3662,13 @@
       }
 
       if (run.staticPreviewLoadCount) {
-        messages.push(`事前ページプレビューを${run.staticPreviewLoadCount}種類読み込みました（共有キャッシュHIT ${run.staticPreviewCacheHits || 0}回）。v5.3ではサイドバーと連続表示の基本表示として使います。`);
+        messages.push(`事前ページプレビューを${run.staticPreviewLoadCount}種類読み込みました（共有キャッシュHIT ${run.staticPreviewCacheHits || 0}回）。v5.3.1ではサイドバーと連続表示の基本表示として使います。`);
       } else if (run.pagePreviewAvailableFiles) {
         messages.push('事前ページプレビューは利用可能ですが、この計測ではまだ表示対象に読み込まれていません。');
       }
 
       if (run.sharedPdfLoadMaxMs >= 1000) {
-        messages.push(`<strong>PDF本体の初回読込最大 ${formatDuration(run.sharedPdfLoadMaxMs)} が残っています。</strong> v5.3では事前画像を主表示にし、不要なPDF Canvas描画を抑えます。`);
+        messages.push(`<strong>PDF本体の初回読込最大 ${formatDuration(run.sharedPdfLoadMaxMs)} が残っています。</strong> v5.3.1では事前画像を主表示にし、不要なPDF Canvas描画を抑えます。`);
       }
 
       if (run.thumbnailCount) {
@@ -3771,7 +3776,7 @@
         `初回事前プレビュー（検索開始から）: ${run.firstPreviewReadyMs == null ? '未計測' : formatDuration(run.firstPreviewReadyMs)}`,
         `初回事前プレビュー（検索完了後）: ${run.firstPreviewAfterSearchMs == null ? '未計測' : formatDuration(run.firstPreviewAfterSearchMs)}`,
         `事前プレビュー: ${run.staticPreviewLoadCount}種類 / Cache HIT ${run.staticPreviewCacheHits || 0} / 合計 ${formatDuration(run.staticPreviewLoadTotalMs)} / 最大 ${formatDuration(run.staticPreviewLoadMaxMs)} / エラー ${run.staticPreviewErrorCount}`,
-        `連続表示のPDF昇格: ${run.continuousPromoteCount || 0}回 / WebPへ降格 ${run.continuousDemoteCount || 0}回 / Canvas cancel ${run.continuousRenderCancelledCount || 0}回`,
+        `連続表示のPDF昇格: ${run.continuousPromoteCount || 0}回 / WebPへ降格 ${run.continuousDemoteCount || 0}回 / Canvas cancel ${run.continuousRenderCancelledCount || 0}回（v5.3.1はスクロール停止後に昇格）`,
         `初回実PDF表示（検索開始から）: ${run.firstViewerReadyMs == null ? '未計測' : formatDuration(run.firstViewerReadyMs)}`,
         `初回実PDF表示（検索完了後）: ${run.firstViewerAfterSearchMs == null ? '未計測' : formatDuration(run.firstViewerAfterSearchMs)}`,
         `PDF共有文書の新規読込: ${run.sharedPdfLoadCount}回 / 合計 ${formatDuration(run.sharedPdfLoadTotalMs)} / 最大 ${formatDuration(run.sharedPdfLoadMaxMs)}`,
@@ -3828,7 +3833,7 @@
       const run = state.performanceRun;
       if (!run) return;
       const payload = {
-        viewerVersion: '5.3.0',
+        viewerVersion: '5.3.1',
         userAgent: navigator.userAgent,
         catalogLoadMs: state.catalogLoadMs,
         run: structuredCloneSafe(run),
@@ -6133,6 +6138,8 @@
         cancelAnimationFrame(state.continuousPromotionRaf);
         state.continuousPromotionRaf = 0;
       }
+      clearContinuousPromotionTimer();
+      state.continuousScrollingUntil = 0;
       state.continuousPromotionKeys.clear();
       state.continuousRenderQueue.length = 0;
       state.continuousRenderActiveKey = '';
@@ -6254,6 +6261,8 @@
           previewMeta: null,
           renderedScale: null,
           renderedSignature: '',
+          lastPromotedAt: 0,
+          lastDemotedAt: 0,
           requestToken: 0,
           pending: false,
           renderTask: null,
@@ -6284,7 +6293,7 @@
 
       elements.continuousWrap.hidden = !displayedResults.length;
       elements.emptyGuide.hidden = Boolean(displayedResults.length);
-      scheduleVisibleContinuousPages();
+      scheduleVisibleContinuousPages({ allowPromotion: true });
     }
 
     function restoreContinuousPreviewSurface(item) {
@@ -6315,59 +6324,122 @@
       return isContinuousItemVisible(item, 0);
     }
 
-    function scheduleVisibleContinuousPages() {
+    function clearContinuousPromotionTimer() {
+      if (!state.continuousPromotionTimer) return;
+      clearTimeout(state.continuousPromotionTimer);
+      state.continuousPromotionTimer = null;
+    }
+
+    function scheduleContinuousPromotionAfterIdle() {
+      clearContinuousPromotionTimer();
+      const waitMs = Math.max(0, state.continuousScrollingUntil - perfNow()) + 18;
+      state.continuousPromotionTimer = setTimeout(() => {
+        state.continuousPromotionTimer = null;
+        if (state.viewerMode !== 'continuous') return;
+        scheduleVisibleContinuousPages({ allowPromotion: true });
+      }, waitMs);
+    }
+
+    function noteContinuousScrollActivity() {
+      if (state.viewerMode !== 'continuous') return;
+      state.continuousScrollingUntil = perfNow() + CONTINUOUS_PROMOTION_SETTLE_MS;
+      // スクロール中は既存の高品質ページを大きく外れない限り保持し、
+      // 新しいPDF Canvasの昇格はアイドルになるまで開始しない。
+      scheduleVisibleContinuousPages({ allowPromotion: false });
+      scheduleContinuousPromotionAfterIdle();
+    }
+
+    function scheduleVisibleContinuousPages({ allowPromotion = null } = {}) {
       if (state.viewerMode !== 'continuous') return;
       if (state.continuousPromotionRaf) return;
       state.continuousPromotionRaf = requestAnimationFrame(() => {
         state.continuousPromotionRaf = 0;
-        updateContinuousPromotionSet();
+        const canPromote = allowPromotion == null
+          ? perfNow() >= state.continuousScrollingUntil
+          : Boolean(allowPromotion);
+        updateContinuousPromotionSet({ allowPromotion: canPromote });
       });
     }
 
-    function updateContinuousPromotionSet() {
+    function updateContinuousPromotionSet({ allowPromotion = true } = {}) {
       if (state.viewerMode !== 'continuous' || !state.continuousItems.size) return;
+
       const rootRect = elements.viewerStage.getBoundingClientRect();
       const centerY = rootRect.top + rootRect.height / 2;
+      const demotionEdge = Math.max(320, rootRect.height * CONTINUOUS_DEMOTION_VIEWPORTS);
+      const now = perfNow();
+      const previous = new Set(state.continuousPromotionKeys);
+
       const candidates = [...state.continuousItems.values()]
         .filter(item => item.card.isConnected)
         .map(item => {
           const rect = item.card.getBoundingClientRect();
+          const distance = Math.abs((rect.top + rect.bottom) / 2 - centerY);
+          const visible = rect.bottom >= rootRect.top - CONTINUOUS_PROMOTION_EDGE_PX &&
+            rect.top <= rootRect.bottom + CONTINUOUS_PROMOTION_EDGE_PX;
+          const retainable = rect.bottom >= rootRect.top - demotionEdge &&
+            rect.top <= rootRect.bottom + demotionEdge;
+          const wasDesired = previous.has(item.key);
+          const recentlyPromoted = Boolean(
+            item.lastPromotedAt && now - item.lastPromotedAt < CONTINUOUS_MIN_RETAIN_MS
+          );
+          // 既に高品質化したページには距離ボーナスを与え、境界付近で
+          // WebP⇔Canvasが細かく反転しないようヒステリシスを持たせる。
+          const retainBonus = wasDesired ? rootRect.height * 0.72 : 0;
+          const recentBonus = recentlyPromoted ? rootRect.height * 1.4 : 0;
           return {
             item,
             rect,
-            distance: Math.abs((rect.top + rect.bottom) / 2 - centerY),
-            visible: rect.bottom >= rootRect.top - CONTINUOUS_PROMOTION_EDGE_PX && rect.top <= rootRect.bottom + CONTINUOUS_PROMOTION_EDGE_PX,
+            distance,
+            visible,
+            retainable,
+            wasDesired,
+            recentlyPromoted,
+            score: distance - retainBonus - recentBonus,
           };
-        })
-        .sort((a, b) => a.distance - b.distance);
+        });
 
-      const visible = candidates.filter(candidate => candidate.visible);
-      const chosen = (visible.length ? visible : candidates).slice(0, CONTINUOUS_MAX_PROMOTED);
+      let chosen = [];
+      if (allowPromotion) {
+        const pool = candidates
+          .filter(candidate => candidate.visible || (candidate.wasDesired && candidate.retainable))
+          .sort((a, b) => a.score - b.score);
+        chosen = pool.slice(0, CONTINUOUS_MAX_PROMOTED);
+      } else {
+        // スクロール中は新規昇格しない。既存ページだけ広い保持領域で維持する。
+        chosen = candidates
+          .filter(candidate => candidate.wasDesired && candidate.retainable)
+          .sort((a, b) => a.distance - b.distance)
+          .slice(0, CONTINUOUS_MAX_PROMOTED);
+      }
+
       const desired = new Set(chosen.map(candidate => candidate.item.key));
-      const previous = state.continuousPromotionKeys;
       state.continuousPromotionKeys = desired;
 
       for (const item of state.continuousItems.values()) {
-        if (!desired.has(item.key) && (previous.has(item.key) || item.card.dataset.quality !== 'preview')) {
+        if (!desired.has(item.key) && previous.has(item.key)) {
           demoteContinuousItem(item);
         }
       }
 
-      // 画面中央に最も近いページを最優先にし、同時Canvas描画は1件だけにする。
-      state.continuousRenderQueue = chosen
-        .map(candidate => candidate.item.key)
-        .filter(key => {
-          const item = state.continuousItems.get(key);
-          return item && item.renderedSignature !== getContinuousRenderSignature(item);
-        });
+      if (allowPromotion) {
+        // アイドル時のみ、画面中央に近い順で最大2ページを候補化する。
+        // Canvas描画自体はpump側で常に1件ずつ実行する。
+        state.continuousRenderQueue = chosen
+          .map(candidate => candidate.item.key)
+          .filter(key => {
+            const item = state.continuousItems.get(key);
+            return item && item.renderedSignature !== getContinuousRenderSignature(item);
+          });
 
-      chosen.forEach(candidate => {
-        const item = candidate.item;
-        if (!previous.has(item.key) && state.performanceRun) {
-          state.performanceRun.continuousPromoteCount += 1;
-        }
-        item.pending = item.renderedSignature !== getContinuousRenderSignature(item);
-      });
+        chosen.forEach(candidate => {
+          const item = candidate.item;
+          item.pending = item.renderedSignature !== getContinuousRenderSignature(item);
+        });
+      } else {
+        // スクロール中に残っていた待機キューが別PDFを開かないよう破棄する。
+        state.continuousRenderQueue.length = 0;
+      }
 
       if (state.continuousRenderActiveKey && !desired.has(state.continuousRenderActiveKey)) {
         const active = state.continuousItems.get(state.continuousRenderActiveKey);
@@ -6379,11 +6451,19 @@
           }
         }
       }
-      pumpContinuousRenderQueue();
+
+      if (allowPromotion) pumpContinuousRenderQueue();
     }
 
     function demoteContinuousItem(item) {
       if (!item) return;
+      const hadHighQuality = Boolean(
+        item.card.dataset.quality === 'pdf' ||
+        item.card.dataset.quality === 'loading' ||
+        item.renderedSignature ||
+        item.canvas.width > 1 ||
+        item.canvas.height > 1
+      );
       item.pending = false;
       item.requestToken += 1;
       if (item.renderTask) {
@@ -6398,11 +6478,14 @@
       item.renderedScale = null;
       item.renderedSignature = '';
       item.card.dataset.quality = 'preview';
+      item.lastDemotedAt = perfNow();
       restoreContinuousPreviewSurface(item);
       if (item.preview?.src) item.preview.hidden = false;
       item.status.hidden = Boolean(item.preview?.src);
       item.status.dataset.kind = '';
-      if (state.performanceRun) state.performanceRun.continuousDemoteCount += 1;
+      if (hadHighQuality && state.performanceRun) {
+        state.performanceRun.continuousDemoteCount += 1;
+      }
     }
 
     function requestContinuousItemRender(item) {
@@ -6440,6 +6523,11 @@
       item.pending = false;
       const token = ++item.requestToken;
       const signature = getContinuousRenderSignature(item);
+      const startingFromPreview = item.card.dataset.quality === 'preview';
+      if (startingFromPreview) {
+        item.lastPromotedAt = perfNow();
+        if (state.performanceRun) state.performanceRun.continuousPromoteCount += 1;
+      }
       item.card.dataset.quality = 'loading';
       item.status.hidden = Boolean(item.preview?.src);
       item.status.dataset.kind = '';
@@ -6627,7 +6715,8 @@
         demoteContinuousItem(item);
         item.card.dataset.quality = 'preview';
       }
-      scheduleVisibleContinuousPages();
+      state.continuousScrollingUntil = 0;
+      scheduleVisibleContinuousPages({ allowPromotion: true });
     }
 
     async function scrollToContinuousResult(result) {
@@ -6661,7 +6750,7 @@
 
       // まずWebPへ即座にスクロールし、その後画面中央のページだけ高品質PDFへ昇格する。
       item.card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      requestAnimationFrame(() => scheduleVisibleContinuousPages());
+      requestAnimationFrame(() => noteContinuousScrollActivity());
     }
 
     async function disposeContinuousViewer() {
@@ -6670,6 +6759,8 @@
         cancelAnimationFrame(state.continuousPromotionRaf);
         state.continuousPromotionRaf = 0;
       }
+      clearContinuousPromotionTimer();
+      state.continuousScrollingUntil = 0;
       state.continuousPromotionKeys.clear();
       state.continuousRenderQueue.length = 0;
       state.continuousRenderActiveKey = '';
@@ -7691,7 +7782,7 @@
     elements.sidebarClearAll.addEventListener('click', clearExportSelection);
 
     elements.viewerStage.addEventListener('scroll', () => {
-      if (state.viewerMode === 'continuous') scheduleVisibleContinuousPages();
+      if (state.viewerMode === 'continuous') noteContinuousScrollActivity();
     }, { passive: true });
 
     function isTypingTarget(target) {
