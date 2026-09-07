@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" href="./favicon.svg?v=1" type="image/svg+xml">
   <meta name="theme-color" content="#1769aa">
-  <title>PDF Text Jump Viewer v4.4.1</title>
+  <title>PDF Text Jump Viewer v4.5.0</title>
   <style>
     :root {
       --navy: #17365f;
@@ -2274,6 +2274,195 @@
       to { transform: rotate(360deg); }
     }
 
+
+
+    /* ===== v4.5.0：性能計測・ボトルネック診断 ===== */
+    .performance-btn {
+      flex: 0 0 auto;
+      min-height: 27px;
+      border: 1px solid #cbd5e1;
+      border-radius: 7px;
+      padding: 0 8px;
+      background: #fff;
+      color: #475569;
+      font-size: 10px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .performance-btn:hover:not(:disabled) {
+      border-color: #93b4dd;
+      background: var(--blue-soft);
+      color: var(--blue-dark);
+    }
+
+    .performance-btn:disabled {
+      opacity: .45;
+      cursor: default;
+    }
+
+    .performance-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 240;
+      display: grid;
+      place-items: center;
+      padding: 18px;
+      background: rgba(15, 23, 42, .60);
+      backdrop-filter: blur(4px);
+    }
+
+    .performance-dialog {
+      width: min(980px, 97vw);
+      max-height: min(820px, 94vh);
+      overflow: auto;
+      border: 1px solid #cbd5e1;
+      border-radius: 14px;
+      background: #fff;
+      box-shadow: 0 28px 80px rgba(15,23,42,.38);
+    }
+
+    .performance-head {
+      position: sticky;
+      top: 0;
+      z-index: 3;
+      min-height: 58px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 11px 14px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255,255,255,.97);
+    }
+
+    .performance-title-wrap { flex: 1; min-width: 0; }
+    .performance-title { color: #1e3a5f; font-size: 16px; font-weight: 900; }
+    .performance-sub { margin-top: 2px; color: #64748b; font-size: 10px; line-height: 1.45; }
+
+    .performance-close {
+      width: 32px;
+      height: 32px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      background: #fff;
+      color: #64748b;
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    .performance-body { padding: 14px; }
+
+    .performance-summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 9px;
+      margin-bottom: 14px;
+    }
+
+    .performance-kpi {
+      min-width: 0;
+      padding: 11px 12px;
+      border: 1px solid #dbe3ec;
+      border-radius: 10px;
+      background: #f8fafc;
+    }
+
+    .performance-kpi-label { color: #64748b; font-size: 9px; font-weight: 800; }
+    .performance-kpi-value { margin-top: 4px; color: #17365f; font-size: 18px; font-weight: 900; }
+    .performance-kpi-note { margin-top: 3px; color: #94a3b8; font-size: 9px; line-height: 1.35; }
+
+    .performance-section + .performance-section { margin-top: 14px; }
+    .performance-section-title { margin-bottom: 7px; color: #334155; font-size: 12px; font-weight: 900; }
+
+    .performance-diagnosis {
+      padding: 11px 12px;
+      border: 1px solid #bfdbfe;
+      border-radius: 10px;
+      background: #eff6ff;
+      color: #334155;
+      font-size: 11px;
+      line-height: 1.7;
+    }
+
+    .performance-diagnosis strong { color: #1d4ed8; }
+
+    .performance-table-wrap {
+      overflow: auto;
+      border: 1px solid #dbe3ec;
+      border-radius: 10px;
+    }
+
+    .performance-table {
+      width: 100%;
+      min-width: 820px;
+      border-collapse: collapse;
+      background: #fff;
+      color: #334155;
+      font-size: 10px;
+    }
+
+    .performance-table th,
+    .performance-table td {
+      padding: 8px 9px;
+      border-bottom: 1px solid #e2e8f0;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .performance-table th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: #f8fafc;
+      color: #64748b;
+      font-weight: 900;
+    }
+
+    .performance-table th:first-child,
+    .performance-table td:first-child {
+      max-width: 300px;
+      text-align: left;
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+
+    .performance-table tbody tr:last-child td { border-bottom: 0; }
+
+    .performance-foot {
+      position: sticky;
+      bottom: 0;
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      padding: 10px 14px;
+      border-top: 1px solid var(--line);
+      background: rgba(255,255,255,.97);
+    }
+
+    .performance-action {
+      min-height: 36px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 0 13px;
+      background: #fff;
+      color: #475569;
+      font-weight: 800;
+    }
+
+    .performance-action.primary {
+      border-color: var(--blue);
+      background: var(--blue);
+      color: #fff;
+    }
+
+    .performance-action:disabled { opacity: .48; cursor: default; }
+
+    @media (max-width: 760px) {
+      .performance-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .performance-modal { padding: 7px; }
+      .performance-dialog { width: 100%; max-height: 98vh; border-radius: 10px; }
+    }
+
   </style>
 </head>
 <body>
@@ -2292,7 +2481,7 @@
       </button>
 
       <div class="brand">
-        <div class="brand-title">PDF Text Jump Viewer <span style="font-size:10px;opacity:.65">v4.4.1</span></div>
+        <div class="brand-title">PDF Text Jump Viewer <span style="font-size:10px;opacity:.65">v4.5.0</span></div>
         <div class="brand-sub">サムネイルでPDFを選び、AND／OR検索・閲覧・PDF出力</div>
       </div>
 
@@ -2371,6 +2560,7 @@
         <div class="panel-head">
           <div class="panel-title">検索結果</div>
           <div id="result-count" class="result-count">0ページ</div>
+          <button id="performance-btn" class="performance-btn" type="button" disabled title="直近の検索処理時間を確認">速度計測</button>
         </div>
         <div class="sidebar-selection-bar" aria-label="PDF出力ページの一括選択">
           <span class="sidebar-selection-label">PDF出力</span>
@@ -2512,6 +2702,52 @@
     </section>
   </div>
 
+  <div id="performance-modal" class="performance-modal" hidden role="dialog" aria-modal="true" aria-labelledby="performance-title">
+    <section class="performance-dialog">
+      <div class="performance-head">
+        <div class="performance-title-wrap">
+          <div id="performance-title" class="performance-title">検索・表示速度の計測結果</div>
+          <div class="performance-sub">直近の横断検索について、PDF読込・ページ取得・テキスト抽出・検索判定・初回表示を分けて計測します。</div>
+        </div>
+        <button id="performance-close" class="performance-close" type="button" title="閉じる">×</button>
+      </div>
+      <div class="performance-body">
+        <div id="performance-summary" class="performance-summary-grid"></div>
+
+        <section class="performance-section">
+          <div class="performance-section-title">診断</div>
+          <div id="performance-diagnosis" class="performance-diagnosis">まだ計測結果がありません。</div>
+        </section>
+
+        <section class="performance-section">
+          <div class="performance-section-title">PDF別の内訳</div>
+          <div class="performance-table-wrap">
+            <table class="performance-table">
+              <thead>
+                <tr>
+                  <th>PDF</th>
+                  <th>ページ数</th>
+                  <th>HIT</th>
+                  <th>文書読込</th>
+                  <th>ページ取得</th>
+                  <th>テキスト抽出</th>
+                  <th>検索判定等</th>
+                  <th>合計</th>
+                </tr>
+              </thead>
+              <tbody id="performance-tbody"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+      <div class="performance-foot">
+        <button id="performance-copy" class="performance-action" type="button">結果をコピー</button>
+        <button id="performance-download" class="performance-action" type="button">JSON保存</button>
+        <button id="performance-ok" class="performance-action primary" type="button">閉じる</button>
+      </div>
+    </section>
+  </div>
+
   <div id="export-modal" class="export-modal" hidden role="dialog" aria-modal="true" aria-labelledby="export-dialog-title">
     <section class="export-dialog">
       <div class="export-dialog-head">
@@ -2625,6 +2861,15 @@
       progressTrack: document.getElementById('progress-track'),
       progressBar: document.getElementById('progress-bar'),
       resultCount: document.getElementById('result-count'),
+      performanceBtn: document.getElementById('performance-btn'),
+      performanceModal: document.getElementById('performance-modal'),
+      performanceClose: document.getElementById('performance-close'),
+      performanceOk: document.getElementById('performance-ok'),
+      performanceCopy: document.getElementById('performance-copy'),
+      performanceDownload: document.getElementById('performance-download'),
+      performanceSummary: document.getElementById('performance-summary'),
+      performanceDiagnosis: document.getElementById('performance-diagnosis'),
+      performanceTbody: document.getElementById('performance-tbody'),
       resultsList: document.getElementById('results-list'),
       continuousModeBtn: document.getElementById('continuous-mode-btn'),
       pagedModeBtn: document.getElementById('paged-mode-btn'),
@@ -2724,9 +2969,324 @@
       continuousItems: new Map(),
       continuousPdfCache: new Map(),
       continuousGeneration: 0,
+      performanceRun: null,
+      performanceHistory: [],
+      catalogLoadMs: null,
       exportSelectedKeys: new Set(),
       exportBusy: false,
     };
+
+    function perfNow() {
+      return performance.now();
+    }
+
+    function roundMs(value) {
+      return Math.max(0, Math.round(Number(value) || 0));
+    }
+
+    function formatDuration(value) {
+      const ms = Math.max(0, Number(value) || 0);
+      if (ms < 1000) return `${Math.round(ms)} ms`;
+      if (ms < 60000) return `${(ms / 1000).toFixed(ms < 10000 ? 2 : 1)} 秒`;
+      const minutes = Math.floor(ms / 60000);
+      const seconds = ((ms % 60000) / 1000).toFixed(1);
+      return `${minutes}分 ${seconds}秒`;
+    }
+
+    function beginPerformanceRun({ searchText, searchTerms, searchMode, selectedEntries }) {
+      const run = {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        startedAtIso: new Date().toISOString(),
+        startedAtPerf: perfNow(),
+        searchText,
+        searchTerms: searchTerms.map(item => item.term),
+        searchMode,
+        selectedFiles: selectedEntries.map(item => item.file),
+        selectedFileCount: selectedEntries.length,
+        fileMetrics: [],
+        totalSearchMs: 0,
+        searchScanMs: 0,
+        resultPages: 0,
+        errorCount: 0,
+        firstViewerReadyMs: null,
+        firstResultThumbnailMs: null,
+        thumbnailCount: 0,
+        thumbnailTotalMs: 0,
+        thumbnailMaxMs: 0,
+        completedAtIso: null,
+      };
+      state.performanceRun = run;
+      elements.performanceBtn.disabled = true;
+      return run;
+    }
+
+    function finalizePerformanceRun() {
+      const run = state.performanceRun;
+      if (!run) return;
+      run.totalSearchMs = run.searchScanMs || (perfNow() - run.startedAtPerf);
+      run.resultPages = getPageResults().length;
+      run.errorCount = state.results.filter(item => item.error).length;
+      run.completedAtIso = new Date().toISOString();
+      state.performanceHistory.unshift(structuredCloneSafe(run));
+      state.performanceHistory = state.performanceHistory.slice(0, 5);
+      elements.performanceBtn.disabled = false;
+      renderPerformanceReport();
+      logPerformanceReportToConsole(run);
+    }
+
+    function structuredCloneSafe(value) {
+      try {
+        return typeof structuredClone === 'function'
+          ? structuredClone(value)
+          : JSON.parse(JSON.stringify(value));
+      } catch {
+        return JSON.parse(JSON.stringify(value));
+      }
+    }
+
+    function recordFilePerformance(metric) {
+      if (!state.performanceRun) return;
+      state.performanceRun.fileMetrics.push({
+        ...metric,
+        documentLoadMs: roundMs(metric.documentLoadMs),
+        pageGetMs: roundMs(metric.pageGetMs),
+        textExtractMs: roundMs(metric.textExtractMs),
+        searchEvalMs: roundMs(metric.searchEvalMs),
+        totalMs: roundMs(metric.totalMs),
+      });
+    }
+
+    function markFirstViewerReady() {
+      const run = state.performanceRun;
+      if (!run || run.firstViewerReadyMs != null) return;
+      run.firstViewerReadyMs = perfNow() - run.startedAtPerf;
+      if (run.completedAtIso) renderPerformanceReport();
+    }
+
+    function recordResultThumbnailPerformance(durationMs) {
+      const run = state.performanceRun;
+      if (!run) return;
+      const value = Math.max(0, Number(durationMs) || 0);
+      run.thumbnailCount += 1;
+      run.thumbnailTotalMs += value;
+      run.thumbnailMaxMs = Math.max(run.thumbnailMaxMs, value);
+      if (run.firstResultThumbnailMs == null) {
+        run.firstResultThumbnailMs = perfNow() - run.startedAtPerf;
+      }
+      if (run.completedAtIso && (run.thumbnailCount <= 3 || run.thumbnailCount % 10 === 0)) {
+        renderPerformanceReport();
+      }
+    }
+
+    function getPerformanceTotals(run = state.performanceRun) {
+      const files = run?.fileMetrics || [];
+      return files.reduce((acc, item) => {
+        acc.pages += item.pages || 0;
+        acc.hits += item.hitPages || 0;
+        acc.documentLoadMs += item.documentLoadMs || 0;
+        acc.pageGetMs += item.pageGetMs || 0;
+        acc.textExtractMs += item.textExtractMs || 0;
+        acc.searchEvalMs += item.searchEvalMs || 0;
+        acc.fileTotalMs += item.totalMs || 0;
+        return acc;
+      }, {
+        pages: 0,
+        hits: 0,
+        documentLoadMs: 0,
+        pageGetMs: 0,
+        textExtractMs: 0,
+        searchEvalMs: 0,
+        fileTotalMs: 0,
+      });
+    }
+
+    function buildPerformanceDiagnosis(run = state.performanceRun) {
+      if (!run?.fileMetrics?.length) {
+        return 'まだ検索計測がありません。横断検索を1回実行すると、ここにボトルネック候補を表示します。';
+      }
+
+      const totals = getPerformanceTotals(run);
+      const measured = Math.max(1, totals.documentLoadMs + totals.pageGetMs + totals.textExtractMs + totals.searchEvalMs);
+      const textRelated = totals.pageGetMs + totals.textExtractMs + totals.searchEvalMs;
+      const textShare = textRelated / measured;
+      const loadShare = totals.documentLoadMs / measured;
+      const avgPerPage = totals.pages ? textRelated / totals.pages : 0;
+      const avgThumb = run.thumbnailCount ? run.thumbnailTotalMs / run.thumbnailCount : 0;
+
+      const messages = [];
+      if (textShare >= .55 && totals.pages >= 50) {
+        messages.push('<strong>事前検索INDEX化の効果が大きい見込みです。</strong> 全ページをPDF.jsで開いてテキスト抽出・検索する処理が計測時間の中心です。GitHub登録時にページ単位テキストをJSON化すれば、この部分の多くを利用時から切り離せます。');
+      } else if (loadShare >= .45) {
+        messages.push('<strong>PDF文書の初期読込比率が高めです。</strong> 検索INDEX化でも検索待ちは短くできますが、実ページ表示ではPDF本体の取得時間が残ります。ブラウザキャッシュ、HTTP Range、プレビュー事前生成も次候補です。');
+      } else {
+        messages.push('<strong>単一の突出した処理より、複数工程に時間が分散しています。</strong> まずページ単位INDEX化で検索時のPDF解析を除去し、その後に表示・サムネイルを個別最適化するのが安全です。');
+      }
+
+      messages.push(`全${totals.pages}ページのPDF解析系処理は平均 ${formatDuration(avgPerPage)} / ページです。`);
+
+      if (run.thumbnailCount) {
+        if (avgThumb >= 500) {
+          messages.push(`検索結果サムネイルは平均 ${formatDuration(avgThumb)} / 枚です。多数表示する場合はWebP等の事前生成にも効果が期待できます。`);
+        } else {
+          messages.push(`検索結果サムネイルは平均 ${formatDuration(avgThumb)} / 枚で、現時点では検索本体より優先度は低そうです。`);
+        }
+      } else {
+        messages.push('サムネイル計測は、検索結果一覧の画像が生成されると追記されます。');
+      }
+
+      return messages.join('<br>');
+    }
+
+    function renderPerformanceReport() {
+      const run = state.performanceRun;
+      if (!run) {
+        elements.performanceSummary.replaceChildren();
+        elements.performanceTbody.replaceChildren();
+        elements.performanceDiagnosis.textContent = 'まだ計測結果がありません。';
+        return;
+      }
+
+      const totals = getPerformanceTotals(run);
+      const kpis = [
+        ['検索解析', formatDuration(run.totalSearchMs), `${run.selectedFileCount}PDF / ${totals.pages}ページ解析`],
+        ['テキスト抽出', formatDuration(totals.textExtractMs), 'getTextContent() 合計'],
+        ['初回ページ表示', run.resultPages === 0 ? '-' : (run.firstViewerReadyMs == null ? '計測中' : formatDuration(run.firstViewerReadyMs)), '検索開始から表示準備完了まで'],
+        ['HIT', `${run.resultPages}ページ`, `${run.searchTerms.join(' / ')}・${String(run.searchMode).toUpperCase()}`],
+      ];
+
+      elements.performanceSummary.replaceChildren();
+      kpis.forEach(([label, value, note]) => {
+        const card = document.createElement('div');
+        card.className = 'performance-kpi';
+        const labelEl = document.createElement('div');
+        labelEl.className = 'performance-kpi-label';
+        labelEl.textContent = label;
+        const valueEl = document.createElement('div');
+        valueEl.className = 'performance-kpi-value';
+        valueEl.textContent = value;
+        const noteEl = document.createElement('div');
+        noteEl.className = 'performance-kpi-note';
+        noteEl.textContent = note;
+        card.append(labelEl, valueEl, noteEl);
+        elements.performanceSummary.appendChild(card);
+      });
+
+      elements.performanceDiagnosis.innerHTML = buildPerformanceDiagnosis(run);
+      elements.performanceTbody.replaceChildren();
+      run.fileMetrics.forEach(metric => {
+        const row = document.createElement('tr');
+        const values = [
+          metric.label || metric.file,
+          String(metric.pages || 0),
+          String(metric.hitPages || 0),
+          formatDuration(metric.documentLoadMs),
+          formatDuration(metric.pageGetMs),
+          formatDuration(metric.textExtractMs),
+          formatDuration(metric.searchEvalMs),
+          formatDuration(metric.totalMs),
+        ];
+        values.forEach((value, index) => {
+          const cell = document.createElement('td');
+          cell.textContent = value;
+          if (index === 0) cell.title = metric.file || value;
+          row.appendChild(cell);
+        });
+        elements.performanceTbody.appendChild(row);
+      });
+    }
+
+    function performanceReportText(run = state.performanceRun) {
+      if (!run) return '計測結果はありません。';
+      const totals = getPerformanceTotals(run);
+      const lines = [
+        'PDF Text Jump Viewer 性能計測',
+        `計測日時: ${run.startedAtIso}`,
+        `検索語: ${run.searchTerms.join(' / ')}`,
+        `検索条件: ${String(run.searchMode).toUpperCase()}`,
+        `対象PDF: ${run.selectedFileCount}件`,
+        `解析ページ: ${totals.pages}ページ`,
+        `HIT: ${run.resultPages}ページ`,
+        `検索解析: ${formatDuration(run.totalSearchMs)}`,
+        `初回ページ表示: ${run.firstViewerReadyMs == null ? '未計測' : formatDuration(run.firstViewerReadyMs)}`,
+        `文書読込合計: ${formatDuration(totals.documentLoadMs)}`,
+        `ページ取得合計: ${formatDuration(totals.pageGetMs)}`,
+        `テキスト抽出合計: ${formatDuration(totals.textExtractMs)}`,
+        `検索判定等合計: ${formatDuration(totals.searchEvalMs)}`,
+        `サムネイル: ${run.thumbnailCount}枚 / 平均 ${run.thumbnailCount ? formatDuration(run.thumbnailTotalMs / run.thumbnailCount) : '-'}`,
+        '',
+        'PDF別:',
+      ];
+      run.fileMetrics.forEach(metric => {
+        lines.push(
+          `- ${metric.label || metric.file}: ${metric.pages}p / HIT ${metric.hitPages} / ` +
+          `load ${formatDuration(metric.documentLoadMs)} / page ${formatDuration(metric.pageGetMs)} / ` +
+          `text ${formatDuration(metric.textExtractMs)} / eval ${formatDuration(metric.searchEvalMs)} / total ${formatDuration(metric.totalMs)}`
+        );
+      });
+      return lines.join('\n');
+    }
+
+    function openPerformanceModal() {
+      if (!state.performanceRun) return;
+      renderPerformanceReport();
+      elements.performanceModal.hidden = false;
+    }
+
+    function closePerformanceModal() {
+      elements.performanceModal.hidden = true;
+    }
+
+    async function copyPerformanceReport() {
+      if (!state.performanceRun) return;
+      const text = performanceReportText();
+      try {
+        await navigator.clipboard.writeText(text);
+        const original = elements.performanceCopy.textContent;
+        elements.performanceCopy.textContent = 'コピーしました';
+        setTimeout(() => { elements.performanceCopy.textContent = original; }, 1200);
+      } catch (error) {
+        console.warn(error);
+        window.prompt('以下をコピーしてください。', text);
+      }
+    }
+
+    function downloadPerformanceJson() {
+      const run = state.performanceRun;
+      if (!run) return;
+      const payload = {
+        viewerVersion: '4.5.0',
+        userAgent: navigator.userAgent,
+        catalogLoadMs: state.catalogLoadMs,
+        run: structuredCloneSafe(run),
+        totals: getPerformanceTotals(run),
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `pdf-viewer-performance-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
+    }
+
+    function logPerformanceReportToConsole(run = state.performanceRun) {
+      if (!run) return;
+      console.groupCollapsed(`[Performance] 検索解析 ${formatDuration(run.totalSearchMs)} / ${run.resultPages} HIT`);
+      console.log(performanceReportText(run));
+      console.table(run.fileMetrics.map(metric => ({
+        PDF: metric.label || metric.file,
+        pages: metric.pages,
+        hits: metric.hitPages,
+        documentLoadMs: metric.documentLoadMs,
+        pageGetMs: metric.pageGetMs,
+        textExtractMs: metric.textExtractMs,
+        searchEvalMs: metric.searchEvalMs,
+        totalMs: metric.totalMs,
+      })));
+      console.groupEnd();
+    }
 
     function readStoredViewerMode() {
       const value = localStorage.getItem('pdfTextJump.viewerMode');
@@ -3138,6 +3698,7 @@
     }
 
     async function loadCatalog() {
+      const catalogLoadStartedAt = perfNow();
       setStatus('PDF一覧を読み込んでいます。');
 
       let manifestError = null;
@@ -3201,6 +3762,7 @@
       }
 
       renderCatalog();
+      state.catalogLoadMs = perfNow() - catalogLoadStartedAt;
       elements.catalogTrigger.disabled = false;
       elements.searchBtn.disabled = false;
 
@@ -3552,18 +4114,40 @@
 
     async function searchOnePdf(entry, searchTerms, searchMode, fileIndex, fileTotal, serial) {
       const path = buildPdfPath(entry.file);
+      const metric = {
+        file: entry.file,
+        label: entry.label,
+        pages: 0,
+        hitPages: 0,
+        documentLoadMs: 0,
+        pageGetMs: 0,
+        textExtractMs: 0,
+        searchEvalMs: 0,
+        totalMs: 0,
+      };
+      const fileStartedAt = perfNow();
       setStatus(`検索中：${entry.label} を読み込んでいます（${fileIndex + 1} / ${fileTotal}ファイル）`);
 
+      const documentLoadStartedAt = perfNow();
       const loadingTask = pdfjsLib.getDocument({ url: path, enableXfa: true });
       const pdf = await loadingTask.promise;
+      metric.documentLoadMs = perfNow() - documentLoadStartedAt;
+      metric.pages = pdf.numPages;
       const results = [];
 
       try {
         for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
           if (serial !== state.searchSerial) throw new Error('検索が中断されました。');
 
+          let tick = perfNow();
           const page = await pdf.getPage(pageNumber);
+          metric.pageGetMs += perfNow() - tick;
+
+          tick = perfNow();
           const textContent = await page.getTextContent();
+          metric.textExtractMs += perfNow() - tick;
+
+          tick = perfNow();
           const pageText = textContent.items.map(item => item.str ?? '').join(' ');
           const normalizedPageText = normalizeForSearch(pageText);
           const match = evaluatePageSearch(normalizedPageText, searchTerms, searchMode);
@@ -3581,6 +4165,7 @@
               snippet: createSnippet(pageText, searchTerms),
             });
           }
+          metric.searchEvalMs += perfNow() - tick;
 
           const fileProgress = (pageNumber / pdf.numPages);
           const totalProgress = ((fileIndex + fileProgress) / fileTotal) * 100;
@@ -3591,6 +4176,9 @@
           );
         }
       } finally {
+        metric.hitPages = results.length;
+        metric.totalMs = perfNow() - fileStartedAt;
+        recordFilePerformance(metric);
         await pdf.destroy();
       }
 
@@ -3628,6 +4216,7 @@
       await disposeContinuousViewer();
       await destroyCurrentPdf();
 
+      beginPerformanceRun({ searchText, searchTerms, searchMode: executedSearchMode, selectedEntries });
       resetResultThumbnailSystem({ clearCache: true });
       state.searchText = searchText;
       state.searchTerms = searchTerms;
@@ -3672,6 +4261,9 @@
           }
         }
 
+        if (state.performanceRun) {
+          state.performanceRun.searchScanMs = perfNow() - state.performanceRun.startedAtPerf;
+        }
         const pageResults = state.results.filter(item => !item.error);
         const errorCount = state.results.filter(item => item.error).length;
         setProgress(100, true);
@@ -3705,7 +4297,14 @@
             'warning'
           );
         }
+        finalizePerformanceRun();
       } catch (error) {
+        if (state.performanceRun && !state.performanceRun.completedAtIso) {
+          if (!state.performanceRun.searchScanMs) {
+            state.performanceRun.searchScanMs = perfNow() - state.performanceRun.startedAtPerf;
+          }
+          finalizePerformanceRun();
+        }
         console.error(error);
         setStatus(error.message, 'warning');
       } finally {
@@ -4037,58 +4636,62 @@
     }
 
     async function generateResultThumbnail(result) {
-      const pdf = await getResultThumbnailPdf(result.file);
-      const page = await pdf.getPage(result.pageNumber);
-      const baseViewport = page.getViewport({ scale: 1 });
-      const targetWidth = 620;
-      const scale = Math.max(0.2, Math.min(1.5, targetWidth / baseViewport.width));
-      const viewport = page.getViewport({ scale });
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.max(1, Math.round(viewport.width));
-      canvas.height = Math.max(1, Math.round(viewport.height));
-      const context = canvas.getContext('2d', { alpha: false });
-
-      await page.render({
-        canvasContext: context,
-        viewport,
-      }).promise;
-
-      const matchedTerms = (result.matchedTerms?.length ? result.matchedTerms : state.searchTerms)
-        .map(item => ({
-          term: item.term || String(item),
-          normalized: item.normalized || normalizeForSearch(item.term || item),
-        }));
-      const rectangles = await renderExportHighlightRects(pdf, result.pageNumber, matchedTerms);
-
-      context.save();
-      context.fillStyle = 'rgba(250, 204, 21, .42)';
-      context.strokeStyle = 'rgba(217, 119, 6, .72)';
-      context.lineWidth = Math.max(1, viewport.width / 620);
-
-      for (const rect of rectangles) {
-        const viewportRect = viewport.convertToViewportRectangle([
-          rect.x,
-          rect.y,
-          rect.x + rect.width,
-          rect.y + rect.height,
-        ]);
-        const x = Math.min(viewportRect[0], viewportRect[2]);
-        const y = Math.min(viewportRect[1], viewportRect[3]);
-        const width = Math.abs(viewportRect[2] - viewportRect[0]);
-        const height = Math.abs(viewportRect[3] - viewportRect[1]);
-        if (width <= .5 || height <= .5) continue;
-        context.fillRect(x, y, width, height);
-        context.strokeRect(x, y, width, height);
+      const thumbnailStartedAt = perfNow();
+      try {
+        const pdf = await getResultThumbnailPdf(result.file);
+        const page = await pdf.getPage(result.pageNumber);
+        const baseViewport = page.getViewport({ scale: 1 });
+        const targetWidth = 620;
+        const scale = Math.max(0.2, Math.min(1.5, targetWidth / baseViewport.width));
+        const viewport = page.getViewport({ scale });
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(viewport.width));
+        canvas.height = Math.max(1, Math.round(viewport.height));
+        const context = canvas.getContext('2d', { alpha: false });
+  
+        await page.render({
+          canvasContext: context,
+          viewport,
+        }).promise;
+  
+        const matchedTerms = (result.matchedTerms?.length ? result.matchedTerms : state.searchTerms)
+          .map(item => ({
+            term: item.term || String(item),
+            normalized: item.normalized || normalizeForSearch(item.term || item),
+          }));
+        const rectangles = await renderExportHighlightRects(pdf, result.pageNumber, matchedTerms);
+  
+        context.save();
+        context.fillStyle = 'rgba(250, 204, 21, .42)';
+        context.strokeStyle = 'rgba(217, 119, 6, .72)';
+        context.lineWidth = Math.max(1, viewport.width / 620);
+  
+        for (const rect of rectangles) {
+          const viewportRect = viewport.convertToViewportRectangle([
+            rect.x,
+            rect.y,
+            rect.x + rect.width,
+            rect.y + rect.height,
+          ]);
+          const x = Math.min(viewportRect[0], viewportRect[2]);
+          const y = Math.min(viewportRect[1], viewportRect[3]);
+          const width = Math.abs(viewportRect[2] - viewportRect[0]);
+          const height = Math.abs(viewportRect[3] - viewportRect[1]);
+          if (width <= .5 || height <= .5) continue;
+          context.fillRect(x, y, width, height);
+          context.strokeRect(x, y, width, height);
+        }
+        context.restore();
+  
+        return {
+          dataUrl: canvas.toDataURL('image/jpeg', .86),
+          width: canvas.width,
+          height: canvas.height,
+        };
+      } finally {
+        recordResultThumbnailPerformance(perfNow() - thumbnailStartedAt);
       }
-      context.restore();
-
-      return {
-        dataUrl: canvas.toDataURL('image/jpeg', .86),
-        width: canvas.width,
-        height: canvas.height,
-      };
     }
-
     function destroyResultThumbnailPdfCache() {
       for (const record of state.resultThumbnailPdfCache.values()) {
         if (record.pdf) record.pdf.destroy().catch(() => {});
@@ -4601,6 +5204,7 @@
       item.renderedSignature = signature;
       item.status.hidden = true;
       item.status.dataset.kind = '';
+      markFirstViewerReady();
     }
 
     function isCurrentContinuousRequest(item, token) {
@@ -5173,6 +5777,7 @@
         highlightSearchTermsInLayer(elements.textLayer, state.searchTerms, true);
       }
 
+      markFirstViewerReady();
       updateViewerToolbar();
     }
 
@@ -5499,6 +6104,15 @@
       return requestViewerRender();
     }
 
+    elements.performanceBtn.addEventListener('click', openPerformanceModal);
+    elements.performanceClose.addEventListener('click', closePerformanceModal);
+    elements.performanceOk.addEventListener('click', closePerformanceModal);
+    elements.performanceCopy.addEventListener('click', copyPerformanceReport);
+    elements.performanceDownload.addEventListener('click', downloadPerformanceJson);
+    elements.performanceModal.addEventListener('click', event => {
+      if (event.target === elements.performanceModal) closePerformanceModal();
+    });
+
     elements.exportBtn.addEventListener('click', openExportModal);
     elements.exportCloseBtn.addEventListener('click', closeExportModal);
     elements.exportCancelBtn.addEventListener('click', closeExportModal);
@@ -5526,6 +6140,7 @@
         closeCatalogModal();
         toggleSearchHelp(false);
         closeExportModal();
+        closePerformanceModal();
       }
     });
 
