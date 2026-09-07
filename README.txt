@@ -1,5 +1,7 @@
 PDF Text Jump Viewer v3.2（ページ送り・ページ全体表示・モード保持）
 
+https://eng11e.seismic.com/ls/7fa95c30-9dae-4abf-af17-4cf6e95b664c/nob4r6sxv5l-W_Ac#/
+
 【GitHubへの反映】
 既存の index.html を本ファイルで上書きしてください。
 pdfs.json を独自編集している場合は、既存ファイルをそのまま残してください。
