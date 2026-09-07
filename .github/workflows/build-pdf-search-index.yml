@@ -1,4 +1,4 @@
-name: Build PDF search index
+name: Build PDF search index and previews
 
 on:
   workflow_dispatch:
@@ -8,17 +8,18 @@ on:
     paths:
       - 'indeedmarketreports/**'
       - 'scripts/build-search-index.mjs'
+      - 'scripts/build-page-previews.py'
       - '.github/workflows/build-pdf-search-index.yml'
 
 permissions:
   contents: write
 
 concurrency:
-  group: pdf-search-index-${{ github.ref }}
+  group: pdf-search-assets-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build-index:
+  build-assets:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -31,8 +32,16 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Install PDF.js for the index builder
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install PDF.js for the search index builder
         run: npm install --no-save --no-package-lock --ignore-scripts pdfjs-dist@5.6.205
+
+      - name: Install preview builder dependencies
+        run: python -m pip install --disable-pip-version-check pymupdf pillow
 
       - name: Build search index
         env:
@@ -41,20 +50,28 @@ jobs:
           INDEX_BUILD_CONCURRENCY: '2'
         run: node scripts/build-search-index.mjs
 
-      - name: Commit generated index
+      - name: Build page previews
+        env:
+          PDF_BASE_DIR: indeedmarketreports/
+          PAGE_PREVIEW_DIR: page-previews
+          PAGE_PREVIEW_WIDTH: '800'
+          PAGE_PREVIEW_QUALITY: '50'
+          PAGE_PREVIEW_CONCURRENCY: '2'
+        run: python scripts/build-page-previews.py
+
+      - name: Commit generated search assets
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          # Add generated files first so newly-created (untracked) search-index files
-          # are included in the change check.
-          git add -A search-index
+          # Stage first so newly-created files are included in the change check.
+          git add -A search-index page-previews
 
-          if git diff --cached --quiet -- search-index; then
-            echo "Search index is already up to date."
+          if git diff --cached --quiet -- search-index page-previews; then
+            echo "Search index and page previews are already up to date."
             exit 0
           fi
 
-          git commit -m "chore: update PDF search index [skip ci]"
+          git commit -m "chore: update PDF search assets [skip ci]"
           git push
