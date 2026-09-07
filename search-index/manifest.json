@@ -2,7 +2,7 @@
   "version": 1,
   "normalization": "NFKC-remove-whitespace-lower-ja-v1",
   "baseDir": "indeedmarketreports/",
-  "generatedAt": "2026-09-07T12:26:33.146Z",
+  "generatedAt": "2026-09-07T12:29:46.877Z",
   "files": [
     {
       "file": "Indeed PLUS 職種カテゴリー別トレンド.PDF",
@@ -43,6 +43,14 @@
       "textChars": 46148,
       "sizeBytes": 8671245,
       "sha256": "83211cc73d5ec17a86baf9873eeb5ed32cdd9bc4f0a09b4263256b0bbd3fe57d"
+    },
+    {
+      "file": "求職者検索トレンド.PDF",
+      "index": "search-index/files/d483584bc89781277f9c082ad302eda34ff1574cae9734495b5d0e4e946b2f26.json",
+      "pages": 205,
+      "textChars": 108780,
+      "sizeBytes": 11867809,
+      "sha256": "d483584bc89781277f9c082ad302eda34ff1574cae9734495b5d0e4e946b2f26"
     },
     {
       "file": "求職者検索ワードランキング.PDF",

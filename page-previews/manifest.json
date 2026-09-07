@@ -1,7 +1,7 @@
 {
   "version": 1,
   "baseDir": "indeedmarketreports/",
-  "generatedAt": "2026-09-07T12:26:33Z",
+  "generatedAt": "2026-09-07T12:29:52Z",
   "width": 800,
   "quality": 50,
   "format": "webp",
@@ -47,6 +47,15 @@
       "sha256": "83211cc73d5ec17a86baf9873eeb5ed32cdd9bc4f0a09b4263256b0bbd3fe57d",
       "pages": 120,
       "previewBase": "page-previews/files/83211cc73d5ec17a86baf9873eeb5ed32cdd9bc4f0a09b4263256b0bbd3fe57d",
+      "width": 800,
+      "quality": 50,
+      "format": "webp"
+    },
+    {
+      "file": "求職者検索トレンド.PDF",
+      "sha256": "d483584bc89781277f9c082ad302eda34ff1574cae9734495b5d0e4e946b2f26",
+      "pages": 205,
+      "previewBase": "page-previews/files/d483584bc89781277f9c082ad302eda34ff1574cae9734495b5d0e4e946b2f26",
       "width": 800,
       "quality": 50,
       "format": "webp"
