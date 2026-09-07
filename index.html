@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" href="./favicon.svg?v=1" type="image/svg+xml">
   <meta name="theme-color" content="#1769aa">
-  <title>PDF Text Jump Viewer v5.2.0</title>
+  <title>PDF Text Jump Viewer v5.3.0</title>
   <style>
     :root {
       --navy: #17365f;
@@ -2556,6 +2556,61 @@
       pointer-events: none;
     }
 
+
+    /* ===== v5.3.0：WebP主体・必要ページだけ高品質PDFへ昇格 ===== */
+    .continuous-page-card[data-quality="preview"] .continuous-page-head::after {
+      content: "PREVIEW";
+      flex: 0 0 auto;
+      min-height: 19px;
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 0 6px;
+      background: #e2e8f0;
+      color: #64748b;
+      font-size: 7px;
+      font-weight: 900;
+      letter-spacing: .03em;
+    }
+
+    .continuous-page-card[data-quality="pdf"] .continuous-page-head::after {
+      content: "PDF";
+      flex: 0 0 auto;
+      min-height: 19px;
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 0 7px;
+      background: #dbeafe;
+      color: #1d4ed8;
+      font-size: 7px;
+      font-weight: 900;
+      letter-spacing: .03em;
+    }
+
+    .continuous-page-card[data-quality="loading"] .continuous-page-head::after {
+      content: "PDF準備中";
+      flex: 0 0 auto;
+      min-height: 19px;
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 0 7px;
+      background: #fff7ed;
+      color: #b45309;
+      font-size: 7px;
+      font-weight: 900;
+      letter-spacing: .02em;
+    }
+
+    .continuous-page-preview {
+      transition: opacity .12s ease;
+    }
+
+    .continuous-page-card[data-quality="pdf"] .continuous-page-preview {
+      opacity: 0;
+    }
+
   </style>
 </head>
 <body>
@@ -2574,7 +2629,7 @@
       </button>
 
       <div class="brand">
-        <div class="brand-title">PDF Text Jump Viewer <span style="font-size:10px;opacity:.65">v5.2.0</span></div>
+        <div class="brand-title">PDF Text Jump Viewer <span style="font-size:10px;opacity:.65">v5.3.0</span></div>
         <div class="brand-sub">サムネイルでPDFを選び、AND／OR検索・閲覧・PDF出力</div>
       </div>
 
@@ -2927,7 +2982,8 @@
     const MAX_SCALE = 2.5;
     const SCALE_STEP = 0.15;
     const MAX_CONTINUOUS_PAGES = 100;
-    const CONTINUOUS_RENDER_MARGIN = 900;
+    const CONTINUOUS_MAX_PROMOTED = 2;
+    const CONTINUOUS_PROMOTION_EDGE_PX = 80;
     const PAGE_TURN_WHEEL_THRESHOLD = 45;
     const PAGE_TURN_COOLDOWN_MS = 420;
     const SHARED_PDF_CACHE_LIMIT = 5;
@@ -3082,6 +3138,10 @@
       continuousObserver: null,
       continuousItems: new Map(),
       continuousGeneration: 0,
+      continuousPromotionRaf: 0,
+      continuousPromotionKeys: new Set(),
+      continuousRenderQueue: [],
+      continuousRenderActiveKey: '',
       sharedPdfCache: new Map(),
       sharedPdfUseSerial: 0,
       viewerPriorityBusy: false,
@@ -3100,6 +3160,7 @@
       pagePreviewManifestMeta: null,
       pagePreviewManifestLoadMs: null,
       pagePreviewUnavailable: new Set(),
+      staticPreviewPromiseCache: new Map(),
       viewerPreviewToken: 0,
       exportSelectedKeys: new Set(),
       exportBusy: false,
@@ -3363,6 +3424,10 @@
         staticPreviewLoadTotalMs: 0,
         staticPreviewLoadMaxMs: 0,
         staticPreviewErrorCount: 0,
+        staticPreviewCacheHits: 0,
+        continuousPromoteCount: 0,
+        continuousDemoteCount: 0,
+        continuousRenderCancelledCount: 0,
         firstResultThumbnailMs: null,
         thumbnailAttemptCount: 0,
         thumbnailCancelledCount: 0,
@@ -3546,7 +3611,7 @@
         if (cacheParts.length) messages.push(`INDEX取得元：${cacheParts.join(' / ')}。`);
 
         if (run.totalSearchMs < 3000) {
-          messages.push('<strong>検索待ち時間は十分小さい水準です。</strong> 次の高速化候補は検索結果サムネイルの事前生成です。');
+          messages.push('<strong>検索待ち時間は十分小さい水準です。</strong> v5.3では事前WebPを主表示にして、必要なページだけPDF.jsで高品質化します。');
         } else if (totals.fallbackFiles) {
           messages.push('検索時間がまだ長い場合は、フォールバックしているPDFのINDEX生成状況を優先して確認してください。');
         } else if (totals.indexLoadMs > totals.searchEvalMs * 3) {
@@ -3568,7 +3633,7 @@
 
       if (run.firstViewerAfterSearchMs != null) {
         if (run.firstViewerAfterSearchMs >= 1200) {
-          messages.push(`<strong>検索完了後の初回PDF表示に ${formatDuration(run.firstViewerAfterSearchMs)} かかっています。</strong> v5.2では中央ビューアを優先し、事前画像を先に見せてPDF本体は裏で準備します。`);
+          messages.push(`<strong>検索完了後の初回PDF表示に ${formatDuration(run.firstViewerAfterSearchMs)} かかっています。</strong> v5.3ではWebPを主表示にし、画面中央付近の必要ページだけ高品質PDFへ昇格します。`);
         } else {
           messages.push(`検索完了後の初回PDF表示は ${formatDuration(run.firstViewerAfterSearchMs)} です。`);
         }
@@ -3592,13 +3657,13 @@
       }
 
       if (run.staticPreviewLoadCount) {
-        messages.push(`事前ページプレビューを${run.staticPreviewLoadCount}画像読み込みました。最初の見た目はPDF.js本描画より先に出せるため、巨大PDF初回読込の待ち時間を隠せます。`);
+        messages.push(`事前ページプレビューを${run.staticPreviewLoadCount}種類読み込みました（共有キャッシュHIT ${run.staticPreviewCacheHits || 0}回）。v5.3ではサイドバーと連続表示の基本表示として使います。`);
       } else if (run.pagePreviewAvailableFiles) {
         messages.push('事前ページプレビューは利用可能ですが、この計測ではまだ表示対象に読み込まれていません。');
       }
 
       if (run.sharedPdfLoadMaxMs >= 1000) {
-        messages.push(`<strong>PDF本体の初回読込最大 ${formatDuration(run.sharedPdfLoadMaxMs)} が残っています。</strong> v5.2では事前画像を先に表示し、実PDFは裏で準備します。`);
+        messages.push(`<strong>PDF本体の初回読込最大 ${formatDuration(run.sharedPdfLoadMaxMs)} が残っています。</strong> v5.3では事前画像を主表示にし、不要なPDF Canvas描画を抑えます。`);
       }
 
       if (run.thumbnailCount) {
@@ -3632,13 +3697,13 @@
       const kpis = [
         ['検索解析', formatDuration(run.totalSearchMs), `${run.selectedFileCount}PDF / ${totals.pages}ページ`],
         ['高速INDEX', `${totals.indexFiles} / ${run.selectedFileCount}PDF`, totals.fallbackFiles ? `フォールバック ${totals.fallbackFiles}PDF` : '全対象をINDEX検索'],
-        ['検索後→プレビュー', run.firstPreviewAfterSearchMs == null ? '未計測' : formatDuration(run.firstPreviewAfterSearchMs), `${run.staticPreviewLoadCount}画像 / エラー ${run.staticPreviewErrorCount}`],
+        ['検索後→プレビュー', run.firstPreviewAfterSearchMs == null ? '未計測' : formatDuration(run.firstPreviewAfterSearchMs), `${run.staticPreviewLoadCount}種類 / Cache HIT ${run.staticPreviewCacheHits || 0}`],
         ['検索後→実PDF', run.firstViewerAfterSearchMs == null ? '未計測' : formatDuration(run.firstViewerAfterSearchMs), `検索開始から ${run.firstViewerReadyMs == null ? '-' : formatDuration(run.firstViewerReadyMs)}`],
         ['PDF初回読込', run.sharedPdfLoadCount ? formatDuration(run.sharedPdfLoadMaxMs) : 'Cacheのみ', `${run.sharedPdfLoadCount}回 / 合計 ${formatDuration(run.sharedPdfLoadTotalMs)}`],
         ['PDF描画', run.viewerRenderCount ? formatDuration(avgViewerRender) : '未計測', `${run.viewerRenderCount}回 / 最大 ${run.viewerRenderCount ? formatDuration(run.viewerRenderMaxMs) : '-'}`],
         ['Canvas', formatDuration(run.viewerCanvasRenderMs || 0), '中央ビューア描画合計'],
         ['TextLayer', formatDuration(run.viewerTextLayerMs || 0), `文字抽出 ${formatDuration(run.viewerTextExtractMs || 0)}`],
-        ['サムネイル', run.thumbnailCount ? formatDuration(avgThumbnail) : '待機中', `${run.thumbnailCount}枚 / 最大 ${run.thumbnailCount ? formatDuration(run.thumbnailMaxMs) : '-'}`],
+        ['サムネイル', run.thumbnailCount ? formatDuration(avgThumbnail) : 'WebPのみ', run.thumbnailCount ? `${run.thumbnailCount}枚 / 最大 ${formatDuration(run.thumbnailMaxMs)}` : 'PDF.js生成なし'],
         ['PDF共有Cache', `${run.sharedPdfCacheHits} HIT`, `新規 ${run.sharedPdfCacheMisses} / 上限 ${SHARED_PDF_CACHE_LIMIT}`],
       ];
 
@@ -3705,7 +3770,8 @@
         `INDEX取得個別合計（並列処理のため重複あり）: ${formatDuration(totals.indexLoadMs)}`,
         `初回事前プレビュー（検索開始から）: ${run.firstPreviewReadyMs == null ? '未計測' : formatDuration(run.firstPreviewReadyMs)}`,
         `初回事前プレビュー（検索完了後）: ${run.firstPreviewAfterSearchMs == null ? '未計測' : formatDuration(run.firstPreviewAfterSearchMs)}`,
-        `事前プレビュー: ${run.staticPreviewLoadCount}画像 / 合計 ${formatDuration(run.staticPreviewLoadTotalMs)} / 最大 ${formatDuration(run.staticPreviewLoadMaxMs)} / エラー ${run.staticPreviewErrorCount}`,
+        `事前プレビュー: ${run.staticPreviewLoadCount}種類 / Cache HIT ${run.staticPreviewCacheHits || 0} / 合計 ${formatDuration(run.staticPreviewLoadTotalMs)} / 最大 ${formatDuration(run.staticPreviewLoadMaxMs)} / エラー ${run.staticPreviewErrorCount}`,
+        `連続表示のPDF昇格: ${run.continuousPromoteCount || 0}回 / WebPへ降格 ${run.continuousDemoteCount || 0}回 / Canvas cancel ${run.continuousRenderCancelledCount || 0}回`,
         `初回実PDF表示（検索開始から）: ${run.firstViewerReadyMs == null ? '未計測' : formatDuration(run.firstViewerReadyMs)}`,
         `初回実PDF表示（検索完了後）: ${run.firstViewerAfterSearchMs == null ? '未計測' : formatDuration(run.firstViewerAfterSearchMs)}`,
         `PDF共有文書の新規読込: ${run.sharedPdfLoadCount}回 / 合計 ${formatDuration(run.sharedPdfLoadTotalMs)} / 最大 ${formatDuration(run.sharedPdfLoadMaxMs)}`,
@@ -3762,7 +3828,7 @@
       const run = state.performanceRun;
       if (!run) return;
       const payload = {
-        viewerVersion: '5.2.0',
+        viewerVersion: '5.3.0',
         userAgent: navigator.userAgent,
         catalogLoadMs: state.catalogLoadMs,
         run: structuredCloneSafe(run),
@@ -4187,22 +4253,50 @@
       state.pagePreviewUnavailable.add(`${canonicalFileKey(file)}::${Math.max(1, Number.parseInt(pageNumber, 10) || 1)}`);
     }
 
-    function loadStaticPreviewImage(image, result, { onLoad = null, onError = null } = {}) {
+    function ensureStaticPreviewReady(file, pageNumber) {
+      const url = getPagePreviewUrl(file, pageNumber);
+      if (!url) return Promise.reject(new Error('事前プレビュー未登録'));
+
+      const cached = state.staticPreviewPromiseCache.get(url);
+      if (cached) {
+        if (state.performanceRun) state.performanceRun.staticPreviewCacheHits += 1;
+        return cached;
+      }
+
+      const startedAt = perfNow();
+      const promise = new Promise((resolve, reject) => {
+        const preload = new Image();
+        preload.decoding = 'async';
+        preload.onload = async () => {
+          try { await preload.decode?.(); } catch {}
+          recordStaticPreviewPerformance(perfNow() - startedAt, true);
+          resolve({ url, width: preload.naturalWidth || 0, height: preload.naturalHeight || 0 });
+        };
+        preload.onerror = () => {
+          markPagePreviewUnavailable(file, pageNumber);
+          recordStaticPreviewPerformance(perfNow() - startedAt, false);
+          state.staticPreviewPromiseCache.delete(url);
+          reject(new Error('事前プレビューを読み込めませんでした。'));
+        };
+        preload.src = url;
+      });
+      state.staticPreviewPromiseCache.set(url, promise);
+      return promise;
+    }
+
+    function loadStaticPreviewImage(image, result, { onLoad = null, onError = null, eager = true } = {}) {
       const url = getPagePreviewUrl(result.file, result.pageNumber);
       if (!url) return false;
-      const startedAt = perfNow();
       image.decoding = 'async';
-      image.loading = 'eager';
-      image.onload = () => {
-        recordStaticPreviewPerformance(perfNow() - startedAt, true);
-        if (typeof onLoad === 'function') onLoad(image);
-      };
-      image.onerror = () => {
-        markPagePreviewUnavailable(result.file, result.pageNumber);
-        recordStaticPreviewPerformance(perfNow() - startedAt, false);
-        if (typeof onError === 'function') onError(image);
-      };
-      image.src = url;
+      image.loading = eager ? 'eager' : 'lazy';
+      ensureStaticPreviewReady(result.file, result.pageNumber)
+        .then(meta => {
+          image.src = meta.url;
+          if (typeof onLoad === 'function') onLoad(image, meta);
+        })
+        .catch(error => {
+          if (typeof onError === 'function') onError(image, error);
+        });
       return true;
     }
 
@@ -4223,20 +4317,18 @@
       elements.viewerPreview.hidden = false;
       elements.viewerPreview.setAttribute('aria-hidden', 'false');
       const image = elements.viewerPreviewImg;
-      const startedAt = perfNow();
       image.alt = `${result.label} ${result.pageNumber}ページの高速プレビュー`;
-      image.onload = () => {
-        if (token !== state.viewerPreviewToken) return;
-        recordStaticPreviewPerformance(perfNow() - startedAt, true);
-        markFirstPreviewReady();
-      };
-      image.onerror = () => {
-        if (token !== state.viewerPreviewToken) return;
-        markPagePreviewUnavailable(result.file, result.pageNumber);
-        recordStaticPreviewPerformance(perfNow() - startedAt, false);
-        hideViewerPreview();
-      };
-      image.src = url;
+      loadStaticPreviewImage(image, result, {
+        eager: true,
+        onLoad: () => {
+          if (token !== state.viewerPreviewToken) return;
+          markFirstPreviewReady();
+        },
+        onError: () => {
+          if (token !== state.viewerPreviewToken) return;
+          hideViewerPreview();
+        },
+      });
       return true;
     }
 
@@ -5527,13 +5619,9 @@
         const result = getPageResults().find(item => resultKey(item) === slot.dataset.resultKey);
         if (!result) return;
         const cacheKey = slot.dataset.thumbnailCacheKey || resultThumbnailCacheKey(result);
-        const cached = state.resultThumbnailCache.get(cacheKey);
-        if (cached) {
-          applyResultThumbnailToSlot(slot, cached, result);
-          return;
+        if (!applyStaticResultPreviewToSlot(slot, result, cacheKey)) {
+          showStaticPreviewUnavailable(slot, result);
         }
-        if (applyStaticResultPreviewToSlot(slot, result, cacheKey)) return;
-        enqueueResultThumbnail(result, cacheKey);
       };
 
       if (!('IntersectionObserver' in window)) {
@@ -5553,13 +5641,18 @@
         threshold: 0.01,
       });
 
-      slots.forEach(slot => {
-        const cacheKey = slot.dataset.thumbnailCacheKey;
-        const result = getPageResults().find(item => resultKey(item) === slot.dataset.resultKey);
-        const cached = cacheKey ? state.resultThumbnailCache.get(cacheKey) : null;
-        if (cached && result) applyResultThumbnailToSlot(slot, cached, result);
-        else state.resultThumbnailObserver.observe(slot);
-      });
+      slots.forEach(slot => state.resultThumbnailObserver.observe(slot));
+    }
+
+    function showStaticPreviewUnavailable(slot, result) {
+      slot.replaceChildren();
+      delete slot.dataset.previewSource;
+      const stateLabel = document.createElement('div');
+      stateLabel.className = 'result-thumb-state';
+      stateLabel.dataset.kind = 'error';
+      stateLabel.textContent = '事前プレビューなし';
+      stateLabel.title = `${result.label} ${result.pageNumber}ページは、元PDF表示で確認できます。`;
+      slot.appendChild(stateLabel);
     }
 
     function applyStaticResultPreviewToSlot(slot, result, cacheKey) {
@@ -5571,27 +5664,22 @@
       const image = document.createElement('img');
       image.alt = `${result.label} ${result.pageNumber}ページの事前プレビュー`;
       image.loading = 'lazy';
-      const startedAt = perfNow();
-      image.onload = () => {
-        slot.dataset.staticPreviewPending = 'false';
-        recordStaticPreviewPerformance(perfNow() - startedAt, true);
-        markFirstPreviewReady();
-        markResultThumbnailBusy(cacheKey, false);
-      };
-      image.onerror = () => {
-        slot.dataset.staticPreviewPending = 'false';
-        delete slot.dataset.previewSource;
-        markPagePreviewUnavailable(result.file, result.pageNumber);
-        recordStaticPreviewPerformance(perfNow() - startedAt, false);
-        slot.replaceChildren();
-        const loading = document.createElement('div');
-        loading.className = 'result-thumb-state';
-        loading.textContent = 'ページサムネイルを準備中…';
-        slot.appendChild(loading);
-        enqueueResultThumbnail(result, cacheKey);
-      };
+      image.decoding = 'async';
       slot.replaceChildren(image);
-      image.src = url;
+
+      loadStaticPreviewImage(image, result, {
+        eager: false,
+        onLoad: () => {
+          slot.dataset.staticPreviewPending = 'false';
+          markFirstPreviewReady();
+          markResultThumbnailBusy(cacheKey, false);
+        },
+        onError: () => {
+          slot.dataset.staticPreviewPending = 'false';
+          showStaticPreviewUnavailable(slot, result);
+          markResultThumbnailBusy(cacheKey, false);
+        },
+      });
       return true;
     }
 
@@ -5795,6 +5883,18 @@
       }
       cancelActiveResultThumbnailRender();
       state.resultThumbnailQueue.length = 0;
+    }
+
+    function syncActiveResultUi({ scrollIntoView = false } = {}) {
+      let activeCard = null;
+      elements.resultsList.querySelectorAll('.result-thumb-card').forEach(card => {
+        const active = card.dataset.resultKey === state.activeResultKey;
+        card.classList.toggle('active', active);
+        if (active) activeCard = card;
+      });
+      if (scrollIntoView && activeCard) {
+        activeCard.scrollIntoView({ block: 'nearest' });
+      }
     }
 
     function getPageResults() {
@@ -6027,8 +6127,15 @@
 
       if (state.continuousObserver) {
         state.continuousObserver.disconnect();
+        state.continuousObserver = null;
       }
-
+      if (state.continuousPromotionRaf) {
+        cancelAnimationFrame(state.continuousPromotionRaf);
+        state.continuousPromotionRaf = 0;
+      }
+      state.continuousPromotionKeys.clear();
+      state.continuousRenderQueue.length = 0;
+      state.continuousRenderActiveKey = '';
       state.continuousItems.clear();
       elements.continuousWrap.replaceChildren();
 
@@ -6040,28 +6147,16 @@
         note.textContent =
           `検索結果は${pageResults.length}ページあります。ブラウザ負荷を抑えるため、` +
           `連続表示は先頭${MAX_CONTINUOUS_PAGES}ページまでです。左側の検索結果一覧から、` +
-          'それ以降のページも1ページ表示で確認できます。';
+          'それ以降のページも「ヒットページ送り」または「元PDF表示」で確認できます。';
         elements.continuousWrap.appendChild(note);
       }
-
-      state.continuousObserver = new IntersectionObserver(entries => {
-        for (const entry of entries) {
-          if (!entry.isIntersecting) continue;
-          const key = entry.target.dataset.resultKey;
-          const item = state.continuousItems.get(key);
-          if (item) requestContinuousItemRender(item);
-        }
-      }, {
-        root: elements.viewerStage,
-        rootMargin: `${CONTINUOUS_RENDER_MARGIN}px 0px`,
-        threshold: 0.01,
-      });
 
       displayedResults.forEach((result, index) => {
         const key = resultKey(result);
         const card = document.createElement('article');
         card.className = 'continuous-page-card';
         card.dataset.resultKey = key;
+        card.dataset.quality = 'preview';
 
         const head = document.createElement('div');
         head.className = 'continuous-page-head';
@@ -6120,6 +6215,8 @@
 
         const surface = document.createElement('div');
         surface.className = 'continuous-page-surface';
+        surface.style.width = '800px';
+        surface.style.maxWidth = '100%';
 
         const preview = document.createElement('img');
         preview.className = 'continuous-page-preview';
@@ -6127,32 +6224,16 @@
         preview.hidden = true;
         preview.loading = 'lazy';
         preview.decoding = 'async';
-        const previewUrl = getPagePreviewUrl(result.file, result.pageNumber);
-        if (previewUrl) {
-          surface.style.width = '800px';
-          surface.style.maxWidth = '100%';
-          const startedAt = perfNow();
-          preview.onload = () => {
-            recordStaticPreviewPerformance(perfNow() - startedAt, true);
-            preview.hidden = false;
-            status.hidden = true;
-            markFirstPreviewReady();
-          };
-          preview.onerror = () => {
-            markPagePreviewUnavailable(result.file, result.pageNumber);
-            recordStaticPreviewPerformance(perfNow() - startedAt, false);
-            preview.hidden = true;
-          };
-          preview.src = previewUrl;
-        }
 
         const canvas = document.createElement('canvas');
+        canvas.hidden = true;
         const textLayer = document.createElement('div');
         textLayer.className = 'textLayer';
+        textLayer.hidden = true;
 
         const status = document.createElement('div');
         status.className = 'continuous-render-status';
-        status.textContent = '画面に近づくとページを読み込みます。';
+        status.textContent = '高速プレビューを読み込んでいます。';
 
         surface.append(preview, canvas, textLayer, status);
         body.appendChild(surface);
@@ -6161,6 +6242,7 @@
 
         const item = {
           key,
+          index,
           result,
           card,
           body,
@@ -6169,6 +6251,7 @@
           textLayer,
           status,
           preview,
+          previewMeta: null,
           renderedScale: null,
           renderedSignature: '',
           requestToken: 0,
@@ -6177,9 +6260,26 @@
           loopPromise: null,
           generation,
         };
-
         state.continuousItems.set(key, item);
-        state.continuousObserver.observe(card);
+
+        loadStaticPreviewImage(preview, result, {
+          eager: index < 2,
+          onLoad: (_image, previewMeta) => {
+            if (!card.isConnected || item.generation !== state.continuousGeneration) return;
+            item.previewMeta = previewMeta || null;
+            restoreContinuousPreviewSurface(item);
+            preview.hidden = false;
+            if (card.dataset.quality !== 'loading') status.hidden = true;
+            markFirstPreviewReady();
+          },
+          onError: () => {
+            if (!card.isConnected) return;
+            preview.hidden = true;
+            status.hidden = false;
+            status.dataset.kind = 'error';
+            status.textContent = '事前プレビューを表示できません。画面中央に来たとき元PDFを読み込みます。';
+          },
+        });
       });
 
       elements.continuousWrap.hidden = !displayedResults.length;
@@ -6187,79 +6287,186 @@
       scheduleVisibleContinuousPages();
     }
 
-    function isContinuousItemNearViewport(item) {
+    function restoreContinuousPreviewSurface(item) {
+      if (!item) return;
+      item.surface.style.width = '800px';
+      item.surface.style.maxWidth = '100%';
+      item.surface.style.height = 'auto';
+      item.surface.style.minWidth = '0';
+      item.surface.style.minHeight = '290px';
+      const width = item.previewMeta?.width || item.preview?.naturalWidth || 0;
+      const height = item.previewMeta?.height || item.preview?.naturalHeight || 0;
+      if (width && height) {
+        item.surface.style.aspectRatio = `${width} / ${height}`;
+        item.surface.style.minHeight = '0';
+      } else {
+        item.surface.style.removeProperty('aspect-ratio');
+      }
+    }
+
+    function isContinuousItemVisible(item, edgePx = CONTINUOUS_PROMOTION_EDGE_PX) {
       if (!item?.card?.isConnected) return false;
       const rootRect = elements.viewerStage.getBoundingClientRect();
-      const itemRect = item.card.getBoundingClientRect();
-      return (
-        itemRect.bottom >= rootRect.top - CONTINUOUS_RENDER_MARGIN &&
-        itemRect.top <= rootRect.bottom + CONTINUOUS_RENDER_MARGIN
-      );
+      const rect = item.card.getBoundingClientRect();
+      return rect.bottom >= rootRect.top - edgePx && rect.top <= rootRect.bottom + edgePx;
+    }
+
+    function isContinuousItemNearViewport(item) {
+      return isContinuousItemVisible(item, 0);
     }
 
     function scheduleVisibleContinuousPages() {
       if (state.viewerMode !== 'continuous') return;
+      if (state.continuousPromotionRaf) return;
+      state.continuousPromotionRaf = requestAnimationFrame(() => {
+        state.continuousPromotionRaf = 0;
+        updateContinuousPromotionSet();
+      });
+    }
+
+    function updateContinuousPromotionSet() {
+      if (state.viewerMode !== 'continuous' || !state.continuousItems.size) return;
+      const rootRect = elements.viewerStage.getBoundingClientRect();
+      const centerY = rootRect.top + rootRect.height / 2;
+      const candidates = [...state.continuousItems.values()]
+        .filter(item => item.card.isConnected)
+        .map(item => {
+          const rect = item.card.getBoundingClientRect();
+          return {
+            item,
+            rect,
+            distance: Math.abs((rect.top + rect.bottom) / 2 - centerY),
+            visible: rect.bottom >= rootRect.top - CONTINUOUS_PROMOTION_EDGE_PX && rect.top <= rootRect.bottom + CONTINUOUS_PROMOTION_EDGE_PX,
+          };
+        })
+        .sort((a, b) => a.distance - b.distance);
+
+      const visible = candidates.filter(candidate => candidate.visible);
+      const chosen = (visible.length ? visible : candidates).slice(0, CONTINUOUS_MAX_PROMOTED);
+      const desired = new Set(chosen.map(candidate => candidate.item.key));
+      const previous = state.continuousPromotionKeys;
+      state.continuousPromotionKeys = desired;
+
       for (const item of state.continuousItems.values()) {
-        if (isContinuousItemNearViewport(item)) {
-          requestContinuousItemRender(item);
+        if (!desired.has(item.key) && (previous.has(item.key) || item.card.dataset.quality !== 'preview')) {
+          demoteContinuousItem(item);
         }
       }
+
+      // 画面中央に最も近いページを最優先にし、同時Canvas描画は1件だけにする。
+      state.continuousRenderQueue = chosen
+        .map(candidate => candidate.item.key)
+        .filter(key => {
+          const item = state.continuousItems.get(key);
+          return item && item.renderedSignature !== getContinuousRenderSignature(item);
+        });
+
+      chosen.forEach(candidate => {
+        const item = candidate.item;
+        if (!previous.has(item.key) && state.performanceRun) {
+          state.performanceRun.continuousPromoteCount += 1;
+        }
+        item.pending = item.renderedSignature !== getContinuousRenderSignature(item);
+      });
+
+      if (state.continuousRenderActiveKey && !desired.has(state.continuousRenderActiveKey)) {
+        const active = state.continuousItems.get(state.continuousRenderActiveKey);
+        if (active) {
+          active.requestToken += 1;
+          if (active.renderTask) {
+            try { active.renderTask.cancel(); } catch {}
+            if (state.performanceRun) state.performanceRun.continuousRenderCancelledCount += 1;
+          }
+        }
+      }
+      pumpContinuousRenderQueue();
+    }
+
+    function demoteContinuousItem(item) {
+      if (!item) return;
+      item.pending = false;
+      item.requestToken += 1;
+      if (item.renderTask) {
+        try { item.renderTask.cancel(); } catch {}
+        if (state.performanceRun) state.performanceRun.continuousRenderCancelledCount += 1;
+      }
+      item.textLayer.replaceChildren();
+      item.textLayer.hidden = true;
+      item.canvas.hidden = true;
+      item.canvas.width = 1;
+      item.canvas.height = 1;
+      item.renderedScale = null;
+      item.renderedSignature = '';
+      item.card.dataset.quality = 'preview';
+      restoreContinuousPreviewSurface(item);
+      if (item.preview?.src) item.preview.hidden = false;
+      item.status.hidden = Boolean(item.preview?.src);
+      item.status.dataset.kind = '';
+      if (state.performanceRun) state.performanceRun.continuousDemoteCount += 1;
     }
 
     function requestContinuousItemRender(item) {
-      const signature = item ? getContinuousRenderSignature(item) : '';
-      if (
-        !item ||
-        item.generation !== state.continuousGeneration ||
-        item.renderedSignature === signature
-      ) {
-        return item?.loopPromise || Promise.resolve();
+      if (!item || item.generation !== state.continuousGeneration) return Promise.resolve();
+      if (!state.continuousPromotionKeys.has(item.key)) {
+        state.continuousPromotionKeys.add(item.key);
       }
-
-      item.requestToken += 1;
+      const signature = getContinuousRenderSignature(item);
+      if (item.renderedSignature === signature) return Promise.resolve();
       item.pending = true;
-
-      if (item.renderTask) {
-        try { item.renderTask.cancel(); } catch (error) { console.warn(error); }
+      item.requestToken += 1;
+      if (!state.continuousRenderQueue.includes(item.key)) {
+        state.continuousRenderQueue.push(item.key);
       }
-
-      if (!item.loopPromise) {
-        item.loopPromise = runContinuousItemRenderLoop(item)
-          .catch(error => {
-            if (!isRenderingCancelledError(error)) {
-              console.error(error);
-              item.status.hidden = false;
-              item.status.dataset.kind = 'error';
-              item.status.textContent = `ページを表示できませんでした：${error.message}`;
-            }
-          })
-          .finally(() => {
-            item.loopPromise = null;
-            scheduleResultThumbnailPump();
-          });
-      }
-
-      return item.loopPromise;
+      pumpContinuousRenderQueue();
+      return item.loopPromise || Promise.resolve();
     }
 
-    async function runContinuousItemRenderLoop(item) {
-      while (
-        item.pending &&
-        item.generation === state.continuousGeneration &&
-        item.card.isConnected
-      ) {
-        item.pending = false;
-        const token = item.requestToken;
-        const signature = getContinuousRenderSignature(item);
-        await renderContinuousItemSnapshot(item, token, signature);
+    function pumpContinuousRenderQueue() {
+      if (state.viewerMode !== 'continuous' || state.continuousRenderActiveKey) return;
+      let item = null;
+      while (state.continuousRenderQueue.length && !item) {
+        const key = state.continuousRenderQueue.shift();
+        const candidate = state.continuousItems.get(key);
+        if (!candidate || !candidate.card.isConnected || !state.continuousPromotionKeys.has(key)) continue;
+        if (candidate.renderedSignature === getContinuousRenderSignature(candidate)) continue;
+        item = candidate;
       }
+      if (!item) {
+        if (!hasActivePrimaryViewerRender()) releaseViewerPriority();
+        return;
+      }
+
+      state.continuousRenderActiveKey = item.key;
+      item.pending = false;
+      const token = ++item.requestToken;
+      const signature = getContinuousRenderSignature(item);
+      item.card.dataset.quality = 'loading';
+      item.status.hidden = Boolean(item.preview?.src);
+      item.status.dataset.kind = '';
+      item.status.textContent = '高品質PDFを準備しています。';
+
+      item.loopPromise = renderContinuousItemSnapshot(item, token, signature)
+        .catch(error => {
+          if (!isRenderingCancelledError(error)) {
+            console.error(error);
+            item.status.hidden = false;
+            item.status.dataset.kind = 'error';
+            item.status.textContent = `PDF表示に失敗しました：${error.message}`;
+          }
+        })
+        .finally(() => {
+          item.loopPromise = null;
+          if (state.continuousRenderActiveKey === item.key) state.continuousRenderActiveKey = '';
+          if (!state.continuousPromotionKeys.has(item.key)) demoteContinuousItem(item);
+          pumpContinuousRenderQueue();
+          scheduleResultThumbnailPump();
+        });
     }
 
     async function renderContinuousItemSnapshot(item, token, signature) {
       const totalStartedAt = perfNow();
       item.status.hidden = Boolean(item.preview && !item.preview.hidden);
       item.status.dataset.kind = '';
-      item.status.textContent = `${item.result.pageNumber}ページを読み込んでいます。`;
 
       await withSharedPdf(item.result.file, async pdf => {
         if (!isCurrentContinuousRequest(item, token)) return;
@@ -6274,14 +6481,18 @@
         const outputScale = window.devicePixelRatio || 1;
         const context = item.canvas.getContext('2d', { alpha: false });
 
+        item.canvas.hidden = false;
+        item.textLayer.hidden = false;
         item.canvas.width = Math.floor(viewport.width * outputScale);
         item.canvas.height = Math.floor(viewport.height * outputScale);
         item.canvas.style.width = `${viewport.width}px`;
         item.canvas.style.height = `${viewport.height}px`;
         item.surface.style.width = `${viewport.width}px`;
         item.surface.style.height = `${viewport.height}px`;
+        item.surface.style.maxWidth = 'none';
         item.surface.style.minWidth = '0';
         item.surface.style.minHeight = '0';
+        item.surface.style.removeProperty('aspect-ratio');
 
         item.textLayer.replaceChildren();
         item.textLayer.style.width = `${viewport.width}px`;
@@ -6307,9 +6518,6 @@
           if (item.renderTask === renderTask) item.renderTask = null;
         }
         const canvasRenderMs = perfNow() - canvasStartedAt;
-        if (item.preview) item.preview.hidden = true;
-        markFirstViewerReady();
-
         if (!isCurrentContinuousRequest(item, token)) return;
 
         const textExtractStartedAt = perfNow();
@@ -6325,16 +6533,19 @@
         });
         await textLayer.render();
         const textLayerMs = perfNow() - textLayerStartedAt;
-
         if (!isCurrentContinuousRequest(item, token)) return;
 
         const highlightStartedAt = perfNow();
         highlightSearchTermsInLayer(item.textLayer, state.searchTerms);
         const highlightMs = perfNow() - highlightStartedAt;
+
         item.renderedScale = effectiveScale;
         item.renderedSignature = signature;
+        item.card.dataset.quality = 'pdf';
         item.status.hidden = true;
         item.status.dataset.kind = '';
+        if (item.preview) item.preview.hidden = true;
+        markFirstViewerReady();
         recordViewerRenderPerformance({
           pageGetMs,
           canvasRenderMs,
@@ -6351,6 +6562,7 @@
         item &&
         item.card.isConnected &&
         item.generation === state.continuousGeneration &&
+        state.continuousPromotionKeys.has(item.key) &&
         token === item.requestToken
       );
     }
@@ -6406,29 +6618,22 @@
     async function refreshContinuousScale() {
       state.continuousGeneration += 1;
       const generation = state.continuousGeneration;
+      state.continuousRenderQueue.length = 0;
+      state.continuousPromotionKeys.clear();
+      state.continuousRenderActiveKey = '';
 
       for (const item of state.continuousItems.values()) {
         item.generation = generation;
-        item.renderedScale = null;
-        item.renderedSignature = '';
-        item.requestToken += 1;
-        item.pending = false;
-        if (item.renderTask) {
-          try { item.renderTask.cancel(); } catch (error) { console.warn(error); }
-        }
-        item.textLayer.replaceChildren();
-        item.status.hidden = false;
-        item.status.dataset.kind = '';
-        item.status.textContent = '表示倍率を更新しています。';
+        demoteContinuousItem(item);
+        item.card.dataset.quality = 'preview';
       }
-
       scheduleVisibleContinuousPages();
     }
 
     async function scrollToContinuousResult(result) {
       const key = resultKey(result);
       state.activeResultKey = key;
-      renderResults();
+      syncActiveResultUi({ scrollIntoView: true });
 
       let item = state.continuousItems.get(key);
       const resultIndex = getPageResults().findIndex(candidate => resultKey(candidate) === key);
@@ -6454,12 +6659,20 @@
         candidate.card.classList.toggle('active', candidate.key === key);
       }
 
-      await requestContinuousItemRender(item);
-      item.card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      // まずWebPへ即座にスクロールし、その後画面中央のページだけ高品質PDFへ昇格する。
+      item.card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      requestAnimationFrame(() => scheduleVisibleContinuousPages());
     }
 
     async function disposeContinuousViewer() {
       state.continuousGeneration += 1;
+      if (state.continuousPromotionRaf) {
+        cancelAnimationFrame(state.continuousPromotionRaf);
+        state.continuousPromotionRaf = 0;
+      }
+      state.continuousPromotionKeys.clear();
+      state.continuousRenderQueue.length = 0;
+      state.continuousRenderActiveKey = '';
 
       if (state.continuousObserver) {
         state.continuousObserver.disconnect();
@@ -6596,7 +6809,7 @@
         const foundIndex = getPageResults().findIndex(item => resultKey(item) === key);
         if (foundIndex >= 0) state.pagedIndex = foundIndex;
       }
-      renderResults();
+      syncActiveResultUi({ scrollIntoView: true });
 
       const sameFile = state.currentPdf && state.currentFile === result.file;
 
@@ -6697,20 +6910,19 @@
           state.neighborPrefetchKeys.add(key);
           const startedAt = perfNow();
           try {
-            await withSharedPdf(result.file, async pdf => {
-              const page = await pdf.getPage(result.pageNumber);
-              // 描画命令と文字情報をアイドル時に先読みし、次ページ切替時の待ちを減らす。
-              await Promise.allSettled([
-                page.getOperatorList(),
-                page.getTextContent(),
-              ]);
-            }, { warm: true });
+            // 前後ページのWebPだけは先にキャッシュ。PDF本体は現在と同じPDFのときだけ軽くgetPage()する。
+            await Promise.allSettled([
+              ensureStaticPreviewReady(result.file, result.pageNumber),
+              result.file === state.currentFile
+                ? withSharedPdf(result.file, pdf => pdf.getPage(result.pageNumber), { warm: true })
+                : Promise.resolve(),
+            ]);
             recordNeighborPrefetchPerformance(perfNow() - startedAt);
           } catch (error) {
-            console.info('隣接ヒットページの先読みをスキップしました。', error);
+            console.info('隣接ヒットページの軽量先読みをスキップしました。', error);
             state.neighborPrefetchKeys.delete(key);
           }
-        }, NEIGHBOR_PREFETCH_IDLE_TIMEOUT_MS + order * 450);
+        }, NEIGHBOR_PREFETCH_IDLE_TIMEOUT_MS + order * 350);
         state.neighborPrefetchHandles.add(handle);
       });
     }
