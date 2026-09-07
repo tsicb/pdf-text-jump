@@ -1,7 +1,7 @@
 {
   "version": 1,
   "baseDir": "indeedmarketreports/",
-  "generatedAt": "2026-09-07T12:26:00Z",
+  "generatedAt": "2026-09-07T12:26:33Z",
   "width": 800,
   "quality": 50,
   "format": "webp",
@@ -61,10 +61,5 @@
       "format": "webp"
     }
   ],
-  "errors": [
-    {
-      "file": "求職者検索トレンド.PDF",
-      "message": "Failed to open file '/home/runner/work/pdf-text-jump/pdf-text-jump/indeedmarketreports/求職者検索トレンド.PDF' as type PDF."
-    }
-  ]
+  "errors": []
 }

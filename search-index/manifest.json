@@ -2,7 +2,7 @@
   "version": 1,
   "normalization": "NFKC-remove-whitespace-lower-ja-v1",
   "baseDir": "indeedmarketreports/",
-  "generatedAt": "2026-09-07T12:25:59.804Z",
+  "generatedAt": "2026-09-07T12:26:33.146Z",
   "files": [
     {
       "file": "Indeed PLUS 職種カテゴリー別トレンド.PDF",
@@ -53,10 +53,5 @@
       "sha256": "5b4eb9d9706efcddd064c921062677cd62ae30610dd1f0d0817eecddb5eb2caa"
     }
   ],
-  "errors": [
-    {
-      "file": "求職者検索トレンド.PDF",
-      "message": "Invalid PDF structure."
-    }
-  ]
+  "errors": []
 }
