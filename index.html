@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" href="./favicon.svg?v=1" type="image/svg+xml">
   <meta name="theme-color" content="#1769aa">
-  <title>PDF Text Jump Viewer v5.5.0</title>
+  <title>Indeed市場レポート</title>
   <style>
     :root {
       --navy: #17365f;
@@ -2628,6 +2628,128 @@
       opacity: 0;
     }
 
+
+
+    /* ===== v5.5.1：ビューア上部バーを1段で使いやすくする ===== */
+    :root {
+      --toolbar-height: 43px;
+    }
+
+    .toolbar {
+      min-height: var(--toolbar-height);
+      padding: 4px 8px;
+      gap: 8px;
+    }
+
+    .toolbar-left,
+    .toolbar-center,
+    .toolbar-right {
+      flex-wrap: nowrap;
+      white-space: nowrap;
+    }
+
+    .toolbar-center {
+      justify-content: flex-start;
+      overflow: hidden;
+    }
+
+    .current-file-label {
+      flex: 1 1 150px;
+      min-width: 64px;
+      max-width: none;
+    }
+
+    .single-controls {
+      flex: 0 0 auto;
+      gap: 4px;
+      flex-wrap: nowrap;
+      white-space: nowrap;
+    }
+
+    .single-controls .page-step-btn {
+      flex: 0 0 34px;
+      width: 34px;
+      min-width: 34px;
+      min-height: 30px;
+      padding: 0;
+      border-radius: 7px;
+      font-size: 15px;
+      line-height: 1;
+    }
+
+    .single-controls .page-control {
+      flex: 0 0 auto;
+      gap: 4px;
+      white-space: nowrap;
+    }
+
+    .single-controls #page-input {
+      width: 52px;
+      height: 30px;
+      padding-inline: 4px;
+    }
+
+    .paged-position,
+    .continuous-summary {
+      flex: 0 0 auto;
+    }
+
+    .toolbar-right .tool-btn {
+      min-height: 32px;
+    }
+
+    /* 中間幅ではファイル名を先に縮め、ページ移動グループは折り返さない。 */
+    @media (min-width: 901px) and (max-width: 1450px) {
+      .toolbar {
+        gap: 6px;
+        padding-inline: 6px;
+      }
+
+      .toolbar-left,
+      .toolbar-center,
+      .toolbar-right {
+        gap: 5px;
+      }
+
+      .mode-btn {
+        padding-inline: 7px;
+      }
+
+      .current-file-label {
+        flex-basis: 90px;
+        font-size: 10px;
+      }
+
+      .toolbar-right .tool-btn {
+        padding-inline: 8px;
+      }
+    }
+
+    /* モバイル幅では従来どおりグループ単位で折り返して操作性を優先。 */
+    @media (max-width: 900px) {
+      .toolbar-left,
+      .toolbar-center,
+      .toolbar-right {
+        flex-wrap: wrap;
+        white-space: normal;
+      }
+
+      .toolbar-center {
+        justify-content: center;
+        overflow: visible;
+      }
+
+      .current-file-label {
+        flex: 1 1 100%;
+        max-width: 100%;
+        text-align: center;
+      }
+
+      .single-controls {
+        flex-wrap: nowrap;
+      }
+    }
+
   </style>
 </head>
 <body>
@@ -2646,8 +2768,8 @@
       </button>
 
       <div class="brand">
-        <div class="brand-title">PDF Text Jump Viewer <span style="font-size:10px;opacity:.65">v5.5.0</span></div>
-        <div class="brand-sub">サムネイルでPDFを選び、AND／OR検索・閲覧・PDF出力</div>
+        <div class="brand-title">Indeed市場レポート <span style="font-size:10px;opacity:.65">v5.5.1</span></div>
+        <div class="brand-sub">Indeedの市況資料を横断検索・閲覧・PDF出力</div>
       </div>
 
       <div class="field">
@@ -2769,14 +2891,14 @@
           <div class="toolbar-center">
             <span id="current-file-label" class="current-file-label">検索結果未表示</span>
 
-            <div id="single-controls" class="single-controls" hidden>
-              <button id="prev-btn" class="tool-btn" type="button" disabled>◀ 前ページ</button>
+            <div id="single-controls" class="single-controls" hidden aria-label="ページ移動">
+              <button id="prev-btn" class="tool-btn page-step-btn" type="button" disabled aria-label="前ページ" title="前ページ">◀</button>
               <div class="page-control">
-                <input id="page-input" type="number" min="1" value="1" disabled>
+                <input id="page-input" type="number" min="1" value="1" disabled aria-label="ページ番号">
                 <span>/</span>
                 <span id="page-count">0</span>
               </div>
-              <button id="next-btn" class="tool-btn" type="button" disabled>次ページ ▶</button>
+              <button id="next-btn" class="tool-btn page-step-btn" type="button" disabled aria-label="次ページ" title="次ページ">▶</button>
             </div>
 
             <span id="continuous-summary" class="continuous-summary">0ページ</span>
@@ -3723,7 +3845,7 @@
         if (cacheParts.length) messages.push(`INDEX取得元：${cacheParts.join(' / ')}。`);
 
         if (run.totalSearchMs < 3000) {
-          messages.push('<strong>検索待ち時間は十分小さい水準です。</strong> v5.5.0では事前WebPを主表示にして、必要なページだけPDF.jsで高品質化します。');
+          messages.push('<strong>検索待ち時間は十分小さい水準です。</strong> v5.5.1では事前WebPを主表示にして、必要なページだけPDF.jsで高品質化します。');
         } else if (totals.fallbackFiles) {
           messages.push('検索時間がまだ長い場合は、フォールバックしているPDFのINDEX生成状況を優先して確認してください。');
         } else if (totals.indexLoadMs > totals.searchEvalMs * 3) {
@@ -3745,7 +3867,7 @@
 
       if (run.firstViewerAfterSearchMs != null) {
         if (run.firstViewerAfterSearchMs >= 1200) {
-          messages.push(`<strong>検索完了後の初回PDF表示に ${formatDuration(run.firstViewerAfterSearchMs)} かかっています。</strong> v5.5.0ではWebPを主表示にし、画面中央付近の必要ページだけ高品質PDFへ昇格します。`);
+          messages.push(`<strong>検索完了後の初回PDF表示に ${formatDuration(run.firstViewerAfterSearchMs)} かかっています。</strong> v5.5.1ではWebPを主表示にし、画面中央付近の必要ページだけ高品質PDFへ昇格します。`);
         } else {
           messages.push(`検索完了後の初回PDF表示は ${formatDuration(run.firstViewerAfterSearchMs)} です。`);
         }
@@ -3770,13 +3892,13 @@
 
       if (run.staticPreviewLoadCount) {
         const previewSources = run.staticPreviewLoadStartsBySource || {};
-        messages.push(`事前ページプレビューを${run.staticPreviewLoadCount}種類読み込みました（共有キャッシュHIT ${run.staticPreviewCacheHits || 0}回）。取得起点はサイドバー ${previewSources.sidebar || 0} / 連続表示 ${previewSources.continuous || 0} / 中央表示 ${previewSources.viewer || 0} / 先読み ${previewSources.prefetch || 0}。v5.5.0では画面近傍だけをLazy Loadし、遠いHITページは未取得のまま保持します。`);
+        messages.push(`事前ページプレビューを${run.staticPreviewLoadCount}種類読み込みました（共有キャッシュHIT ${run.staticPreviewCacheHits || 0}回）。取得起点はサイドバー ${previewSources.sidebar || 0} / 連続表示 ${previewSources.continuous || 0} / 中央表示 ${previewSources.viewer || 0} / 先読み ${previewSources.prefetch || 0}。v5.5.1では画面近傍だけをLazy Loadし、遠いHITページは未取得のまま保持します。`);
       } else if (run.pagePreviewAvailableFiles) {
         messages.push('事前ページプレビューは利用可能ですが、この計測ではまだ表示対象に読み込まれていません。');
       }
 
       if (run.sharedPdfLoadMaxMs >= 1000) {
-        messages.push(`<strong>PDF本体の初回読込最大 ${formatDuration(run.sharedPdfLoadMaxMs)} が残っています。</strong> v5.5.0では事前画像を主表示にし、不要なPDF Canvas描画を抑えます。`);
+        messages.push(`<strong>PDF本体の初回読込最大 ${formatDuration(run.sharedPdfLoadMaxMs)} が残っています。</strong> v5.5.1では事前画像を主表示にし、不要なPDF Canvas描画を抑えます。`);
       }
 
       refreshPostSearchObservation(run);
@@ -3890,7 +4012,7 @@
       refreshPostSearchObservation(run);
       const totals = getPerformanceTotals(run);
       const lines = [
-        'PDF Text Jump Viewer 性能計測',
+        'Indeed市場レポート 性能計測',
         `計測日時: ${run.startedAtIso}`,
         `検索語: ${run.searchTerms.join(' / ')}`,
         `検索条件: ${String(run.searchMode).toUpperCase()}`,
@@ -3906,7 +4028,7 @@
         `事前プレビュー: ${run.staticPreviewLoadCount}種類 / Cache HIT ${run.staticPreviewCacheHits || 0} / 合計 ${formatDuration(run.staticPreviewLoadTotalMs)} / 最大 ${formatDuration(run.staticPreviewLoadMaxMs)} / エラー ${run.staticPreviewErrorCount}`,
         `WebP取得起点: sidebar ${run.staticPreviewLoadStartsBySource?.sidebar || 0} / continuous ${run.staticPreviewLoadStartsBySource?.continuous || 0} / viewer ${run.staticPreviewLoadStartsBySource?.viewer || 0} / prefetch ${run.staticPreviewLoadStartsBySource?.prefetch || 0} / other ${run.staticPreviewLoadStartsBySource?.other || 0}`,
         `検索後5秒観測: ${run.postSearch5s ? `PDF開始 ${run.postSearch5s.pdfLoadStarts} / WebP開始 ${run.postSearch5s.previewLoadStarts} / Canvas開始 ${run.postSearch5s.canvasRenderStarts} / 最終活動 ${formatDuration(run.postSearch5s.lastActivityAfterSearchMs || 0)} / 5秒以降イベント ${run.postSearch5s.afterWindowActivityCount || 0}` : '未計測'}`,
-        `連続表示のPDF昇格: ${run.continuousPromoteCount || 0}回 / WebPへ降格 ${run.continuousDemoteCount || 0}回 / Canvas cancel ${run.continuousRenderCancelledCount || 0}回 / 3秒超WebP退避 ${run.continuousCanvasTimeoutCount || 0}回（v5.5.0）`,
+        `連続表示のPDF昇格: ${run.continuousPromoteCount || 0}回 / WebPへ降格 ${run.continuousDemoteCount || 0}回 / Canvas cancel ${run.continuousRenderCancelledCount || 0}回 / 3秒超WebP退避 ${run.continuousCanvasTimeoutCount || 0}回（v5.5.1）`,
         `初回実PDF表示（検索開始から）: ${run.firstViewerReadyMs == null ? '未計測' : formatDuration(run.firstViewerReadyMs)}`,
         `初回実PDF表示（検索完了後）: ${run.firstViewerAfterSearchMs == null ? '未計測' : formatDuration(run.firstViewerAfterSearchMs)}`,
         `PDF共有文書の新規読込: ${run.sharedPdfLoadCount}回 / 合計 ${formatDuration(run.sharedPdfLoadTotalMs)} / 最大 ${formatDuration(run.sharedPdfLoadMaxMs)}`,
@@ -3964,7 +4086,7 @@
       if (!run) return;
       refreshPostSearchObservation(run);
       const payload = {
-        viewerVersion: '5.5.0',
+        viewerVersion: '5.5.1',
         userAgent: navigator.userAgent,
         catalogLoadMs: state.catalogLoadMs,
         run: structuredCloneSafe(run),
@@ -7889,7 +8011,7 @@
         const outputDoc = await PDFDocument.create();
         outputDoc.setTitle(`PDF検索結果：${state.searchText}`);
         outputDoc.setSubject(`${searchModeLabel(state.executedSearchMode)}：検索語「${state.searchTerms.map(item => item.term).join(' / ')}」のヒットページ`);
-        outputDoc.setCreator('PDF Text Jump Viewer');
+        outputDoc.setCreator('Indeed市場レポート');
         outputDoc.setProducer('pdf-lib');
 
         const uniqueFiles = [...new Set(selectedResults.map(result => result.file))];
