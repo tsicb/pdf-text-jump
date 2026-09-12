@@ -2630,7 +2630,80 @@
 
 
 
-    /* ===== v5.5.1：ビューア上部バーを1段で使いやすくする ===== */
+
+
+    /* ===== v5.6.0：対応キーワードランキングだけコピー操作を表示 ===== */
+    .keyword-copy-wrap {
+      position: relative;
+      flex: 0 0 auto;
+    }
+
+    .keyword-copy-btn {
+      min-height: 32px;
+      border-color: #93c5fd;
+      background: #eff6ff;
+      color: #1d4ed8;
+    }
+
+    .keyword-copy-btn:hover:not(:disabled) {
+      border-color: #60a5fa;
+      background: #dbeafe;
+      color: #1e40af;
+    }
+
+    .keyword-copy-menu {
+      position: absolute;
+      top: calc(100% + 6px);
+      right: 0;
+      z-index: 60;
+      min-width: 228px;
+      padding: 6px;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      background: #fff;
+      box-shadow: 0 12px 30px rgba(15, 23, 42, .16);
+    }
+
+    .keyword-copy-menu[hidden] { display: none !important; }
+
+    .keyword-copy-menu button {
+      width: 100%;
+      min-height: 34px;
+      padding: 7px 9px;
+      border: 0;
+      border-radius: 7px;
+      background: transparent;
+      color: #334155;
+      text-align: left;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .keyword-copy-menu button:hover {
+      background: #eff6ff;
+      color: #1d4ed8;
+    }
+
+    .continuous-keyword-copy {
+      min-height: 30px;
+      padding: 0 9px;
+      border: 1px solid #93c5fd;
+      border-radius: 7px;
+      background: #eff6ff;
+      color: #1d4ed8;
+      font-size: 11px;
+      font-weight: 800;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+
+    .continuous-keyword-copy:hover {
+      border-color: #60a5fa;
+      background: #dbeafe;
+    }
+
+    /* ===== v5.6.0：ビューア上部バーを1段で使いやすくする ===== */
     :root {
       --toolbar-height: 43px;
     }
@@ -2768,7 +2841,7 @@
       </button>
 
       <div class="brand">
-        <div class="brand-title">Indeed市場レポート <span style="font-size:10px;opacity:.65">v5.5.1</span></div>
+        <div class="brand-title">Indeed市場レポート <span style="font-size:10px;opacity:.65">v5.6.0</span></div>
         <div class="brand-sub">Indeedの市況資料を横断検索・閲覧・PDF出力</div>
       </div>
 
@@ -2906,6 +2979,16 @@
           </div>
 
           <div class="toolbar-right">
+            <div id="keyword-copy-wrap" class="keyword-copy-wrap" hidden>
+              <button id="keyword-copy-btn" class="tool-btn keyword-copy-btn" type="button" aria-haspopup="menu" aria-expanded="false" title="このページのキーワード一覧をコピー">
+                キーワードコピー ▾
+              </button>
+              <div id="keyword-copy-menu" class="keyword-copy-menu" role="menu" hidden>
+                <button type="button" data-keyword-copy-format="keywords" role="menuitem">キーワードのみ</button>
+                <button type="button" data-keyword-copy-format="ranked" role="menuitem">順位＋キーワード（TSV）</button>
+                <button type="button" data-keyword-copy-format="source" role="menuitem">資料情報付き（TSV）</button>
+              </div>
+            </div>
             <button id="export-btn" class="tool-btn export-btn" type="button" disabled title="選択したヒットページをPDFとして保存">
               <span class="export-btn-label">PDF出力</span>
               <span id="export-count" class="export-count">0</span>
@@ -3113,6 +3196,7 @@
     const MANIFEST_URL = 'pdfs.json';
     const SEARCH_INDEX_MANIFEST_URL = 'search-index/manifest.json';
     const PAGE_PREVIEW_MANIFEST_URL = 'page-previews/manifest.json';
+    const KEYWORD_DATA_MANIFEST_URL = 'keyword-data/manifest.json';
     const SEARCH_INDEX_DB_NAME = 'pdfTextJump.searchIndex.v1';
     const SEARCH_INDEX_DB_STORE = 'indexes';
     const SEARCH_INDEX_FETCH_CONCURRENCY = 4;
@@ -3157,6 +3241,9 @@
       sidebarToggleCount: document.getElementById('sidebar-toggle-count'),
       headerSelectedCount: document.getElementById('header-selected-count'),
       headerHitCount: document.getElementById('header-hit-count'),
+      keywordCopyWrap: document.getElementById('keyword-copy-wrap'),
+      keywordCopyBtn: document.getElementById('keyword-copy-btn'),
+      keywordCopyMenu: document.getElementById('keyword-copy-menu'),
       exportBtn: document.getElementById('export-btn'),
       exportCount: document.getElementById('export-count'),
       fitPageBtn: document.getElementById('fit-page-btn'),
@@ -3321,6 +3408,9 @@
       pagePreviewManifestMeta: null,
       pagePreviewManifestLoadMs: null,
       pagePreviewUnavailable: new Set(),
+      keywordDataManifest: new Map(),
+      keywordDataManifestMeta: null,
+      keywordDataManifestLoadMs: null,
       staticPreviewPromiseCache: new Map(),
       viewerPreviewToken: 0,
       exportSelectedKeys: new Set(),
@@ -3845,7 +3935,7 @@
         if (cacheParts.length) messages.push(`INDEX取得元：${cacheParts.join(' / ')}。`);
 
         if (run.totalSearchMs < 3000) {
-          messages.push('<strong>検索待ち時間は十分小さい水準です。</strong> v5.5.1では事前WebPを主表示にして、必要なページだけPDF.jsで高品質化します。');
+          messages.push('<strong>検索待ち時間は十分小さい水準です。</strong> v5.6.0では事前WebPを主表示にして、必要なページだけPDF.jsで高品質化します。');
         } else if (totals.fallbackFiles) {
           messages.push('検索時間がまだ長い場合は、フォールバックしているPDFのINDEX生成状況を優先して確認してください。');
         } else if (totals.indexLoadMs > totals.searchEvalMs * 3) {
@@ -3867,7 +3957,7 @@
 
       if (run.firstViewerAfterSearchMs != null) {
         if (run.firstViewerAfterSearchMs >= 1200) {
-          messages.push(`<strong>検索完了後の初回PDF表示に ${formatDuration(run.firstViewerAfterSearchMs)} かかっています。</strong> v5.5.1ではWebPを主表示にし、画面中央付近の必要ページだけ高品質PDFへ昇格します。`);
+          messages.push(`<strong>検索完了後の初回PDF表示に ${formatDuration(run.firstViewerAfterSearchMs)} かかっています。</strong> v5.6.0ではWebPを主表示にし、画面中央付近の必要ページだけ高品質PDFへ昇格します。`);
         } else {
           messages.push(`検索完了後の初回PDF表示は ${formatDuration(run.firstViewerAfterSearchMs)} です。`);
         }
@@ -3892,13 +3982,13 @@
 
       if (run.staticPreviewLoadCount) {
         const previewSources = run.staticPreviewLoadStartsBySource || {};
-        messages.push(`事前ページプレビューを${run.staticPreviewLoadCount}種類読み込みました（共有キャッシュHIT ${run.staticPreviewCacheHits || 0}回）。取得起点はサイドバー ${previewSources.sidebar || 0} / 連続表示 ${previewSources.continuous || 0} / 中央表示 ${previewSources.viewer || 0} / 先読み ${previewSources.prefetch || 0}。v5.5.1では画面近傍だけをLazy Loadし、遠いHITページは未取得のまま保持します。`);
+        messages.push(`事前ページプレビューを${run.staticPreviewLoadCount}種類読み込みました（共有キャッシュHIT ${run.staticPreviewCacheHits || 0}回）。取得起点はサイドバー ${previewSources.sidebar || 0} / 連続表示 ${previewSources.continuous || 0} / 中央表示 ${previewSources.viewer || 0} / 先読み ${previewSources.prefetch || 0}。v5.6.0では画面近傍だけをLazy Loadし、遠いHITページは未取得のまま保持します。`);
       } else if (run.pagePreviewAvailableFiles) {
         messages.push('事前ページプレビューは利用可能ですが、この計測ではまだ表示対象に読み込まれていません。');
       }
 
       if (run.sharedPdfLoadMaxMs >= 1000) {
-        messages.push(`<strong>PDF本体の初回読込最大 ${formatDuration(run.sharedPdfLoadMaxMs)} が残っています。</strong> v5.5.1では事前画像を主表示にし、不要なPDF Canvas描画を抑えます。`);
+        messages.push(`<strong>PDF本体の初回読込最大 ${formatDuration(run.sharedPdfLoadMaxMs)} が残っています。</strong> v5.6.0では事前画像を主表示にし、不要なPDF Canvas描画を抑えます。`);
       }
 
       refreshPostSearchObservation(run);
@@ -4028,7 +4118,7 @@
         `事前プレビュー: ${run.staticPreviewLoadCount}種類 / Cache HIT ${run.staticPreviewCacheHits || 0} / 合計 ${formatDuration(run.staticPreviewLoadTotalMs)} / 最大 ${formatDuration(run.staticPreviewLoadMaxMs)} / エラー ${run.staticPreviewErrorCount}`,
         `WebP取得起点: sidebar ${run.staticPreviewLoadStartsBySource?.sidebar || 0} / continuous ${run.staticPreviewLoadStartsBySource?.continuous || 0} / viewer ${run.staticPreviewLoadStartsBySource?.viewer || 0} / prefetch ${run.staticPreviewLoadStartsBySource?.prefetch || 0} / other ${run.staticPreviewLoadStartsBySource?.other || 0}`,
         `検索後5秒観測: ${run.postSearch5s ? `PDF開始 ${run.postSearch5s.pdfLoadStarts} / WebP開始 ${run.postSearch5s.previewLoadStarts} / Canvas開始 ${run.postSearch5s.canvasRenderStarts} / 最終活動 ${formatDuration(run.postSearch5s.lastActivityAfterSearchMs || 0)} / 5秒以降イベント ${run.postSearch5s.afterWindowActivityCount || 0}` : '未計測'}`,
-        `連続表示のPDF昇格: ${run.continuousPromoteCount || 0}回 / WebPへ降格 ${run.continuousDemoteCount || 0}回 / Canvas cancel ${run.continuousRenderCancelledCount || 0}回 / 3秒超WebP退避 ${run.continuousCanvasTimeoutCount || 0}回（v5.5.1）`,
+        `連続表示のPDF昇格: ${run.continuousPromoteCount || 0}回 / WebPへ降格 ${run.continuousDemoteCount || 0}回 / Canvas cancel ${run.continuousRenderCancelledCount || 0}回 / 3秒超WebP退避 ${run.continuousCanvasTimeoutCount || 0}回（v5.6.0）`,
         `初回実PDF表示（検索開始から）: ${run.firstViewerReadyMs == null ? '未計測' : formatDuration(run.firstViewerReadyMs)}`,
         `初回実PDF表示（検索完了後）: ${run.firstViewerAfterSearchMs == null ? '未計測' : formatDuration(run.firstViewerAfterSearchMs)}`,
         `PDF共有文書の新規読込: ${run.sharedPdfLoadCount}回 / 合計 ${formatDuration(run.sharedPdfLoadTotalMs)} / 最大 ${formatDuration(run.sharedPdfLoadMaxMs)}`,
@@ -4086,7 +4176,7 @@
       if (!run) return;
       refreshPostSearchObservation(run);
       const payload = {
-        viewerVersion: '5.5.1',
+        viewerVersion: '5.6.0',
         userAgent: navigator.userAgent,
         catalogLoadMs: state.catalogLoadMs,
         run: structuredCloneSafe(run),
@@ -4492,6 +4582,161 @@
       } finally {
         state.pagePreviewManifestLoadMs = perfNow() - startedAt;
       }
+    }
+
+    function normalizeKeywordDataManifestEntries(data) {
+      const map = new Map();
+      const rawFiles = Array.isArray(data?.files) ? data.files : [];
+      rawFiles.forEach(rawFile => {
+        const file = String(rawFile?.file || '').trim();
+        if (!file) return;
+        const pages = Array.isArray(rawFile?.pages) ? rawFile.pages : [];
+        pages.forEach(rawPage => {
+          const page = Math.max(1, Number.parseInt(rawPage?.page, 10) || 0);
+          const quality = String(rawPage?.quality || '').trim();
+          const keywords = Array.isArray(rawPage?.keywords)
+            ? rawPage.keywords
+              .map(item => ({
+                rank: Math.max(1, Number.parseInt(item?.rank, 10) || 0),
+                keyword: String(item?.keyword || '').trim(),
+              }))
+              .filter(item => item.rank && item.keyword)
+              .sort((a, b) => a.rank - b.rank)
+            : [];
+          // 誤抽出を避けるため、対応テンプレートかつ高信頼のTop50だけをUIに公開する。
+          if (!page || quality !== 'high' || keywords.length !== 50) return;
+          if (keywords.some((item, index) => item.rank !== index + 1)) return;
+          map.set(`${canonicalFileKey(file)}::${page}`, {
+            file,
+            page,
+            type: String(rawPage?.type || ''),
+            title: String(rawPage?.title || '').trim(),
+            quality,
+            keywords,
+          });
+        });
+      });
+      return map;
+    }
+
+    async function loadKeywordDataManifest() {
+      const startedAt = perfNow();
+      state.keywordDataManifest = new Map();
+      state.keywordDataManifestMeta = null;
+      try {
+        const response = await fetch(`${KEYWORD_DATA_MANIFEST_URL}?v=${Date.now()}`, { cache: 'no-store' });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        const manifest = normalizeKeywordDataManifestEntries(data);
+        state.keywordDataManifest = manifest;
+        state.keywordDataManifestMeta = {
+          version: data?.version || 1,
+          extractorVersion: data?.extractorVersion || 1,
+          generatedAt: data?.generatedAt || '',
+          pageCount: manifest.size,
+        };
+        return manifest.size;
+      } catch (error) {
+        // 追加機能なので、未生成リポジトリでは静かに無効化する。
+        console.info('キーワード抽出データは未検出です。対応ページのコピーボタンを非表示にします。', error);
+        return 0;
+      } finally {
+        state.keywordDataManifestLoadMs = perfNow() - startedAt;
+      }
+    }
+
+    function getKeywordPageData(file, pageNumber) {
+      const page = Math.max(1, Number.parseInt(pageNumber, 10) || 1);
+      return state.keywordDataManifest.get(`${canonicalFileKey(file)}::${page}`) || null;
+    }
+
+    function getCurrentKeywordPageData() {
+      if (state.viewerMode === 'continuous') return null;
+      if (state.viewerMode === 'paged') {
+        const result = getPageResults()[state.pagedIndex];
+        return result ? getKeywordPageData(result.file, result.pageNumber) : null;
+      }
+      return state.currentFile ? getKeywordPageData(state.currentFile, state.currentPage) : null;
+    }
+
+    function formatKeywordCopyText(data, format = 'keywords') {
+      if (!data?.keywords?.length) return '';
+      if (format === 'ranked') {
+        return ['順位\tキーワード', ...data.keywords.map(item => `${item.rank}\t${item.keyword}`)].join('\n');
+      }
+      if (format === 'source') {
+        const title = data.title || 'キーワードランキング';
+        return [
+          '資料名\tPDFファイル\tページ\t順位\tキーワード',
+          ...data.keywords.map(item => `${title}\t${data.file}\t${data.page}\t${item.rank}\t${item.keyword}`),
+        ].join('\n');
+      }
+      return data.keywords.map(item => item.keyword).join('\n');
+    }
+
+    async function writeTextToClipboard(text) {
+      if (!text) throw new Error('コピーする内容がありません。');
+      if (navigator.clipboard?.writeText && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        return;
+      }
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.setAttribute('readonly', '');
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      textarea.style.pointerEvents = 'none';
+      document.body.appendChild(textarea);
+      textarea.select();
+      const ok = document.execCommand('copy');
+      textarea.remove();
+      if (!ok) throw new Error('クリップボードへコピーできませんでした。');
+    }
+
+    function closeKeywordCopyMenu() {
+      if (!elements.keywordCopyMenu) return;
+      elements.keywordCopyMenu.hidden = true;
+      elements.keywordCopyBtn?.setAttribute('aria-expanded', 'false');
+    }
+
+    function toggleKeywordCopyMenu(force = null) {
+      if (!elements.keywordCopyMenu || elements.keywordCopyWrap?.hidden) return;
+      const open = force == null ? elements.keywordCopyMenu.hidden : Boolean(force);
+      elements.keywordCopyMenu.hidden = !open;
+      elements.keywordCopyBtn?.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+
+    async function copyKeywordPageData(data, format = 'keywords', feedbackButton = null) {
+      if (!data) return;
+      try {
+        await writeTextToClipboard(formatKeywordCopyText(data, format));
+        const target = feedbackButton || elements.keywordCopyBtn;
+        if (target) {
+          const original = target.dataset.originalLabel || target.textContent;
+          target.dataset.originalLabel = original;
+          target.textContent = 'コピー済み';
+          window.setTimeout(() => {
+            if (target.isConnected) target.textContent = target.dataset.originalLabel || original;
+          }, 1200);
+        }
+      } catch (error) {
+        console.error(error);
+        setStatus(error.message || 'キーワードをコピーできませんでした。', 'error');
+      } finally {
+        closeKeywordCopyMenu();
+      }
+    }
+
+    function updateKeywordCopyUi() {
+      if (!elements.keywordCopyWrap) return;
+      const data = getCurrentKeywordPageData();
+      const visible = Boolean(data);
+      elements.keywordCopyWrap.hidden = !visible;
+      if (!visible) {
+        closeKeywordCopyMenu();
+        return;
+      }
+      elements.keywordCopyBtn.title = `${data.title || 'キーワードランキング'}：Top50をコピー`;
     }
 
     function getPagePreviewMeta(file) {
@@ -4963,9 +5208,10 @@
       }
 
       renderCatalog();
-      const [indexedCount, previewCount] = await Promise.all([
+      const [indexedCount, previewCount, keywordPageCount] = await Promise.all([
         loadSearchIndexManifest(),
         loadPagePreviewManifest(),
+        loadKeywordDataManifest(),
       ]);
       state.catalogLoadMs = perfNow() - catalogLoadStartedAt;
       elements.catalogTrigger.disabled = false;
@@ -4983,10 +5229,13 @@
       const previewMessage = previewCount
         ? `事前プレビュー：選択中 ${selectedPreviewCount} / ${state.selectedFiles.size}PDF。`
         : '事前プレビュー未検出。';
+      const keywordMessage = keywordPageCount
+        ? `キーワードコピー：${keywordPageCount}ページ対応。`
+        : '';
 
       setStatus(
         `${state.catalog.length}件のPDFを読み込みました（${state.catalogSource}）。` +
-        `${state.selectedFiles.size}件を検索対象にしています。${indexMessage}${previewMessage}`,
+        `${state.selectedFiles.size}件を検索対象にしています。${indexMessage}${previewMessage}${keywordMessage}`,
         indexedCount ? 'success' : 'warning'
       );
 
@@ -6476,6 +6725,20 @@
         await openSingleSearchResult(result);
       });
 
+      const keywordData = getKeywordPageData(result.file, result.pageNumber);
+      if (keywordData) {
+        const keywordButton = document.createElement('button');
+        keywordButton.type = 'button';
+        keywordButton.className = 'continuous-keyword-copy';
+        keywordButton.textContent = 'キーワードコピー';
+        keywordButton.title = 'このページのTop50キーワードを1列でコピー';
+        keywordButton.addEventListener('click', async event => {
+          event.stopPropagation();
+          await copyKeywordPageData(keywordData, 'keywords', keywordButton);
+        });
+        actions.appendChild(keywordButton);
+      }
+
       actions.append(selectWrap, singleButton);
       head.append(titleWrap, actions);
 
@@ -7685,6 +7948,7 @@
       elements.fitWidthBtn.disabled = !zoomAvailable;
       elements.zoomOutBtn.disabled = !zoomAvailable || displayScale <= MIN_SCALE;
       elements.zoomInBtn.disabled = !zoomAvailable || displayScale >= MAX_SCALE;
+      updateKeywordCopyUi();
       updatePagedNavigation(state.pagedNavDragging ? state.pagedNavPreviewIndex : null);
     }
 
@@ -8197,6 +8461,18 @@
       if (event.target === elements.performanceModal) closePerformanceModal();
     });
 
+    elements.keywordCopyBtn.addEventListener('click', event => {
+      event.stopPropagation();
+      toggleKeywordCopyMenu();
+    });
+    elements.keywordCopyMenu.addEventListener('click', event => {
+      event.stopPropagation();
+      const button = event.target.closest('[data-keyword-copy-format]');
+      if (!button) return;
+      const data = getCurrentKeywordPageData();
+      if (data) copyKeywordPageData(data, button.dataset.keywordCopyFormat || 'keywords');
+    });
+
     elements.exportBtn.addEventListener('click', openExportModal);
     elements.exportCloseBtn.addEventListener('click', closeExportModal);
     elements.exportCancelBtn.addEventListener('click', closeExportModal);
@@ -8218,6 +8494,7 @@
 
     document.addEventListener('click', () => {
       toggleSearchHelp(false);
+      closeKeywordCopyMenu();
     });
     document.addEventListener('keydown', event => {
       if (event.key === 'Escape') {
@@ -8225,6 +8502,7 @@
         toggleSearchHelp(false);
         closeExportModal();
         closePerformanceModal();
+        closeKeywordCopyMenu();
       }
     });
 
