@@ -2041,7 +2041,7 @@
     .export-status[data-kind="warning"] { background: #fffbeb; color: #b45309; }
     .export-status[data-kind="error"] { background: #fef2f2; color: #b91c1c; }
 
-    /* v5.7.2: PDF出力の進捗とデバッグ計測 */
+    /* v5.7.3: PDF出力の進捗とデバッグ計測 */
     .export-progress-detail {
       margin-top: 8px;
       padding: 9px 10px;
@@ -2688,7 +2688,7 @@
       opacity: 0;
     }
 
-    /* ===== v5.7.2：安全なCanvas差し替え ===== */
+    /* ===== v5.7.3：安全なCanvas差し替え ===== */
     #pdf-canvas[hidden],
     #text-layer[hidden],
     .continuous-page-surface canvas[hidden],
@@ -2994,7 +2994,7 @@
       </button>
 
       <div class="brand">
-        <div class="brand-title">Indeed市場レポート <span style="font-size:10px;opacity:.65">v5.7.2</span></div>
+        <div class="brand-title">Indeed市場レポート <span style="font-size:10px;opacity:.65">v5.7.3</span></div>
         <div class="brand-sub">Indeedの市況資料を横断検索・閲覧・PDF出力</div>
       </div>
 
@@ -3354,12 +3354,12 @@
   <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
   <script type="module">
     import * as pdfjsLib from
-      'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.7.284/build/pdf.min.mjs';
+      'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.7.384/build/pdf.min.mjs';
 
     pdfjsLib.GlobalWorkerOptions.workerSrc =
-      'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.7.284/build/pdf.worker.min.mjs';
+      'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.7.384/build/pdf.worker.min.mjs';
 
-    const PDFJS_VERSION = '5.7.284';
+    const PDFJS_VERSION = '5.7.384';
     const DEFAULT_PDF_BASE_DIR = 'indeedmarketreports/';
     const MANIFEST_URL = 'pdfs.json';
     const SEARCH_INDEX_MANIFEST_URL = 'search-index/manifest.json';
@@ -4214,7 +4214,7 @@
         if (cacheParts.length) messages.push(`INDEX取得元：${cacheParts.join(' / ')}。`);
 
         if (run.totalSearchMs < 3000) {
-          messages.push('<strong>検索待ち時間は十分小さい水準です。</strong> v5.7.2では事前WebPを主表示にして、必要なページだけPDF.jsで高品質化します。');
+          messages.push('<strong>検索待ち時間は十分小さい水準です。</strong> v5.7.3では事前WebPを主表示にして、必要なページだけPDF.jsで高品質化します。');
         } else if (totals.fallbackFiles) {
           messages.push('検索時間がまだ長い場合は、フォールバックしているPDFのINDEX生成状況を優先して確認してください。');
         } else if (totals.indexLoadMs > totals.searchEvalMs * 3) {
@@ -4236,7 +4236,7 @@
 
       if (run.firstViewerAfterSearchMs != null) {
         if (run.firstViewerAfterSearchMs >= 1200) {
-          messages.push(`<strong>検索完了後の初回PDF表示に ${formatDuration(run.firstViewerAfterSearchMs)} かかっています。</strong> v5.7.2ではWebPを主表示にし、画面中央付近の必要ページだけ高品質PDFへ昇格します。`);
+          messages.push(`<strong>検索完了後の初回PDF表示に ${formatDuration(run.firstViewerAfterSearchMs)} かかっています。</strong> v5.7.3ではWebPを主表示にし、画面中央付近の必要ページだけ高品質PDFへ昇格します。`);
         } else {
           messages.push(`検索完了後の初回PDF表示は ${formatDuration(run.firstViewerAfterSearchMs)} です。`);
         }
@@ -4267,7 +4267,7 @@
       }
 
       if (run.sharedPdfLoadMaxMs >= 1000) {
-        messages.push(`<strong>PDF本体の初回読込最大 ${formatDuration(run.sharedPdfLoadMaxMs)} が残っています。</strong> v5.7.2では事前画像を主表示にし、不要なPDF Canvas描画を抑えます。`);
+        messages.push(`<strong>PDF本体の初回読込最大 ${formatDuration(run.sharedPdfLoadMaxMs)} が残っています。</strong> v5.7.3では事前画像を主表示にし、不要なPDF Canvas描画を抑えます。`);
       }
 
       refreshPostSearchObservation(run);
@@ -4397,7 +4397,7 @@
         `事前プレビュー: ${run.staticPreviewLoadCount}種類 / Cache HIT ${run.staticPreviewCacheHits || 0} / 合計 ${formatDuration(run.staticPreviewLoadTotalMs)} / 最大 ${formatDuration(run.staticPreviewLoadMaxMs)} / エラー ${run.staticPreviewErrorCount}`,
         `WebP取得起点: sidebar ${run.staticPreviewLoadStartsBySource?.sidebar || 0} / continuous ${run.staticPreviewLoadStartsBySource?.continuous || 0} / viewer ${run.staticPreviewLoadStartsBySource?.viewer || 0} / prefetch ${run.staticPreviewLoadStartsBySource?.prefetch || 0} / other ${run.staticPreviewLoadStartsBySource?.other || 0}`,
         `検索後5秒観測: ${run.postSearch5s ? `PDF開始 ${run.postSearch5s.pdfLoadStarts} / WebP開始 ${run.postSearch5s.previewLoadStarts} / Canvas開始 ${run.postSearch5s.canvasRenderStarts} / 最終活動 ${formatDuration(run.postSearch5s.lastActivityAfterSearchMs || 0)} / 5秒以降イベント ${run.postSearch5s.afterWindowActivityCount || 0}` : '未計測'}`,
-        `連続表示のPDF昇格: ${run.continuousPromoteCount || 0}回 / WebPへ降格 ${run.continuousDemoteCount || 0}回 / Canvas cancel ${run.continuousRenderCancelledCount || 0}回 / 3秒超WebP退避 ${run.continuousCanvasTimeoutCount || 0}回（v5.7.2）`,
+        `連続表示のPDF昇格: ${run.continuousPromoteCount || 0}回 / WebPへ降格 ${run.continuousDemoteCount || 0}回 / Canvas cancel ${run.continuousRenderCancelledCount || 0}回 / 3秒超WebP退避 ${run.continuousCanvasTimeoutCount || 0}回（v5.7.3）`,
         `初回実PDF表示（検索開始から）: ${run.firstViewerReadyMs == null ? '未計測' : formatDuration(run.firstViewerReadyMs)}`,
         `初回実PDF表示（検索完了後）: ${run.firstViewerAfterSearchMs == null ? '未計測' : formatDuration(run.firstViewerAfterSearchMs)}`,
         `PDF共有文書の新規読込: ${run.sharedPdfLoadCount}回 / 合計 ${formatDuration(run.sharedPdfLoadTotalMs)} / 最大 ${formatDuration(run.sharedPdfLoadMaxMs)}`,
@@ -4455,7 +4455,7 @@
       if (!run) return;
       refreshPostSearchObservation(run);
       const payload = {
-        viewerVersion: '5.7.2',
+        viewerVersion: '5.7.3',
         pdfJsVersion: PDFJS_VERSION,
         userAgent: navigator.userAgent,
         catalogLoadMs: state.catalogLoadMs,
@@ -5422,9 +5422,10 @@
       return entries;
     }
 
-    async function loadCatalogFromGitHubApi() {
+    async function loadCatalogFromGitHubApi(baseDir = DEFAULT_PDF_BASE_DIR) {
       const { owner, repo } = inferGitHubRepository();
-      const folder = normalizeBaseDir(DEFAULT_PDF_BASE_DIR).replace(/\/$/, '');
+      const normalizedBaseDir = normalizeBaseDir(baseDir);
+      const folder = normalizedBaseDir.replace(/\/$/, '');
       const apiUrl = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${encodeURIComponent(folder)}?ref=${encodeURIComponent(GITHUB_BRANCH)}`;
       const response = await fetch(apiUrl, {
         headers: { Accept: 'application/vnd.github+json' },
@@ -5434,7 +5435,7 @@
       const data = await response.json();
       if (!Array.isArray(data)) throw new Error('GitHub APIの応答形式が想定外です。');
 
-      state.pdfBaseDir = normalizeBaseDir(DEFAULT_PDF_BASE_DIR);
+      state.pdfBaseDir = normalizedBaseDir;
       const entries = data
         .filter(item => item.type === 'file' && String(item.name).toLowerCase().endsWith('.pdf'))
         .sort((a, b) => b.name.localeCompare(a.name, 'ja', { numeric: true }))
@@ -5446,8 +5447,33 @@
           selected: true,
         }));
 
-      if (!entries.length) throw new Error('indeedmarketreportsフォルダ内にPDFがありません。');
+      if (!entries.length) throw new Error(`${folder} フォルダ内にPDFがありません。`);
       return entries;
+    }
+
+    function mergeCatalogEntries(primaryEntries, supplementalEntries) {
+      const merged = [];
+      const seen = new Set();
+
+      const pushEntry = (entry) => {
+        if (!entry) return;
+        const file = sanitizeFileName(entry.file || entry.name || '');
+        if (seen.has(file)) return;
+        seen.add(file);
+        merged.push({
+          file,
+          label: String(entry.label || entry.title || file.replace(/\.pdf$/i, '')),
+          description: String(entry.description || entry.note || ''),
+          thumbnailPage: Number.isFinite(Number(entry.thumbnailPage)) && Number(entry.thumbnailPage) > 0
+            ? Number(entry.thumbnailPage)
+            : 1,
+          selected: entry.selected !== false,
+        });
+      };
+
+      for (const entry of primaryEntries || []) pushEntry(entry);
+      for (const entry of supplementalEntries || []) pushEntry(entry);
+      return merged;
     }
 
     async function loadCatalog() {
@@ -5455,28 +5481,46 @@
       setStatus('PDF一覧を読み込んでいます。');
 
       let manifestError = null;
+      let apiError = null;
+      let manifestEntries = [];
+      let apiEntries = [];
+      let supplementedCount = 0;
 
       try {
-        state.catalog = await loadCatalogFromManifest();
-        state.catalogSource = 'pdfs.json';
+        manifestEntries = await loadCatalogFromManifest();
       } catch (error) {
         manifestError = error;
-        console.info('pdfs.jsonを使用できないためGitHub APIへ切り替えます。', error);
+        console.info('pdfs.jsonを読み込めないため、GitHub APIを中心に一覧を取得します。', error);
+      }
 
-        try {
-          state.catalog = await loadCatalogFromGitHubApi();
-          state.catalogSource = 'GitHub API';
-        } catch (apiError) {
-          console.error(apiError);
-          state.catalog = [];
-          state.catalogSource = '';
-          renderCatalog();
-          setStatus(
-            `PDF一覧を取得できませんでした。pdfs.json: ${manifestError?.message || '不明'} / ${apiError.message}`,
-            'error'
-          );
-          return;
+      const effectiveBaseDir = state.pdfBaseDir || DEFAULT_PDF_BASE_DIR;
+      try {
+        apiEntries = await loadCatalogFromGitHubApi(effectiveBaseDir);
+      } catch (error) {
+        apiError = error;
+        if (manifestEntries.length) {
+          console.info('GitHub APIからのPDF補完に失敗しました。pdfs.jsonの内容で継続します。', error);
+        } else {
+          console.error(error);
         }
+      }
+
+      if (manifestEntries.length) {
+        state.catalog = mergeCatalogEntries(manifestEntries, apiEntries);
+        supplementedCount = Math.max(0, state.catalog.length - manifestEntries.length);
+        state.catalogSource = apiEntries.length ? 'pdfs.json + GitHub API' : 'pdfs.json';
+      } else if (apiEntries.length) {
+        state.catalog = apiEntries;
+        state.catalogSource = 'GitHub API';
+      } else {
+        state.catalog = [];
+        state.catalogSource = '';
+        renderCatalog();
+        setStatus(
+          `PDF一覧を取得できませんでした。pdfs.json: ${manifestError?.message || '未使用'} / GitHub API: ${apiError?.message || '未使用'}`,
+          'error'
+        );
+        return;
       }
 
       const initial = readUrlState();
@@ -5540,9 +5584,12 @@
         ? `キーワードコピー：${keywordPageCount}ページ対応。`
         : '';
 
+      const catalogMessage = supplementedCount
+        ? `${state.catalog.length}件のPDFを読み込みました（${state.catalogSource}）。pdfs.json未登録のPDFを${supplementedCount}件自動追加しました。`
+        : `${state.catalog.length}件のPDFを読み込みました（${state.catalogSource}）。`;
+
       setStatus(
-        `${state.catalog.length}件のPDFを読み込みました（${state.catalogSource}）。` +
-        `${state.selectedFiles.size}件を検索対象にしています。${indexMessage}${previewMessage}${keywordMessage}`,
+        `${catalogMessage}${state.selectedFiles.size}件を検索対象にしています。${indexMessage}${previewMessage}${keywordMessage}`,
         indexedCount ? 'success' : 'warning'
       );
 
@@ -5663,7 +5710,7 @@
       }
 
       elements.catalogFoot.textContent = state.catalogSource
-        ? `一覧取得元：${state.catalogSource} ／ PDF配置先：${state.pdfBaseDir} ／ 表示名・説明・代表ページはpdfs.jsonで設定できます。`
+        ? `一覧取得元：${state.catalogSource} ／ PDF配置先：${state.pdfBaseDir} ／ pdfs.jsonの設定を優先し、未登録PDFはフォルダから自動追加します。`
         : 'PDF一覧を取得できていません。';
 
       updateCatalogSummary();
@@ -6869,7 +6916,7 @@
 
     function beginExportPerformance(selectedResults, uniqueFiles, options = {}) {
       return {
-        viewerVersion: '5.7.2',
+        viewerVersion: '5.7.3',
         pdfJsVersion: PDFJS_VERSION,
         startedAtIso: new Date().toISOString(),
         startedAtPerf: perfNow(),
@@ -7827,7 +7874,7 @@
         if (state.performanceRun) state.performanceRun.continuousPromoteCount += 1;
       }
       item.card.dataset.quality = 'loading';
-      // v5.7.2: 完成するまでWebPを前面に維持し、未完成Canvasを見せない。
+      // v5.7.3: 完成するまでWebPを前面に維持し、未完成Canvasを見せない。
       if (item.preview?.src) item.preview.hidden = false;
       item.canvas.hidden = true;
       item.textLayer.hidden = true;
@@ -7895,7 +7942,7 @@
         const viewport = page.getViewport({ scale: effectiveScale });
         const outputScale = window.devicePixelRatio || 1;
 
-        // v5.7.2: PDF.jsは非表示の一時Canvasへ描画し、成功後だけ画面Canvasへ反映する。
+        // v5.7.3: PDF.jsは非表示の一時Canvasへ描画し、成功後だけ画面Canvasへ反映する。
         const renderCanvas = document.createElement('canvas');
         renderCanvas.width = Math.max(1, Math.floor(viewport.width * outputScale));
         renderCanvas.height = Math.max(1, Math.floor(viewport.height * outputScale));
