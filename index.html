@@ -2041,7 +2041,7 @@
     .export-status[data-kind="warning"] { background: #fffbeb; color: #b45309; }
     .export-status[data-kind="error"] { background: #fef2f2; color: #b91c1c; }
 
-    /* v5.7.0: PDF出力の進捗とデバッグ計測 */
+    /* v5.7.1: PDF出力の進捗とデバッグ計測 */
     .export-progress-detail {
       margin-top: 8px;
       padding: 9px 10px;
@@ -2688,6 +2688,14 @@
       opacity: 0;
     }
 
+    /* ===== v5.7.1：安全なCanvas差し替え ===== */
+    #pdf-canvas[hidden],
+    #text-layer[hidden],
+    .continuous-page-surface canvas[hidden],
+    .continuous-page-surface .textLayer[hidden] {
+      display: none !important;
+    }
+
 
 
 
@@ -2986,7 +2994,7 @@
       </button>
 
       <div class="brand">
-        <div class="brand-title">Indeed市場レポート <span style="font-size:10px;opacity:.65">v5.7.0</span></div>
+        <div class="brand-title">Indeed市場レポート <span style="font-size:10px;opacity:.65">v5.7.1</span></div>
         <div class="brand-sub">Indeedの市況資料を横断検索・閲覧・PDF出力</div>
       </div>
 
@@ -3372,6 +3380,7 @@
     const CONTINUOUS_DEMOTION_VIEWPORTS = 1.75;
     const CONTINUOUS_MIN_RETAIN_MS = 1200;
     const CONTINUOUS_CANVAS_TIMEOUT_MS = 3000;
+    const VIEWER_CANVAS_TIMEOUT_MS = 5000;
     const SIDEBAR_PREVIEW_ROOT_MARGIN_PX = 620;
     const CONTINUOUS_PREVIEW_ROOT_MARGIN_PX = 760;
     const POST_SEARCH_OBSERVATION_MS = 5000;
@@ -3555,6 +3564,8 @@
       continuousScrollingUntil: 0,
       continuousPromotionKeys: new Set(),
       continuousAutoFallbackKeys: new Set(),
+      safeCanvasFallbackKeys: new Set(),
+      safeCanvasFallbackReasons: new Map(),
       continuousRenderQueue: [],
       continuousRenderActiveKey: '',
       sharedPdfCache: new Map(),
@@ -3664,6 +3675,62 @@
 
     function isAutoRenderTimeoutError(error) {
       return Boolean(error && error.name === 'AutoRenderTimeoutError');
+    }
+
+    function createSafeCanvasFallbackError(message = '高品質PDF描画を安全のため見送りました。') {
+      const error = new Error(message);
+      error.name = 'SafeCanvasFallbackError';
+      return error;
+    }
+
+    function isSafeCanvasFallbackError(error) {
+      return Boolean(error && error.name === 'SafeCanvasFallbackError');
+    }
+
+    function rememberSafeCanvasFallback(key, reason = '') {
+      if (!key) return;
+      state.safeCanvasFallbackKeys.add(key);
+      if (reason) state.safeCanvasFallbackReasons.set(key, reason);
+    }
+
+    function fillCanvasWhite(context, width, height) {
+      if (!context) return;
+      context.save();
+      context.setTransform(1, 0, 0, 1, 0, 0);
+      context.fillStyle = '#ffffff';
+      context.fillRect(0, 0, Math.max(1, width || 1), Math.max(1, height || 1));
+      context.restore();
+    }
+
+    function isSuspiciouslyDarkCanvas(canvas) {
+      if (!canvas?.width || !canvas?.height) return true;
+      try {
+        const sample = document.createElement('canvas');
+        sample.width = 24;
+        sample.height = 24;
+        const context = sample.getContext('2d', { willReadFrequently: true });
+        context.fillStyle = '#fff';
+        context.fillRect(0, 0, sample.width, sample.height);
+        context.drawImage(canvas, 0, 0, sample.width, sample.height);
+        const data = context.getImageData(0, 0, sample.width, sample.height).data;
+        let dark = 0;
+        let luminanceTotal = 0;
+        const pixels = sample.width * sample.height;
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i];
+          const g = data[i + 1];
+          const b = data[i + 2];
+          const luma = (0.2126 * r) + (0.7152 * g) + (0.0722 * b);
+          luminanceTotal += luma;
+          if (luma < 14) dark += 1;
+        }
+        const darkRatio = dark / pixels;
+        const averageLuma = luminanceTotal / pixels;
+        return darkRatio >= 0.96 && averageLuma < 10;
+      } catch (error) {
+        console.info('Canvas安全確認をスキップしました。', error);
+        return false;
+      }
     }
 
     function scheduleIdleTask(callback, timeout = 1000) {
@@ -4108,7 +4175,7 @@
         if (cacheParts.length) messages.push(`INDEX取得元：${cacheParts.join(' / ')}。`);
 
         if (run.totalSearchMs < 3000) {
-          messages.push('<strong>検索待ち時間は十分小さい水準です。</strong> v5.7.0では事前WebPを主表示にして、必要なページだけPDF.jsで高品質化します。');
+          messages.push('<strong>検索待ち時間は十分小さい水準です。</strong> v5.7.1では事前WebPを主表示にして、必要なページだけPDF.jsで高品質化します。');
         } else if (totals.fallbackFiles) {
           messages.push('検索時間がまだ長い場合は、フォールバックしているPDFのINDEX生成状況を優先して確認してください。');
         } else if (totals.indexLoadMs > totals.searchEvalMs * 3) {
@@ -4130,7 +4197,7 @@
 
       if (run.firstViewerAfterSearchMs != null) {
         if (run.firstViewerAfterSearchMs >= 1200) {
-          messages.push(`<strong>検索完了後の初回PDF表示に ${formatDuration(run.firstViewerAfterSearchMs)} かかっています。</strong> v5.7.0ではWebPを主表示にし、画面中央付近の必要ページだけ高品質PDFへ昇格します。`);
+          messages.push(`<strong>検索完了後の初回PDF表示に ${formatDuration(run.firstViewerAfterSearchMs)} かかっています。</strong> v5.7.1ではWebPを主表示にし、画面中央付近の必要ページだけ高品質PDFへ昇格します。`);
         } else {
           messages.push(`検索完了後の初回PDF表示は ${formatDuration(run.firstViewerAfterSearchMs)} です。`);
         }
@@ -4161,7 +4228,7 @@
       }
 
       if (run.sharedPdfLoadMaxMs >= 1000) {
-        messages.push(`<strong>PDF本体の初回読込最大 ${formatDuration(run.sharedPdfLoadMaxMs)} が残っています。</strong> v5.7.0では事前画像を主表示にし、不要なPDF Canvas描画を抑えます。`);
+        messages.push(`<strong>PDF本体の初回読込最大 ${formatDuration(run.sharedPdfLoadMaxMs)} が残っています。</strong> v5.7.1では事前画像を主表示にし、不要なPDF Canvas描画を抑えます。`);
       }
 
       refreshPostSearchObservation(run);
@@ -4291,7 +4358,7 @@
         `事前プレビュー: ${run.staticPreviewLoadCount}種類 / Cache HIT ${run.staticPreviewCacheHits || 0} / 合計 ${formatDuration(run.staticPreviewLoadTotalMs)} / 最大 ${formatDuration(run.staticPreviewLoadMaxMs)} / エラー ${run.staticPreviewErrorCount}`,
         `WebP取得起点: sidebar ${run.staticPreviewLoadStartsBySource?.sidebar || 0} / continuous ${run.staticPreviewLoadStartsBySource?.continuous || 0} / viewer ${run.staticPreviewLoadStartsBySource?.viewer || 0} / prefetch ${run.staticPreviewLoadStartsBySource?.prefetch || 0} / other ${run.staticPreviewLoadStartsBySource?.other || 0}`,
         `検索後5秒観測: ${run.postSearch5s ? `PDF開始 ${run.postSearch5s.pdfLoadStarts} / WebP開始 ${run.postSearch5s.previewLoadStarts} / Canvas開始 ${run.postSearch5s.canvasRenderStarts} / 最終活動 ${formatDuration(run.postSearch5s.lastActivityAfterSearchMs || 0)} / 5秒以降イベント ${run.postSearch5s.afterWindowActivityCount || 0}` : '未計測'}`,
-        `連続表示のPDF昇格: ${run.continuousPromoteCount || 0}回 / WebPへ降格 ${run.continuousDemoteCount || 0}回 / Canvas cancel ${run.continuousRenderCancelledCount || 0}回 / 3秒超WebP退避 ${run.continuousCanvasTimeoutCount || 0}回（v5.7.0）`,
+        `連続表示のPDF昇格: ${run.continuousPromoteCount || 0}回 / WebPへ降格 ${run.continuousDemoteCount || 0}回 / Canvas cancel ${run.continuousRenderCancelledCount || 0}回 / 3秒超WebP退避 ${run.continuousCanvasTimeoutCount || 0}回（v5.7.1）`,
         `初回実PDF表示（検索開始から）: ${run.firstViewerReadyMs == null ? '未計測' : formatDuration(run.firstViewerReadyMs)}`,
         `初回実PDF表示（検索完了後）: ${run.firstViewerAfterSearchMs == null ? '未計測' : formatDuration(run.firstViewerAfterSearchMs)}`,
         `PDF共有文書の新規読込: ${run.sharedPdfLoadCount}回 / 合計 ${formatDuration(run.sharedPdfLoadTotalMs)} / 最大 ${formatDuration(run.sharedPdfLoadMaxMs)}`,
@@ -4349,7 +4416,7 @@
       if (!run) return;
       refreshPostSearchObservation(run);
       const payload = {
-        viewerVersion: '5.7.0',
+        viewerVersion: '5.7.1',
         userAgent: navigator.userAgent,
         catalogLoadMs: state.catalogLoadMs,
         run: structuredCloneSafe(run),
@@ -5732,12 +5799,14 @@
         canvas.width = Math.max(1, Math.floor(viewport.width * outputScale));
         canvas.height = Math.max(1, Math.floor(viewport.height * outputScale));
 
+        fillCanvasWhite(context, canvas.width, canvas.height);
         await page.render({
           canvasContext: context,
           viewport,
           transform: outputScale === 1
             ? null
             : [outputScale, 0, 0, outputScale, 0, 0],
+          background: 'rgb(255, 255, 255)',
         }).promise;
 
         return {
@@ -6539,9 +6608,11 @@
           canvas.height = Math.max(1, Math.round(viewport.height));
           const context = canvas.getContext('2d', { alpha: false });
 
+          fillCanvasWhite(context, canvas.width, canvas.height);
           const renderTask = page.render({
             canvasContext: context,
             viewport,
+            background: 'rgb(255, 255, 255)',
           });
           state.resultThumbnailRenderTask = renderTask;
           try {
@@ -6758,7 +6829,7 @@
 
     function beginExportPerformance(selectedResults, uniqueFiles, options = {}) {
       return {
-        viewerVersion: '5.7.0',
+        viewerVersion: '5.7.1',
         startedAtIso: new Date().toISOString(),
         startedAtPerf: perfNow(),
         completedAtIso: null,
@@ -7562,7 +7633,7 @@
         const retainable = rect.bottom >= rootRect.top - demotionEdge &&
           rect.top <= rootRect.bottom + demotionEdge;
         const wasDesired = previous.has(item.key);
-        const autoFallback = state.continuousAutoFallbackKeys.has(item.key);
+        const autoFallback = state.continuousAutoFallbackKeys.has(item.key) || state.safeCanvasFallbackKeys.has(item.key);
         const recentlyPromoted = Boolean(
           item.lastPromotedAt && now - item.lastPromotedAt < CONTINUOUS_MIN_RETAIN_MS
         );
@@ -7612,7 +7683,7 @@
           .map(candidate => candidate.item.key)
           .filter(key => {
             const item = state.continuousItems.get(key);
-            return item && !state.continuousAutoFallbackKeys.has(key) && item.renderedSignature !== getContinuousRenderSignature(item);
+            return item && !state.continuousAutoFallbackKeys.has(key) && !state.safeCanvasFallbackKeys.has(key) && item.renderedSignature !== getContinuousRenderSignature(item);
           });
         chosen.forEach(candidate => {
           const item = candidate.item;
@@ -7675,7 +7746,7 @@
 
     function requestContinuousItemRender(item) {
       if (!item || item.generation !== state.continuousGeneration) return Promise.resolve();
-      if (state.continuousAutoFallbackKeys.has(item.key)) return Promise.resolve();
+      if (state.continuousAutoFallbackKeys.has(item.key) || state.safeCanvasFallbackKeys.has(item.key)) return Promise.resolve();
       if (!state.continuousPromotionKeys.has(item.key)) {
         state.continuousPromotionKeys.add(item.key);
       }
@@ -7696,7 +7767,7 @@
       while (state.continuousRenderQueue.length && !item) {
         const key = state.continuousRenderQueue.shift();
         const candidate = state.continuousItems.get(key);
-        if (!candidate || !candidate.card.isConnected || !state.continuousPromotionKeys.has(key) || state.continuousAutoFallbackKeys.has(key)) continue;
+        if (!candidate || !candidate.card.isConnected || !state.continuousPromotionKeys.has(key) || state.continuousAutoFallbackKeys.has(key) || state.safeCanvasFallbackKeys.has(key)) continue;
         if (candidate.renderedSignature === getContinuousRenderSignature(candidate)) continue;
         item = candidate;
       }
@@ -7715,33 +7786,43 @@
         if (state.performanceRun) state.performanceRun.continuousPromoteCount += 1;
       }
       item.card.dataset.quality = 'loading';
+      // v5.7.1: 完成するまでWebPを前面に維持し、未完成Canvasを見せない。
+      if (item.preview?.src) item.preview.hidden = false;
+      item.canvas.hidden = true;
+      item.textLayer.hidden = true;
       item.status.hidden = Boolean(item.preview?.src);
       item.status.dataset.kind = '';
       item.status.textContent = '高品質PDFを準備しています。';
 
       item.loopPromise = renderContinuousItemSnapshot(item, token, signature)
         .catch(error => {
-          if (isAutoRenderTimeoutError(error)) {
-            state.continuousAutoFallbackKeys.add(item.key);
-            state.continuousPromotionKeys.delete(item.key);
-            if (state.performanceRun) {
-              state.performanceRun.continuousCanvasTimeoutCount += 1;
-              if (state.performanceRun.postSearch5s) state.performanceRun.postSearch5s.canvasTimeouts += 1;
-            }
-            recordPostSearchActivity('canvasRender', 'complete');
-            demoteContinuousItem(item);
-            item.status.hidden = Boolean(item.preview?.src);
-            item.status.dataset.kind = '';
-            item.status.textContent = 'このページは高速プレビューで表示しています。';
-            scheduleVisibleContinuousPages({ allowPromotion: true });
-            return;
+          if (isRenderingCancelledError(error)) return;
+
+          const timedOut = isAutoRenderTimeoutError(error);
+          const safeFallback = timedOut || isSafeCanvasFallbackError(error);
+          rememberSafeCanvasFallback(item.key, error?.message || 'PDF.js描画を見送り');
+          state.continuousAutoFallbackKeys.add(item.key);
+          state.continuousPromotionKeys.delete(item.key);
+          if (timedOut && state.performanceRun) {
+            state.performanceRun.continuousCanvasTimeoutCount += 1;
+            if (state.performanceRun.postSearch5s) state.performanceRun.postSearch5s.canvasTimeouts += 1;
           }
-          if (!isRenderingCancelledError(error)) {
+          recordPostSearchActivity('canvasRender', 'complete');
+          demoteContinuousItem(item);
+
+          if (item.preview?.src) {
+            item.status.hidden = true;
+            item.status.dataset.kind = '';
+            item.status.textContent = safeFallback
+              ? 'このページは高速プレビューで表示しています。'
+              : '高品質表示を利用できないため高速プレビューを表示しています。';
+          } else {
             console.error(error);
             item.status.hidden = false;
             item.status.dataset.kind = 'error';
             item.status.textContent = `PDF表示に失敗しました：${error.message}`;
           }
+          scheduleVisibleContinuousPages({ allowPromotion: true });
         })
         .finally(() => {
           item.loopPromise = null;
@@ -7768,25 +7849,13 @@
         const effectiveScale = calculateAutoScale(page, item.body, 10, 10);
         const viewport = page.getViewport({ scale: effectiveScale });
         const outputScale = window.devicePixelRatio || 1;
-        const context = item.canvas.getContext('2d', { alpha: false });
 
-        item.canvas.hidden = false;
-        item.textLayer.hidden = false;
-        item.canvas.width = Math.floor(viewport.width * outputScale);
-        item.canvas.height = Math.floor(viewport.height * outputScale);
-        item.canvas.style.width = `${viewport.width}px`;
-        item.canvas.style.height = `${viewport.height}px`;
-        item.surface.style.width = `${viewport.width}px`;
-        item.surface.style.height = `${viewport.height}px`;
-        item.surface.style.maxWidth = 'none';
-        item.surface.style.minWidth = '0';
-        item.surface.style.minHeight = '0';
-        item.surface.style.removeProperty('aspect-ratio');
-
-        item.textLayer.replaceChildren();
-        item.textLayer.style.width = `${viewport.width}px`;
-        item.textLayer.style.height = `${viewport.height}px`;
-        item.textLayer.style.setProperty('--scale-factor', String(effectiveScale));
+        // v5.7.1: PDF.jsは非表示の一時Canvasへ描画し、成功後だけ画面Canvasへ反映する。
+        const renderCanvas = document.createElement('canvas');
+        renderCanvas.width = Math.max(1, Math.floor(viewport.width * outputScale));
+        renderCanvas.height = Math.max(1, Math.floor(viewport.height * outputScale));
+        const context = renderCanvas.getContext('2d', { alpha: false });
+        fillCanvasWhite(context, renderCanvas.width, renderCanvas.height);
 
         const canvasStartedAt = perfNow();
         recordPostSearchActivity('canvasRender', 'start');
@@ -7796,6 +7865,7 @@
           transform: outputScale === 1
             ? null
             : [outputScale, 0, 0, outputScale, 0, 0],
+          background: 'rgb(255, 255, 255)',
         });
         item.renderTask = renderTask;
         let autoTimedOut = false;
@@ -7818,10 +7888,19 @@
         const canvasRenderMs = perfNow() - canvasStartedAt;
         if (!isCurrentContinuousRequest(item, token)) return;
 
+        if (isSuspiciouslyDarkCanvas(renderCanvas)) {
+          throw createSafeCanvasFallbackError('Canvasが異常に暗いため高速プレビューを維持しました。');
+        }
+
         const textExtractStartedAt = perfNow();
         const textContent = await page.getTextContent();
         const textExtractMs = perfNow() - textExtractStartedAt;
         if (!isCurrentContinuousRequest(item, token)) return;
+
+        item.textLayer.replaceChildren();
+        item.textLayer.style.width = `${viewport.width}px`;
+        item.textLayer.style.height = `${viewport.height}px`;
+        item.textLayer.style.setProperty('--scale-factor', String(effectiveScale));
 
         const textLayerStartedAt = perfNow();
         const textLayer = new pdfjsLib.TextLayer({
@@ -7836,9 +7915,28 @@
         const highlightStartedAt = perfNow();
         highlightSearchTermsInLayer(item.textLayer, state.searchTerms);
         const highlightMs = perfNow() - highlightStartedAt;
+        if (!isCurrentContinuousRequest(item, token)) return;
+
+        // ここからが画面へのコミット。描画完了前のCanvasは一度も表示しない。
+        item.canvas.width = renderCanvas.width;
+        item.canvas.height = renderCanvas.height;
+        item.canvas.style.width = `${viewport.width}px`;
+        item.canvas.style.height = `${viewport.height}px`;
+        const visibleContext = item.canvas.getContext('2d', { alpha: false });
+        fillCanvasWhite(visibleContext, item.canvas.width, item.canvas.height);
+        visibleContext.drawImage(renderCanvas, 0, 0);
+
+        item.surface.style.width = `${viewport.width}px`;
+        item.surface.style.height = `${viewport.height}px`;
+        item.surface.style.maxWidth = 'none';
+        item.surface.style.minWidth = '0';
+        item.surface.style.minHeight = '0';
+        item.surface.style.removeProperty('aspect-ratio');
 
         item.renderedScale = effectiveScale;
         item.renderedSignature = signature;
+        item.canvas.hidden = false;
+        item.textLayer.hidden = false;
         item.card.dataset.quality = 'pdf';
         item.status.hidden = true;
         item.status.dataset.kind = '';
@@ -8156,15 +8254,23 @@
         elements.emptyGuide.hidden = true;
         elements.pageWrap.hidden = false;
         renderViewerMode();
-        await requestViewerRender();
+        const renderOutcome = await requestViewerRender();
 
         if (openSerial !== state.viewerOpenSerial) return;
 
-        setStatus(
-          `${result.label} の${result.pageNumber}ページを表示しました。` +
-          `${searchModeLabel(result.searchMode || state.executedSearchMode)}：${formatResultMatchSummary(result)}。`,
-          'success'
-        );
+        if (renderOutcome?.fallback) {
+          setStatus(
+            `${result.label} の${result.pageNumber}ページは高速プレビューで表示しています。` +
+            `高品質PDF表示はこのページでは自動的に見送りました。`,
+            'warning'
+          );
+        } else if (!renderOutcome?.cancelled) {
+          setStatus(
+            `${result.label} の${result.pageNumber}ページを表示しました。` +
+            `${searchModeLabel(result.searchMode || state.executedSearchMode)}：${formatResultMatchSummary(result)}。`,
+            'success'
+          );
+        }
 
         if (mode === 'paged') schedulePagedNeighborPrefetch();
       } catch (error) {
@@ -8356,8 +8462,26 @@
       updatePagedNavigation(state.pagedNavDragging ? state.pagedNavPreviewIndex : null);
     }
 
+    function showViewerSafeFallback(pageNumber, reason = '') {
+      const key = `${state.currentFile}::${pageNumber}`;
+      rememberSafeCanvasFallback(key, reason || '高品質PDF描画を見送り');
+      const result = getPageResults().find(item => item.file === state.currentFile && item.pageNumber === pageNumber)
+        || getCurrentHitResult();
+      if (result) showViewerPreview(result);
+      elements.canvas.hidden = true;
+      elements.textLayer.hidden = true;
+      elements.textLayer.replaceChildren();
+      elements.pageWrap.hidden = true;
+      markFirstViewerReady();
+      return {
+        fallback: true,
+        key,
+        reason: reason || '高品質PDF描画を見送り',
+      };
+    }
+
     function requestViewerRender() {
-      if (!state.currentPdf) return Promise.resolve();
+      if (!state.currentPdf) return Promise.resolve(null);
 
       state.viewerPriorityBusy = true;
       cancelActiveResultThumbnailRender();
@@ -8381,8 +8505,11 @@
           .catch(error => {
             if (!isRenderingCancelledError(error)) {
               console.error(error);
-              setStatus(`PDFページの描画に失敗しました：${error.message}`, 'error');
+              const outcome = showViewerSafeFallback(state.currentPage, error?.message || 'PDFページの描画に失敗しました。');
+              setStatus('高品質PDF表示を利用できないため、高速プレビューを表示しています。', 'warning');
+              return outcome;
             }
+            return { cancelled: true };
           })
           .finally(() => {
             state.renderLoopPromise = null;
@@ -8395,6 +8522,7 @@
     }
 
     async function runViewerRenderLoop() {
+      let lastOutcome = null;
       while (state.renderPending && state.currentPdf) {
         state.renderPending = false;
 
@@ -8403,129 +8531,182 @@
         const pageNumber = state.currentPage;
         const scale = state.scale;
 
-        await renderPageSnapshot({
+        lastOutcome = await renderPageSnapshot({
           pdf,
           pageNumber,
           scale,
           requestSerial,
         });
       }
+      return lastOutcome;
     }
 
     async function renderPageSnapshot({ pdf, pageNumber, scale, requestSerial }) {
       const totalStartedAt = perfNow();
       const serial = ++state.renderSerial;
+      const fallbackKey = `${state.currentFile}::${pageNumber}`;
 
-      const pageGetStartedAt = perfNow();
-      const page = await pdf.getPage(pageNumber);
-      const pageGetMs = perfNow() - pageGetStartedAt;
-
-      // getPage中に別ページが要求された場合は、Canvasを触らず終了する。
-      if (
-        requestSerial !== state.renderRequestSerial ||
-        pdf !== state.currentPdf
-      ) {
-        return;
+      if (state.safeCanvasFallbackKeys.has(fallbackKey)) {
+        return showViewerSafeFallback(
+          pageNumber,
+          state.safeCanvasFallbackReasons.get(fallbackKey) || 'このページは高速プレビューで表示します。'
+        );
       }
 
-      const effectiveScale = state.zoomMode === 'manual'
-        ? scale
-        : calculateAutoScale(page, elements.viewerStage, state.viewerMode === 'paged' ? 72 : 14, 14);
-      state.lastSingleRenderScale = effectiveScale;
-
-      const viewport = page.getViewport({ scale: effectiveScale });
-      const outputScale = window.devicePixelRatio || 1;
-      const context = elements.canvas.getContext('2d', { alpha: false });
-
-      elements.pageWrap.hidden = false;
-      elements.canvas.width = Math.floor(viewport.width * outputScale);
-      elements.canvas.height = Math.floor(viewport.height * outputScale);
-      elements.canvas.style.width = `${viewport.width}px`;
-      elements.canvas.style.height = `${viewport.height}px`;
-      elements.pageWrap.style.width = `${viewport.width}px`;
-      elements.pageWrap.style.height = `${viewport.height}px`;
-
-      elements.textLayer.replaceChildren();
-      elements.textLayer.style.width = `${viewport.width}px`;
-      elements.textLayer.style.height = `${viewport.height}px`;
-      elements.textLayer.style.setProperty('--scale-factor', String(effectiveScale));
-
-      const canvasStartedAt = perfNow();
-      recordPostSearchActivity('canvasRender', 'start');
-      const renderTask = page.render({
-        canvasContext: context,
-        viewport,
-        transform: outputScale === 1
-          ? null
-          : [outputScale, 0, 0, outputScale, 0, 0],
-      });
-      state.renderTask = renderTask;
+      // 既存ページのCanvas/TextLayerを見せたまま新ページを描かない。
+      // WebPプレビューが前面にある間に一時Canvasへ完成させる。
+      elements.canvas.hidden = true;
+      elements.textLayer.hidden = true;
 
       try {
-        await renderTask.promise;
-      } catch (error) {
-        if (isRenderingCancelledError(error)) return;
-        throw error;
-      } finally {
-        if (state.renderTask === renderTask) {
-          state.renderTask = null;
+        const pageGetStartedAt = perfNow();
+        const page = await pdf.getPage(pageNumber);
+        const pageGetMs = perfNow() - pageGetStartedAt;
+
+        if (
+          requestSerial !== state.renderRequestSerial ||
+          pdf !== state.currentPdf
+        ) {
+          return { cancelled: true };
         }
+
+        const effectiveScale = state.zoomMode === 'manual'
+          ? scale
+          : calculateAutoScale(page, elements.viewerStage, state.viewerMode === 'paged' ? 72 : 14, 14);
+        state.lastSingleRenderScale = effectiveScale;
+
+        const viewport = page.getViewport({ scale: effectiveScale });
+        const outputScale = window.devicePixelRatio || 1;
+
+        const renderCanvas = document.createElement('canvas');
+        renderCanvas.width = Math.max(1, Math.floor(viewport.width * outputScale));
+        renderCanvas.height = Math.max(1, Math.floor(viewport.height * outputScale));
+        const context = renderCanvas.getContext('2d', { alpha: false });
+        fillCanvasWhite(context, renderCanvas.width, renderCanvas.height);
+
+        const canvasStartedAt = perfNow();
+        recordPostSearchActivity('canvasRender', 'start');
+        const renderTask = page.render({
+          canvasContext: context,
+          viewport,
+          transform: outputScale === 1
+            ? null
+            : [outputScale, 0, 0, outputScale, 0, 0],
+          background: 'rgb(255, 255, 255)',
+        });
+        state.renderTask = renderTask;
+        let autoTimedOut = false;
+        const timeoutId = setTimeout(() => {
+          autoTimedOut = true;
+          try { renderTask.cancel(); } catch {}
+        }, VIEWER_CANVAS_TIMEOUT_MS);
+
+        try {
+          await renderTask.promise;
+          if (autoTimedOut) throw createSafeCanvasFallbackError('高品質PDF描画が5秒を超えたため高速プレビューを維持しました。');
+        } catch (error) {
+          if (autoTimedOut) throw createSafeCanvasFallbackError('高品質PDF描画が5秒を超えたため高速プレビューを維持しました。');
+          if (isRenderingCancelledError(error)) return { cancelled: true };
+          throw error;
+        } finally {
+          clearTimeout(timeoutId);
+          if (state.renderTask === renderTask) state.renderTask = null;
+        }
+        const canvasRenderMs = perfNow() - canvasStartedAt;
+
+        if (
+          serial !== state.renderSerial ||
+          requestSerial !== state.renderRequestSerial ||
+          pdf !== state.currentPdf
+        ) {
+          return { cancelled: true };
+        }
+
+        if (isSuspiciouslyDarkCanvas(renderCanvas)) {
+          throw createSafeCanvasFallbackError('Canvasが異常に暗いため高速プレビューを維持しました。');
+        }
+
+        const textExtractStartedAt = perfNow();
+        const textContent = await page.getTextContent();
+        const textExtractMs = perfNow() - textExtractStartedAt;
+
+        if (
+          requestSerial !== state.renderRequestSerial ||
+          pdf !== state.currentPdf
+        ) {
+          return { cancelled: true };
+        }
+
+        // TextLayerも非表示のまま完成させ、Canvasと同時にコミットする。
+        elements.textLayer.replaceChildren();
+        elements.textLayer.style.width = `${viewport.width}px`;
+        elements.textLayer.style.height = `${viewport.height}px`;
+        elements.textLayer.style.setProperty('--scale-factor', String(effectiveScale));
+
+        const textLayerStartedAt = perfNow();
+        const textLayer = new pdfjsLib.TextLayer({
+          textContentSource: textContent,
+          container: elements.textLayer,
+          viewport,
+        });
+        await textLayer.render();
+        const textLayerMs = perfNow() - textLayerStartedAt;
+
+        if (
+          requestSerial !== state.renderRequestSerial ||
+          pdf !== state.currentPdf
+        ) {
+          return { cancelled: true };
+        }
+
+        const highlightStartedAt = perfNow();
+        if (state.searchText && state.currentTargetPage === pageNumber) {
+          highlightSearchTermsInLayer(elements.textLayer, state.searchTerms, false);
+        }
+        const highlightMs = perfNow() - highlightStartedAt;
+
+        // 完成した一時Canvasを同期コピーしてから初めて表示する。
+        elements.canvas.width = renderCanvas.width;
+        elements.canvas.height = renderCanvas.height;
+        elements.canvas.style.width = `${viewport.width}px`;
+        elements.canvas.style.height = `${viewport.height}px`;
+        const visibleContext = elements.canvas.getContext('2d', { alpha: false });
+        fillCanvasWhite(visibleContext, elements.canvas.width, elements.canvas.height);
+        visibleContext.drawImage(renderCanvas, 0, 0);
+
+        elements.pageWrap.style.width = `${viewport.width}px`;
+        elements.pageWrap.style.height = `${viewport.height}px`;
+        elements.pageWrap.hidden = false;
+        elements.canvas.hidden = false;
+        elements.textLayer.hidden = false;
+
+        hideViewerPreview();
+        markFirstViewerReady();
+
+        const firstHit = elements.textLayer.querySelector('.search-hit');
+        if (firstHit && state.searchText && state.currentTargetPage === pageNumber) {
+          firstHit.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+        }
+
+        recordViewerRenderPerformance({
+          pageGetMs,
+          canvasRenderMs,
+          textExtractMs,
+          textLayerMs,
+          highlightMs,
+          totalMs: perfNow() - totalStartedAt,
+        });
+        updateViewerToolbar();
+        return { fallback: false };
+      } catch (error) {
+        if (isRenderingCancelledError(error)) return { cancelled: true };
+        const reason = error?.message || '高品質PDF表示に失敗しました。';
+        recordPostSearchActivity('canvasRender', 'complete');
+        rememberSafeCanvasFallback(fallbackKey, reason);
+        const outcome = showViewerSafeFallback(pageNumber, reason);
+        setStatus('高品質PDF表示を利用できないため、高速プレビューを表示しています。', 'warning');
+        return outcome;
       }
-      const canvasRenderMs = perfNow() - canvasStartedAt;
-      hideViewerPreview();
-      markFirstViewerReady();
-
-      if (
-        serial !== state.renderSerial ||
-        requestSerial !== state.renderRequestSerial ||
-        pdf !== state.currentPdf
-      ) {
-        return;
-      }
-
-      const textExtractStartedAt = perfNow();
-      const textContent = await page.getTextContent();
-      const textExtractMs = perfNow() - textExtractStartedAt;
-
-      if (
-        requestSerial !== state.renderRequestSerial ||
-        pdf !== state.currentPdf
-      ) {
-        return;
-      }
-
-      const textLayerStartedAt = perfNow();
-      const textLayer = new pdfjsLib.TextLayer({
-        textContentSource: textContent,
-        container: elements.textLayer,
-        viewport,
-      });
-      await textLayer.render();
-      const textLayerMs = perfNow() - textLayerStartedAt;
-
-      if (
-        requestSerial !== state.renderRequestSerial ||
-        pdf !== state.currentPdf
-      ) {
-        return;
-      }
-
-      const highlightStartedAt = perfNow();
-      if (state.searchText && state.currentTargetPage === pageNumber) {
-        highlightSearchTermsInLayer(elements.textLayer, state.searchTerms, true);
-      }
-      const highlightMs = perfNow() - highlightStartedAt;
-
-      recordViewerRenderPerformance({
-        pageGetMs,
-        canvasRenderMs,
-        textExtractMs,
-        textLayerMs,
-        highlightMs,
-        totalMs: perfNow() - totalStartedAt,
-      });
-      markFirstViewerReady();
-      updateViewerToolbar();
     }
 
     // 既存の呼び出し元との互換用。
