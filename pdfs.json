@@ -55,7 +55,8 @@
       "label": "【2026年9月】パートナー様向け情報共有",
       "description": "【2026年9月】パートナー様向け情報共有",
       "thumbnailPage": 2,
-      "selected": true
+      "selected": true,
+      "renderMode": "preview"
     }
   ]
 }
