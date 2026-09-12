@@ -2632,7 +2632,7 @@
 
 
 
-    /* ===== v5.6.0：対応キーワードランキングだけコピー操作を表示 ===== */
+    /* ===== v5.6.1：対応キーワードランキングだけコピー操作を表示 ===== */
     .keyword-copy-wrap {
       position: relative;
       flex: 0 0 auto;
@@ -2640,9 +2640,11 @@
 
     .keyword-copy-btn {
       min-height: 32px;
+      padding-inline: 9px;
       border-color: #93c5fd;
       background: #eff6ff;
       color: #1d4ed8;
+      white-space: nowrap;
     }
 
     .keyword-copy-btn:hover:not(:disabled) {
@@ -2655,9 +2657,17 @@
       position: absolute;
       top: calc(100% + 6px);
       right: 0;
-      z-index: 60;
-      min-width: 228px;
-      padding: 6px;
+      z-index: 80;
+      width: 232px;
+      max-width: min(232px, calc(100vw - 20px));
+      padding: 5px;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 2px;
+      box-sizing: border-box;
+      overflow: hidden;
+      white-space: nowrap;
       border: 1px solid #cbd5e1;
       border-radius: 10px;
       background: #fff;
@@ -2668,15 +2678,22 @@
 
     .keyword-copy-menu button {
       width: 100%;
-      min-height: 34px;
-      padding: 7px 9px;
+      min-height: 36px;
+      padding: 7px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      flex: 0 0 auto;
+      box-sizing: border-box;
       border: 0;
       border-radius: 7px;
       background: transparent;
       color: #334155;
       text-align: left;
+      white-space: nowrap;
       font-size: 12px;
       font-weight: 700;
+      line-height: 1.25;
       cursor: pointer;
     }
 
@@ -2703,7 +2720,7 @@
       background: #dbeafe;
     }
 
-    /* ===== v5.6.0：ビューア上部バーを1段で使いやすくする ===== */
+    /* ===== v5.6.1：ビューア上部バーを1段で使いやすくする ===== */
     :root {
       --toolbar-height: 43px;
     }
@@ -2841,7 +2858,7 @@
       </button>
 
       <div class="brand">
-        <div class="brand-title">Indeed市場レポート <span style="font-size:10px;opacity:.65">v5.6.0</span></div>
+        <div class="brand-title">Indeed市場レポート <span style="font-size:10px;opacity:.65">v5.6.1</span></div>
         <div class="brand-sub">Indeedの市況資料を横断検索・閲覧・PDF出力</div>
       </div>
 
@@ -2981,11 +2998,11 @@
           <div class="toolbar-right">
             <div id="keyword-copy-wrap" class="keyword-copy-wrap" hidden>
               <button id="keyword-copy-btn" class="tool-btn keyword-copy-btn" type="button" aria-haspopup="menu" aria-expanded="false" title="このページのキーワード一覧をコピー">
-                キーワードコピー ▾
+                KWコピー ▾
               </button>
               <div id="keyword-copy-menu" class="keyword-copy-menu" role="menu" hidden>
-                <button type="button" data-keyword-copy-format="keywords" role="menuitem">キーワードのみ</button>
-                <button type="button" data-keyword-copy-format="ranked" role="menuitem">順位＋キーワード（TSV）</button>
+                <button type="button" data-keyword-copy-format="keywords" role="menuitem">KWのみ</button>
+                <button type="button" data-keyword-copy-format="ranked" role="menuitem">順位＋KW（TSV）</button>
                 <button type="button" data-keyword-copy-format="source" role="menuitem">資料情報付き（TSV）</button>
               </div>
             </div>
@@ -3935,7 +3952,7 @@
         if (cacheParts.length) messages.push(`INDEX取得元：${cacheParts.join(' / ')}。`);
 
         if (run.totalSearchMs < 3000) {
-          messages.push('<strong>検索待ち時間は十分小さい水準です。</strong> v5.6.0では事前WebPを主表示にして、必要なページだけPDF.jsで高品質化します。');
+          messages.push('<strong>検索待ち時間は十分小さい水準です。</strong> v5.6.1では事前WebPを主表示にして、必要なページだけPDF.jsで高品質化します。');
         } else if (totals.fallbackFiles) {
           messages.push('検索時間がまだ長い場合は、フォールバックしているPDFのINDEX生成状況を優先して確認してください。');
         } else if (totals.indexLoadMs > totals.searchEvalMs * 3) {
@@ -3957,7 +3974,7 @@
 
       if (run.firstViewerAfterSearchMs != null) {
         if (run.firstViewerAfterSearchMs >= 1200) {
-          messages.push(`<strong>検索完了後の初回PDF表示に ${formatDuration(run.firstViewerAfterSearchMs)} かかっています。</strong> v5.6.0ではWebPを主表示にし、画面中央付近の必要ページだけ高品質PDFへ昇格します。`);
+          messages.push(`<strong>検索完了後の初回PDF表示に ${formatDuration(run.firstViewerAfterSearchMs)} かかっています。</strong> v5.6.1ではWebPを主表示にし、画面中央付近の必要ページだけ高品質PDFへ昇格します。`);
         } else {
           messages.push(`検索完了後の初回PDF表示は ${formatDuration(run.firstViewerAfterSearchMs)} です。`);
         }
@@ -3982,13 +3999,13 @@
 
       if (run.staticPreviewLoadCount) {
         const previewSources = run.staticPreviewLoadStartsBySource || {};
-        messages.push(`事前ページプレビューを${run.staticPreviewLoadCount}種類読み込みました（共有キャッシュHIT ${run.staticPreviewCacheHits || 0}回）。取得起点はサイドバー ${previewSources.sidebar || 0} / 連続表示 ${previewSources.continuous || 0} / 中央表示 ${previewSources.viewer || 0} / 先読み ${previewSources.prefetch || 0}。v5.6.0では画面近傍だけをLazy Loadし、遠いHITページは未取得のまま保持します。`);
+        messages.push(`事前ページプレビューを${run.staticPreviewLoadCount}種類読み込みました（共有キャッシュHIT ${run.staticPreviewCacheHits || 0}回）。取得起点はサイドバー ${previewSources.sidebar || 0} / 連続表示 ${previewSources.continuous || 0} / 中央表示 ${previewSources.viewer || 0} / 先読み ${previewSources.prefetch || 0}。v5.6.1では画面近傍だけをLazy Loadし、遠いHITページは未取得のまま保持します。`);
       } else if (run.pagePreviewAvailableFiles) {
         messages.push('事前ページプレビューは利用可能ですが、この計測ではまだ表示対象に読み込まれていません。');
       }
 
       if (run.sharedPdfLoadMaxMs >= 1000) {
-        messages.push(`<strong>PDF本体の初回読込最大 ${formatDuration(run.sharedPdfLoadMaxMs)} が残っています。</strong> v5.6.0では事前画像を主表示にし、不要なPDF Canvas描画を抑えます。`);
+        messages.push(`<strong>PDF本体の初回読込最大 ${formatDuration(run.sharedPdfLoadMaxMs)} が残っています。</strong> v5.6.1では事前画像を主表示にし、不要なPDF Canvas描画を抑えます。`);
       }
 
       refreshPostSearchObservation(run);
@@ -4118,7 +4135,7 @@
         `事前プレビュー: ${run.staticPreviewLoadCount}種類 / Cache HIT ${run.staticPreviewCacheHits || 0} / 合計 ${formatDuration(run.staticPreviewLoadTotalMs)} / 最大 ${formatDuration(run.staticPreviewLoadMaxMs)} / エラー ${run.staticPreviewErrorCount}`,
         `WebP取得起点: sidebar ${run.staticPreviewLoadStartsBySource?.sidebar || 0} / continuous ${run.staticPreviewLoadStartsBySource?.continuous || 0} / viewer ${run.staticPreviewLoadStartsBySource?.viewer || 0} / prefetch ${run.staticPreviewLoadStartsBySource?.prefetch || 0} / other ${run.staticPreviewLoadStartsBySource?.other || 0}`,
         `検索後5秒観測: ${run.postSearch5s ? `PDF開始 ${run.postSearch5s.pdfLoadStarts} / WebP開始 ${run.postSearch5s.previewLoadStarts} / Canvas開始 ${run.postSearch5s.canvasRenderStarts} / 最終活動 ${formatDuration(run.postSearch5s.lastActivityAfterSearchMs || 0)} / 5秒以降イベント ${run.postSearch5s.afterWindowActivityCount || 0}` : '未計測'}`,
-        `連続表示のPDF昇格: ${run.continuousPromoteCount || 0}回 / WebPへ降格 ${run.continuousDemoteCount || 0}回 / Canvas cancel ${run.continuousRenderCancelledCount || 0}回 / 3秒超WebP退避 ${run.continuousCanvasTimeoutCount || 0}回（v5.6.0）`,
+        `連続表示のPDF昇格: ${run.continuousPromoteCount || 0}回 / WebPへ降格 ${run.continuousDemoteCount || 0}回 / Canvas cancel ${run.continuousRenderCancelledCount || 0}回 / 3秒超WebP退避 ${run.continuousCanvasTimeoutCount || 0}回（v5.6.1）`,
         `初回実PDF表示（検索開始から）: ${run.firstViewerReadyMs == null ? '未計測' : formatDuration(run.firstViewerReadyMs)}`,
         `初回実PDF表示（検索完了後）: ${run.firstViewerAfterSearchMs == null ? '未計測' : formatDuration(run.firstViewerAfterSearchMs)}`,
         `PDF共有文書の新規読込: ${run.sharedPdfLoadCount}回 / 合計 ${formatDuration(run.sharedPdfLoadTotalMs)} / 最大 ${formatDuration(run.sharedPdfLoadMaxMs)}`,
@@ -4176,7 +4193,7 @@
       if (!run) return;
       refreshPostSearchObservation(run);
       const payload = {
-        viewerVersion: '5.6.0',
+        viewerVersion: '5.6.1',
         userAgent: navigator.userAgent,
         catalogLoadMs: state.catalogLoadMs,
         run: structuredCloneSafe(run),
@@ -6730,7 +6747,7 @@
         const keywordButton = document.createElement('button');
         keywordButton.type = 'button';
         keywordButton.className = 'continuous-keyword-copy';
-        keywordButton.textContent = 'キーワードコピー';
+        keywordButton.textContent = 'KWコピー';
         keywordButton.title = 'このページのTop50キーワードを1列でコピー';
         keywordButton.addEventListener('click', async event => {
           event.stopPropagation();
