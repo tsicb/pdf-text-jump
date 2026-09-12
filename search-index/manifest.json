@@ -2,8 +2,16 @@
   "version": 1,
   "normalization": "NFKC-remove-whitespace-lower-ja-v1",
   "baseDir": "indeedmarketreports/",
-  "generatedAt": "2026-09-07T12:29:46.877Z",
+  "generatedAt": "2026-09-12T01:36:34.382Z",
   "files": [
+    {
+      "file": "【2026年9月】パートナー様向け情報共有.pdf",
+      "index": "search-index/files/3b81b04363fd3a0351017a3302229417f772f25003facf98da9b6cc683a3c0bf.json",
+      "pages": 12,
+      "textChars": 1876,
+      "sizeBytes": 1750867,
+      "sha256": "3b81b04363fd3a0351017a3302229417f772f25003facf98da9b6cc683a3c0bf"
+    },
     {
       "file": "Indeed PLUS 職種カテゴリー別トレンド.PDF",
       "index": "search-index/files/cf5e97b5876aa45ee1311a1e71f9475fbe140da76007c87fbe6d858ce4c6e7aa.json",

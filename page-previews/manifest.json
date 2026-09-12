@@ -1,7 +1,7 @@
 {
   "version": 1,
   "baseDir": "indeedmarketreports/",
-  "generatedAt": "2026-09-07T12:29:52Z",
+  "generatedAt": "2026-09-12T01:36:35Z",
   "width": 800,
   "quality": 50,
   "format": "webp",
@@ -47,6 +47,15 @@
       "sha256": "83211cc73d5ec17a86baf9873eeb5ed32cdd9bc4f0a09b4263256b0bbd3fe57d",
       "pages": 120,
       "previewBase": "page-previews/files/83211cc73d5ec17a86baf9873eeb5ed32cdd9bc4f0a09b4263256b0bbd3fe57d",
+      "width": 800,
+      "quality": 50,
+      "format": "webp"
+    },
+    {
+      "file": "【2026年9月】パートナー様向け情報共有.pdf",
+      "sha256": "3b81b04363fd3a0351017a3302229417f772f25003facf98da9b6cc683a3c0bf",
+      "pages": 12,
+      "previewBase": "page-previews/files/3b81b04363fd3a0351017a3302229417f772f25003facf98da9b6cc683a3c0bf",
       "width": 800,
       "quality": 50,
       "format": "webp"
