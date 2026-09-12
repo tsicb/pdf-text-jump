@@ -2041,7 +2041,7 @@
     .export-status[data-kind="warning"] { background: #fffbeb; color: #b45309; }
     .export-status[data-kind="error"] { background: #fef2f2; color: #b91c1c; }
 
-    /* v5.7.4: PDF出力の進捗とデバッグ計測 */
+    /* v5.7.5: PDF出力の進捗とデバッグ計測 */
     .export-progress-detail {
       margin-top: 8px;
       padding: 9px 10px;
@@ -2688,7 +2688,7 @@
       opacity: 0;
     }
 
-    /* ===== v5.7.4：安全なCanvas差し替え ===== */
+    /* ===== v5.7.5：安全なCanvas差し替え ===== */
     #pdf-canvas[hidden],
     #text-layer[hidden],
     .continuous-page-surface canvas[hidden],
@@ -2994,7 +2994,7 @@
       </button>
 
       <div class="brand">
-        <div class="brand-title">Indeed市場レポート <span style="font-size:10px;opacity:.65">v5.7.4</span></div>
+        <div class="brand-title">Indeed市場レポート <span style="font-size:10px;opacity:.65">v5.7.5</span></div>
         <div class="brand-sub">Indeedの市況資料を横断検索・閲覧・PDF出力</div>
       </div>
 
@@ -3354,12 +3354,12 @@
   <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
   <script type="module">
     import * as pdfjsLib from
-      'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.7.484/build/pdf.min.mjs';
+      'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.7.284/build/pdf.min.mjs';
 
     pdfjsLib.GlobalWorkerOptions.workerSrc =
-      'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.7.484/build/pdf.worker.min.mjs';
+      'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.7.284/build/pdf.worker.min.mjs';
 
-    const PDFJS_VERSION = '5.7.484';
+    const PDFJS_VERSION = '5.7.284';
     const DEFAULT_PDF_BASE_DIR = 'indeedmarketreports/';
     const MANIFEST_URL = 'pdfs.json';
     const SEARCH_INDEX_MANIFEST_URL = 'search-index/manifest.json';
@@ -4215,7 +4215,7 @@
         if (cacheParts.length) messages.push(`INDEX取得元：${cacheParts.join(' / ')}。`);
 
         if (run.totalSearchMs < 3000) {
-          messages.push('<strong>検索待ち時間は十分小さい水準です。</strong> v5.7.4では事前WebPを主表示にして、必要なページだけPDF.jsで高品質化します。');
+          messages.push('<strong>検索待ち時間は十分小さい水準です。</strong> v5.7.5では事前WebPを主表示にして、必要なページだけPDF.jsで高品質化します。');
         } else if (totals.fallbackFiles) {
           messages.push('検索時間がまだ長い場合は、フォールバックしているPDFのINDEX生成状況を優先して確認してください。');
         } else if (totals.indexLoadMs > totals.searchEvalMs * 3) {
@@ -4237,7 +4237,7 @@
 
       if (run.firstViewerAfterSearchMs != null) {
         if (run.firstViewerAfterSearchMs >= 1200) {
-          messages.push(`<strong>検索完了後の初回PDF表示に ${formatDuration(run.firstViewerAfterSearchMs)} かかっています。</strong> v5.7.4ではWebPを主表示にし、画面中央付近の必要ページだけ高品質PDFへ昇格します。`);
+          messages.push(`<strong>検索完了後の初回PDF表示に ${formatDuration(run.firstViewerAfterSearchMs)} かかっています。</strong> v5.7.5ではWebPを主表示にし、画面中央付近の必要ページだけ高品質PDFへ昇格します。`);
         } else {
           messages.push(`検索完了後の初回PDF表示は ${formatDuration(run.firstViewerAfterSearchMs)} です。`);
         }
@@ -4268,7 +4268,7 @@
       }
 
       if (run.sharedPdfLoadMaxMs >= 1000) {
-        messages.push(`<strong>PDF本体の初回読込最大 ${formatDuration(run.sharedPdfLoadMaxMs)} が残っています。</strong> v5.7.4では事前画像を主表示にし、不要なPDF Canvas描画を抑えます。`);
+        messages.push(`<strong>PDF本体の初回読込最大 ${formatDuration(run.sharedPdfLoadMaxMs)} が残っています。</strong> v5.7.5では事前画像を主表示にし、不要なPDF Canvas描画を抑えます。`);
       }
 
       refreshPostSearchObservation(run);
@@ -4398,7 +4398,7 @@
         `事前プレビュー: ${run.staticPreviewLoadCount}種類 / Cache HIT ${run.staticPreviewCacheHits || 0} / 合計 ${formatDuration(run.staticPreviewLoadTotalMs)} / 最大 ${formatDuration(run.staticPreviewLoadMaxMs)} / エラー ${run.staticPreviewErrorCount}`,
         `WebP取得起点: sidebar ${run.staticPreviewLoadStartsBySource?.sidebar || 0} / continuous ${run.staticPreviewLoadStartsBySource?.continuous || 0} / viewer ${run.staticPreviewLoadStartsBySource?.viewer || 0} / prefetch ${run.staticPreviewLoadStartsBySource?.prefetch || 0} / other ${run.staticPreviewLoadStartsBySource?.other || 0}`,
         `検索後5秒観測: ${run.postSearch5s ? `PDF開始 ${run.postSearch5s.pdfLoadStarts} / WebP開始 ${run.postSearch5s.previewLoadStarts} / Canvas開始 ${run.postSearch5s.canvasRenderStarts} / 最終活動 ${formatDuration(run.postSearch5s.lastActivityAfterSearchMs || 0)} / 5秒以降イベント ${run.postSearch5s.afterWindowActivityCount || 0}` : '未計測'}`,
-        `連続表示のPDF昇格: ${run.continuousPromoteCount || 0}回 / WebPへ降格 ${run.continuousDemoteCount || 0}回 / Canvas cancel ${run.continuousRenderCancelledCount || 0}回 / 3秒超WebP退避 ${run.continuousCanvasTimeoutCount || 0}回（v5.7.4）`,
+        `連続表示のPDF昇格: ${run.continuousPromoteCount || 0}回 / WebPへ降格 ${run.continuousDemoteCount || 0}回 / Canvas cancel ${run.continuousRenderCancelledCount || 0}回 / 3秒超WebP退避 ${run.continuousCanvasTimeoutCount || 0}回（v5.7.5）`,
         `初回実PDF表示（検索開始から）: ${run.firstViewerReadyMs == null ? '未計測' : formatDuration(run.firstViewerReadyMs)}`,
         `初回実PDF表示（検索完了後）: ${run.firstViewerAfterSearchMs == null ? '未計測' : formatDuration(run.firstViewerAfterSearchMs)}`,
         `PDF共有文書の新規読込: ${run.sharedPdfLoadCount}回 / 合計 ${formatDuration(run.sharedPdfLoadTotalMs)} / 最大 ${formatDuration(run.sharedPdfLoadMaxMs)}`,
@@ -4456,7 +4456,7 @@
       if (!run) return;
       refreshPostSearchObservation(run);
       const payload = {
-        viewerVersion: '5.7.4',
+        viewerVersion: '5.7.5',
         pdfJsVersion: PDFJS_VERSION,
         userAgent: navigator.userAgent,
         catalogLoadMs: state.catalogLoadMs,
@@ -6931,7 +6931,7 @@
 
     function beginExportPerformance(selectedResults, uniqueFiles, options = {}) {
       return {
-        viewerVersion: '5.7.4',
+        viewerVersion: '5.7.5',
         pdfJsVersion: PDFJS_VERSION,
         startedAtIso: new Date().toISOString(),
         startedAtPerf: perfNow(),
@@ -7889,7 +7889,7 @@
         if (state.performanceRun) state.performanceRun.continuousPromoteCount += 1;
       }
       item.card.dataset.quality = 'loading';
-      // v5.7.4: 完成するまでWebPを前面に維持し、未完成Canvasを見せない。
+      // v5.7.5: 完成するまでWebPを前面に維持し、未完成Canvasを見せない。
       if (item.preview?.src) item.preview.hidden = false;
       item.canvas.hidden = true;
       item.textLayer.hidden = true;
@@ -7957,7 +7957,7 @@
         const viewport = page.getViewport({ scale: effectiveScale });
         const outputScale = window.devicePixelRatio || 1;
 
-        // v5.7.4: PDF.jsは非表示の一時Canvasへ描画し、成功後だけ画面Canvasへ反映する。
+        // v5.7.5: PDF.jsは非表示の一時Canvasへ描画し、成功後だけ画面Canvasへ反映する。
         const renderCanvas = document.createElement('canvas');
         renderCanvas.width = Math.max(1, Math.floor(viewport.width * outputScale));
         renderCanvas.height = Math.max(1, Math.floor(viewport.height * outputScale));
