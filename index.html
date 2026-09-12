@@ -2041,6 +2041,66 @@
     .export-status[data-kind="warning"] { background: #fffbeb; color: #b45309; }
     .export-status[data-kind="error"] { background: #fef2f2; color: #b91c1c; }
 
+    /* v5.7.0: PDF出力の進捗とデバッグ計測 */
+    .export-progress-detail {
+      margin-top: 8px;
+      padding: 9px 10px;
+      border: 1px solid #dbe3ec;
+      border-radius: 8px;
+      background: #f8fafc;
+    }
+
+    .export-progress-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      color: #334155;
+      font-size: 10px;
+      font-weight: 800;
+    }
+
+    .export-progress-elapsed {
+      flex: 0 0 auto;
+      color: #64748b;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .export-progress-track {
+      width: 100%;
+      height: 6px;
+      margin-top: 7px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #e2e8f0;
+    }
+
+    .export-progress-bar {
+      width: 0%;
+      height: 100%;
+      border-radius: inherit;
+      background: var(--blue);
+      transition: width .18s ease;
+    }
+
+    .export-progress-sub {
+      margin-top: 6px;
+      color: #64748b;
+      font-size: 9px;
+      line-height: 1.5;
+    }
+
+    .export-debug-tools {
+      margin-top: 7px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #64748b;
+      font-size: 9px;
+    }
+
+    .export-debug-tools[hidden] { display: none; }
+
     .export-dialog-foot {
       position: sticky;
       bottom: 0;
@@ -2632,7 +2692,7 @@
 
 
 
-    /* ===== v5.6.1：対応キーワードランキングだけコピー操作を表示 ===== */
+    /* ===== v5.6.2：対応キーワードランキングのコピーUIを統一 ===== */
     .keyword-copy-wrap {
       position: relative;
       flex: 0 0 auto;
@@ -2702,6 +2762,11 @@
       color: #1d4ed8;
     }
 
+    .continuous-keyword-copy-wrap {
+      position: relative;
+      flex: 0 0 auto;
+    }
+
     .continuous-keyword-copy {
       min-height: 30px;
       padding: 0 9px;
@@ -2720,7 +2785,70 @@
       background: #dbeafe;
     }
 
-    /* ===== v5.6.1：ビューア上部バーを1段で使いやすくする ===== */
+    .continuous-keyword-copy-menu {
+      position: absolute;
+      top: calc(100% + 5px);
+      right: 0;
+      z-index: 120;
+      width: 232px;
+      max-width: min(232px, calc(100vw - 20px));
+      padding: 5px;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 2px;
+      box-sizing: border-box;
+      overflow: hidden;
+      white-space: nowrap;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      background: #fff;
+      box-shadow: 0 12px 30px rgba(15, 23, 42, .18);
+    }
+
+    .continuous-keyword-copy-menu[hidden] { display: none !important; }
+
+    .continuous-keyword-copy-menu button {
+      width: 100%;
+      min-height: 36px;
+      padding: 7px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      box-sizing: border-box;
+      border: 0;
+      border-radius: 7px;
+      background: transparent;
+      color: #334155;
+      text-align: left;
+      white-space: nowrap;
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.25;
+      cursor: pointer;
+    }
+
+    .continuous-keyword-copy-menu button:hover,
+    .continuous-keyword-copy-menu button:focus-visible {
+      background: #eff6ff;
+      color: #1d4ed8;
+      outline: none;
+    }
+
+    .continuous-page-card.keyword-copy-capable {
+      overflow: visible;
+    }
+
+    .continuous-page-card.keyword-menu-open {
+      position: relative;
+      z-index: 90;
+    }
+
+    .continuous-page-card.keyword-copy-capable .continuous-page-body {
+      border-radius: 0 0 6px 6px;
+    }
+
+    /* ===== v5.6.2：ビューア上部バーを1段で使いやすくする ===== */
     :root {
       --toolbar-height: 43px;
     }
@@ -2858,7 +2986,7 @@
       </button>
 
       <div class="brand">
-        <div class="brand-title">Indeed市場レポート <span style="font-size:10px;opacity:.65">v5.6.1</span></div>
+        <div class="brand-title">Indeed市場レポート <span style="font-size:10px;opacity:.65">v5.7.0</span></div>
         <div class="brand-sub">Indeedの市況資料を横断検索・閲覧・PDF出力</div>
       </div>
 
@@ -3191,6 +3319,20 @@
 
         <section class="export-section">
           <div id="export-status" class="export-status">ページを選択して「PDFを生成・ダウンロード」を押してください。</div>
+          <div id="export-progress-detail" class="export-progress-detail" hidden>
+            <div class="export-progress-head">
+              <span id="export-progress-stage">準備中</span>
+              <span id="export-progress-elapsed" class="export-progress-elapsed">0 ms</span>
+            </div>
+            <div class="export-progress-track" aria-hidden="true">
+              <div id="export-progress-bar" class="export-progress-bar"></div>
+            </div>
+            <div id="export-progress-sub" class="export-progress-sub">処理中はこのページを開いたままにしてください。別タブや別アプリで作業しても構いません。</div>
+          </div>
+          <div id="export-debug-tools" class="export-debug-tools" hidden>
+            <button id="export-performance-download-btn" class="mini-btn" type="button" disabled>出力計測JSON</button>
+            <span>debug=1 のときだけ表示</span>
+          </div>
         </section>
       </div>
 
@@ -3240,6 +3382,7 @@
     const RESULT_THUMBNAIL_CONCURRENCY = 1;
     const RESULT_THUMBNAIL_IDLE_TIMEOUT_MS = 1200;
     const NEIGHBOR_PREFETCH_IDLE_TIMEOUT_MS = 900;
+    const EXPORT_SOURCE_CONCURRENCY = 2;
 
     const DEBUG_MODE = (() => {
       const params = new URLSearchParams(window.location.search);
@@ -3335,6 +3478,13 @@
       exportSourceFooter: document.getElementById('export-source-footer'),
       exportFilename: document.getElementById('export-filename'),
       exportStatus: document.getElementById('export-status'),
+      exportProgressDetail: document.getElementById('export-progress-detail'),
+      exportProgressStage: document.getElementById('export-progress-stage'),
+      exportProgressElapsed: document.getElementById('export-progress-elapsed'),
+      exportProgressBar: document.getElementById('export-progress-bar'),
+      exportProgressSub: document.getElementById('export-progress-sub'),
+      exportDebugTools: document.getElementById('export-debug-tools'),
+      exportPerformanceDownloadBtn: document.getElementById('export-performance-download-btn'),
     };
 
     const state = {
@@ -3432,10 +3582,16 @@
       viewerPreviewToken: 0,
       exportSelectedKeys: new Set(),
       exportBusy: false,
+      exportProgressTimer: null,
+      exportProgressStartedAt: null,
+      exportPerformanceRun: null,
     };
 
     if (DEBUG_MODE && elements.performanceBtn) {
       elements.performanceBtn.hidden = false;
+    }
+    if (DEBUG_MODE && elements.exportDebugTools) {
+      elements.exportDebugTools.hidden = false;
     }
 
     function perfNow() {
@@ -3952,7 +4108,7 @@
         if (cacheParts.length) messages.push(`INDEX取得元：${cacheParts.join(' / ')}。`);
 
         if (run.totalSearchMs < 3000) {
-          messages.push('<strong>検索待ち時間は十分小さい水準です。</strong> v5.6.1では事前WebPを主表示にして、必要なページだけPDF.jsで高品質化します。');
+          messages.push('<strong>検索待ち時間は十分小さい水準です。</strong> v5.7.0では事前WebPを主表示にして、必要なページだけPDF.jsで高品質化します。');
         } else if (totals.fallbackFiles) {
           messages.push('検索時間がまだ長い場合は、フォールバックしているPDFのINDEX生成状況を優先して確認してください。');
         } else if (totals.indexLoadMs > totals.searchEvalMs * 3) {
@@ -3974,7 +4130,7 @@
 
       if (run.firstViewerAfterSearchMs != null) {
         if (run.firstViewerAfterSearchMs >= 1200) {
-          messages.push(`<strong>検索完了後の初回PDF表示に ${formatDuration(run.firstViewerAfterSearchMs)} かかっています。</strong> v5.6.1ではWebPを主表示にし、画面中央付近の必要ページだけ高品質PDFへ昇格します。`);
+          messages.push(`<strong>検索完了後の初回PDF表示に ${formatDuration(run.firstViewerAfterSearchMs)} かかっています。</strong> v5.7.0ではWebPを主表示にし、画面中央付近の必要ページだけ高品質PDFへ昇格します。`);
         } else {
           messages.push(`検索完了後の初回PDF表示は ${formatDuration(run.firstViewerAfterSearchMs)} です。`);
         }
@@ -3999,13 +4155,13 @@
 
       if (run.staticPreviewLoadCount) {
         const previewSources = run.staticPreviewLoadStartsBySource || {};
-        messages.push(`事前ページプレビューを${run.staticPreviewLoadCount}種類読み込みました（共有キャッシュHIT ${run.staticPreviewCacheHits || 0}回）。取得起点はサイドバー ${previewSources.sidebar || 0} / 連続表示 ${previewSources.continuous || 0} / 中央表示 ${previewSources.viewer || 0} / 先読み ${previewSources.prefetch || 0}。v5.6.1では画面近傍だけをLazy Loadし、遠いHITページは未取得のまま保持します。`);
+        messages.push(`事前ページプレビューを${run.staticPreviewLoadCount}種類読み込みました（共有キャッシュHIT ${run.staticPreviewCacheHits || 0}回）。取得起点はサイドバー ${previewSources.sidebar || 0} / 連続表示 ${previewSources.continuous || 0} / 中央表示 ${previewSources.viewer || 0} / 先読み ${previewSources.prefetch || 0}。v5.6.2では画面近傍だけをLazy Loadし、遠いHITページは未取得のまま保持します。`);
       } else if (run.pagePreviewAvailableFiles) {
         messages.push('事前ページプレビューは利用可能ですが、この計測ではまだ表示対象に読み込まれていません。');
       }
 
       if (run.sharedPdfLoadMaxMs >= 1000) {
-        messages.push(`<strong>PDF本体の初回読込最大 ${formatDuration(run.sharedPdfLoadMaxMs)} が残っています。</strong> v5.6.1では事前画像を主表示にし、不要なPDF Canvas描画を抑えます。`);
+        messages.push(`<strong>PDF本体の初回読込最大 ${formatDuration(run.sharedPdfLoadMaxMs)} が残っています。</strong> v5.7.0では事前画像を主表示にし、不要なPDF Canvas描画を抑えます。`);
       }
 
       refreshPostSearchObservation(run);
@@ -4135,7 +4291,7 @@
         `事前プレビュー: ${run.staticPreviewLoadCount}種類 / Cache HIT ${run.staticPreviewCacheHits || 0} / 合計 ${formatDuration(run.staticPreviewLoadTotalMs)} / 最大 ${formatDuration(run.staticPreviewLoadMaxMs)} / エラー ${run.staticPreviewErrorCount}`,
         `WebP取得起点: sidebar ${run.staticPreviewLoadStartsBySource?.sidebar || 0} / continuous ${run.staticPreviewLoadStartsBySource?.continuous || 0} / viewer ${run.staticPreviewLoadStartsBySource?.viewer || 0} / prefetch ${run.staticPreviewLoadStartsBySource?.prefetch || 0} / other ${run.staticPreviewLoadStartsBySource?.other || 0}`,
         `検索後5秒観測: ${run.postSearch5s ? `PDF開始 ${run.postSearch5s.pdfLoadStarts} / WebP開始 ${run.postSearch5s.previewLoadStarts} / Canvas開始 ${run.postSearch5s.canvasRenderStarts} / 最終活動 ${formatDuration(run.postSearch5s.lastActivityAfterSearchMs || 0)} / 5秒以降イベント ${run.postSearch5s.afterWindowActivityCount || 0}` : '未計測'}`,
-        `連続表示のPDF昇格: ${run.continuousPromoteCount || 0}回 / WebPへ降格 ${run.continuousDemoteCount || 0}回 / Canvas cancel ${run.continuousRenderCancelledCount || 0}回 / 3秒超WebP退避 ${run.continuousCanvasTimeoutCount || 0}回（v5.6.1）`,
+        `連続表示のPDF昇格: ${run.continuousPromoteCount || 0}回 / WebPへ降格 ${run.continuousDemoteCount || 0}回 / Canvas cancel ${run.continuousRenderCancelledCount || 0}回 / 3秒超WebP退避 ${run.continuousCanvasTimeoutCount || 0}回（v5.7.0）`,
         `初回実PDF表示（検索開始から）: ${run.firstViewerReadyMs == null ? '未計測' : formatDuration(run.firstViewerReadyMs)}`,
         `初回実PDF表示（検索完了後）: ${run.firstViewerAfterSearchMs == null ? '未計測' : formatDuration(run.firstViewerAfterSearchMs)}`,
         `PDF共有文書の新規読込: ${run.sharedPdfLoadCount}回 / 合計 ${formatDuration(run.sharedPdfLoadTotalMs)} / 最大 ${formatDuration(run.sharedPdfLoadMaxMs)}`,
@@ -4193,7 +4349,7 @@
       if (!run) return;
       refreshPostSearchObservation(run);
       const payload = {
-        viewerVersion: '5.6.1',
+        viewerVersion: '5.7.0',
         userAgent: navigator.userAgent,
         catalogLoadMs: state.catalogLoadMs,
         run: structuredCloneSafe(run),
@@ -4719,8 +4875,35 @@
     function toggleKeywordCopyMenu(force = null) {
       if (!elements.keywordCopyMenu || elements.keywordCopyWrap?.hidden) return;
       const open = force == null ? elements.keywordCopyMenu.hidden : Boolean(force);
+      if (open) closeContinuousKeywordCopyMenus();
       elements.keywordCopyMenu.hidden = !open;
       elements.keywordCopyBtn?.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+
+    function closeContinuousKeywordCopyMenus(exceptWrap = null) {
+      document.querySelectorAll('.continuous-keyword-copy-wrap').forEach(wrap => {
+        if (exceptWrap && wrap === exceptWrap) return;
+        const menu = wrap.querySelector('.continuous-keyword-copy-menu');
+        const button = wrap.querySelector('.continuous-keyword-copy');
+        if (menu) menu.hidden = true;
+        if (button) button.setAttribute('aria-expanded', 'false');
+        wrap.closest('.continuous-page-card')?.classList.remove('keyword-menu-open');
+      });
+    }
+
+    function toggleContinuousKeywordCopyMenu(wrap, force = null) {
+      if (!wrap) return;
+      const menu = wrap.querySelector('.continuous-keyword-copy-menu');
+      const button = wrap.querySelector('.continuous-keyword-copy');
+      if (!menu || !button) return;
+      const open = force == null ? menu.hidden : Boolean(force);
+      if (open) {
+        closeKeywordCopyMenu();
+        closeContinuousKeywordCopyMenus(wrap);
+      }
+      menu.hidden = !open;
+      button.setAttribute('aria-expanded', open ? 'true' : 'false');
+      wrap.closest('.continuous-page-card')?.classList.toggle('keyword-menu-open', open);
     }
 
     async function copyKeywordPageData(data, format = 'keywords', feedbackButton = null) {
@@ -6530,6 +6713,169 @@
       elements.exportStatus.dataset.kind = kind;
     }
 
+    function setExportProgress(stage, detail, percent) {
+      if (!elements.exportProgressDetail) return;
+      elements.exportProgressDetail.hidden = false;
+      elements.exportProgressStage.textContent = stage || '処理中';
+      elements.exportProgressSub.textContent = detail || '処理中はこのページを開いたままにしてください。別タブや別アプリで作業しても構いません。';
+      const safePercent = Math.max(0, Math.min(100, Number(percent) || 0));
+      elements.exportProgressBar.style.width = `${safePercent}%`;
+      setProgress(safePercent, true);
+    }
+
+    function startExportProgressTimer() {
+      if (state.exportProgressTimer) clearInterval(state.exportProgressTimer);
+      state.exportProgressStartedAt = perfNow();
+      const tick = () => {
+        if (state.exportProgressStartedAt == null) return;
+        elements.exportProgressElapsed.textContent = formatDuration(perfNow() - state.exportProgressStartedAt);
+      };
+      tick();
+      state.exportProgressTimer = window.setInterval(tick, 400);
+    }
+
+    function stopExportProgressTimer() {
+      if (state.exportProgressTimer) {
+        clearInterval(state.exportProgressTimer);
+        state.exportProgressTimer = null;
+      }
+      if (state.exportProgressStartedAt != null) {
+        elements.exportProgressElapsed.textContent = formatDuration(perfNow() - state.exportProgressStartedAt);
+      }
+    }
+
+    function resetExportProgressUi() {
+      stopExportProgressTimer();
+      state.exportProgressStartedAt = null;
+      if (elements.exportProgressDetail) elements.exportProgressDetail.hidden = true;
+      if (elements.exportProgressBar) elements.exportProgressBar.style.width = '0%';
+      if (elements.exportProgressStage) elements.exportProgressStage.textContent = '準備中';
+      if (elements.exportProgressElapsed) elements.exportProgressElapsed.textContent = '0 ms';
+      if (elements.exportProgressSub) {
+        elements.exportProgressSub.textContent = '処理中はこのページを開いたままにしてください。別タブや別アプリで作業しても構いません。';
+      }
+    }
+
+    function beginExportPerformance(selectedResults, uniqueFiles, options = {}) {
+      return {
+        viewerVersion: '5.7.0',
+        startedAtIso: new Date().toISOString(),
+        startedAtPerf: perfNow(),
+        completedAtIso: null,
+        selectedPageCount: selectedResults.length,
+        sourceFileCount: uniqueFiles.length,
+        sourceConcurrency: EXPORT_SOURCE_CONCURRENCY,
+        addHighlights: Boolean(options.addHighlights),
+        addSourceFooter: Boolean(options.addSourceFooter),
+        sourceLoadWallMs: 0,
+        copyPagesMs: 0,
+        decoratePagesMs: 0,
+        highlightMs: 0,
+        sourceFooterMs: 0,
+        saveMs: 0,
+        totalMs: 0,
+        outputBytes: 0,
+        failed: false,
+        error: '',
+        files: [],
+      };
+    }
+
+    function finalizeExportPerformance(run, error = null) {
+      if (!run) return;
+      run.totalMs = roundMs(perfNow() - run.startedAtPerf);
+      run.completedAtIso = new Date().toISOString();
+      if (error) {
+        run.failed = true;
+        run.error = String(error?.message || error);
+      }
+      state.exportPerformanceRun = run;
+      if (elements.exportPerformanceDownloadBtn) {
+        elements.exportPerformanceDownloadBtn.disabled = !DEBUG_MODE;
+      }
+      console.groupCollapsed(`[Export Performance] ${run.selectedPageCount}ページ / ${run.sourceFileCount}PDF / ${formatDuration(run.totalMs)}`);
+      console.log(run);
+      if (run.files?.length) console.table(run.files);
+      console.groupEnd();
+    }
+
+    function downloadExportPerformanceJson() {
+      const run = state.exportPerformanceRun;
+      if (!run) return;
+      const blob = new Blob([JSON.stringify(run, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `pdf-export-performance-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
+    }
+
+    function buildExportPdfUrl(file) {
+      const base = buildPdfPath(file);
+      const sha = String(getSearchIndexMeta(file)?.sha256 || '').trim();
+      if (!sha) return { url: base, cache: 'default', versioned: false };
+      const separator = base.includes('?') ? '&' : '?';
+      return {
+        url: `${base}${separator}v=${encodeURIComponent(sha.slice(0, 24))}`,
+        cache: 'force-cache',
+        versioned: true,
+      };
+    }
+
+    async function pinExistingSharedPdf(file) {
+      const record = state.sharedPdfCache.get(file);
+      if (!record) return null;
+      const wasReady = Boolean(record.pdf);
+      record.pinCount += 1;
+      touchSharedPdfRecord(record);
+      try {
+        const pdf = await record.promise;
+        return { pdf, record, wasReady };
+      } catch (error) {
+        record.pinCount = Math.max(0, record.pinCount - 1);
+        touchSharedPdfRecord(record);
+        trimSharedPdfCache();
+        console.info('既存PDF.js文書の再利用に失敗したため、出力専用ロードへフォールバックします。', error);
+        return null;
+      }
+    }
+
+    async function runWithConcurrency(items, limit, worker) {
+      const results = new Array(items.length);
+      let cursor = 0;
+      let firstError = null;
+      const workerCount = Math.max(1, Math.min(Number(limit) || 1, items.length || 1));
+      const runners = Array.from({ length: workerCount }, async () => {
+        while (!firstError) {
+          const index = cursor++;
+          if (index >= items.length) return;
+          try {
+            results[index] = await worker(items[index], index);
+          } catch (error) {
+            firstError = error;
+            return;
+          }
+        }
+      });
+      await Promise.all(runners);
+      if (firstError) throw firstError;
+      return results;
+    }
+
+    function notifyExportComplete() {
+      if (!document.hidden) return;
+      const originalTitle = document.title;
+      document.title = 'PDF出力完了｜Indeed市場レポート';
+      const restore = () => {
+        document.title = originalTitle;
+        window.removeEventListener('focus', restore);
+      };
+      window.addEventListener('focus', restore, { once: true });
+    }
+
     function sanitizeFilenamePart(value) {
       return String(value || '')
         .normalize('NFKC')
@@ -6554,6 +6900,10 @@
       if (!getPageResults().length) return;
       elements.exportFilename.value = buildDefaultExportFilename();
       setExportStatus('ページを選択して「PDFを生成・ダウンロード」を押してください。');
+      resetExportProgressUi();
+      if (elements.exportPerformanceDownloadBtn) {
+        elements.exportPerformanceDownloadBtn.disabled = !DEBUG_MODE || !state.exportPerformanceRun;
+      }
       elements.exportModal.hidden = false;
       document.body.classList.add('export-modal-open');
       updateExportUi();
@@ -6744,16 +7094,53 @@
 
       const keywordData = getKeywordPageData(result.file, result.pageNumber);
       if (keywordData) {
+        card.classList.add('keyword-copy-capable');
+
+        const keywordWrap = document.createElement('div');
+        keywordWrap.className = 'continuous-keyword-copy-wrap';
+
         const keywordButton = document.createElement('button');
         keywordButton.type = 'button';
         keywordButton.className = 'continuous-keyword-copy';
-        keywordButton.textContent = 'KWコピー';
-        keywordButton.title = 'このページのTop50キーワードを1列でコピー';
-        keywordButton.addEventListener('click', async event => {
-          event.stopPropagation();
-          await copyKeywordPageData(keywordData, 'keywords', keywordButton);
+        keywordButton.textContent = 'KWコピー ▾';
+        keywordButton.title = `${keywordData.title || 'キーワードランキング'}：コピー形式を選択`;
+        keywordButton.setAttribute('aria-haspopup', 'menu');
+        keywordButton.setAttribute('aria-expanded', 'false');
+
+        const keywordMenu = document.createElement('div');
+        keywordMenu.className = 'continuous-keyword-copy-menu';
+        keywordMenu.setAttribute('role', 'menu');
+        keywordMenu.hidden = true;
+
+        [
+          ['keywords', 'KWのみ'],
+          ['ranked', '順位＋KW（TSV）'],
+          ['source', '資料情報付き（TSV）'],
+        ].forEach(([format, label]) => {
+          const option = document.createElement('button');
+          option.type = 'button';
+          option.dataset.keywordCopyFormat = format;
+          option.setAttribute('role', 'menuitem');
+          option.textContent = label;
+          keywordMenu.appendChild(option);
         });
-        actions.appendChild(keywordButton);
+
+        keywordButton.addEventListener('click', event => {
+          event.stopPropagation();
+          toggleContinuousKeywordCopyMenu(keywordWrap);
+        });
+
+        keywordMenu.addEventListener('click', async event => {
+          event.stopPropagation();
+          const option = event.target.closest('[data-keyword-copy-format]');
+          if (!option) return;
+          const format = option.dataset.keywordCopyFormat || 'keywords';
+          await copyKeywordPageData(keywordData, format, keywordButton);
+          toggleContinuousKeywordCopyMenu(keywordWrap, false);
+        });
+
+        keywordWrap.append(keywordButton, keywordMenu);
+        actions.appendChild(keywordWrap);
       }
 
       actions.append(selectWrap, singleButton);
@@ -8244,21 +8631,84 @@
       return new Uint8Array(await blob.arrayBuffer());
     }
 
-    async function loadExportSource(file, needsPdfJs) {
-      const response = await fetch(buildPdfPath(file), { cache: 'no-store' });
-      if (!response.ok) {
-        throw new Error(`${file} の取得に失敗しました（HTTP ${response.status}）。`);
+    async function loadExportSource(file, needsPdfJs, label = file) {
+      const metric = {
+        file,
+        label,
+        fetchMs: 0,
+        sizeBytes: 0,
+        pdfLibLoadMs: 0,
+        pdfJsMode: needsPdfJs ? 'buffer' : 'off',
+        pdfJsLoadMs: 0,
+        totalMs: 0,
+        cacheStrategy: '',
+        versionedUrl: false,
+      };
+      const totalStartedAt = perfNow();
+      let pdfJsDoc = null;
+      let pdfJsSharedRecord = null;
+      let pdfJsOwned = false;
+
+      try {
+        const sourceUrl = buildExportPdfUrl(file);
+        metric.cacheStrategy = sourceUrl.cache;
+        metric.versionedUrl = sourceUrl.versioned;
+
+        const fetchStartedAt = perfNow();
+        const response = await fetch(sourceUrl.url, { cache: sourceUrl.cache });
+        if (!response.ok) {
+          throw new Error(`${file} の取得に失敗しました（HTTP ${response.status}）。`);
+        }
+        const buffer = await response.arrayBuffer();
+        metric.fetchMs = roundMs(perfNow() - fetchStartedAt);
+        metric.sizeBytes = buffer.byteLength;
+
+        const pdfLibStartedAt = perfNow();
+        const pdfLibPromise = window.PDFLib.PDFDocument.load(new Uint8Array(buffer)).then(doc => {
+          metric.pdfLibLoadMs = roundMs(perfNow() - pdfLibStartedAt);
+          return doc;
+        });
+
+        let sharedPdf = null;
+        if (needsPdfJs) {
+          const sharedStartedAt = perfNow();
+          sharedPdf = await pinExistingSharedPdf(file);
+          if (sharedPdf) {
+            pdfJsDoc = sharedPdf.pdf;
+            pdfJsSharedRecord = sharedPdf.record;
+            metric.pdfJsMode = sharedPdf.wasReady ? 'shared-ready' : 'shared-pending';
+            metric.pdfJsLoadMs = roundMs(perfNow() - sharedStartedAt);
+          }
+        }
+
+        let pdfJsPromise = Promise.resolve(pdfJsDoc);
+        let pdfJsStartedAt = null;
+
+        if (needsPdfJs && !pdfJsDoc) {
+          pdfJsStartedAt = perfNow();
+          const bytesForPdfJs = new Uint8Array(buffer.slice(0));
+          const task = pdfjsLib.getDocument({ data: bytesForPdfJs, enableXfa: true });
+          pdfJsPromise = task.promise.then(pdf => {
+            pdfJsOwned = true;
+            return pdf;
+          });
+          metric.pdfJsMode = 'buffer';
+        }
+
+        const [pdfLibDoc, resolvedPdfJsDoc] = await Promise.all([pdfLibPromise, pdfJsPromise]);
+        if (pdfJsStartedAt != null) metric.pdfJsLoadMs = roundMs(perfNow() - pdfJsStartedAt);
+        pdfJsDoc = resolvedPdfJsDoc;
+        metric.totalMs = roundMs(perfNow() - totalStartedAt);
+
+        return { pdfLibDoc, pdfJsDoc, pdfJsSharedRecord, pdfJsOwned, metric };
+      } catch (error) {
+        if (pdfJsSharedRecord) unpinSharedPdfRecord(pdfJsSharedRecord);
+        else if (pdfJsOwned && pdfJsDoc) {
+          try { await pdfJsDoc.destroy(); } catch {}
+        }
+        metric.totalMs = roundMs(perfNow() - totalStartedAt);
+        throw error;
       }
-
-      const buffer = await response.arrayBuffer();
-      const bytesForPdfLib = new Uint8Array(buffer.slice(0));
-      const bytesForPdfJs = new Uint8Array(buffer.slice(0));
-      const pdfLibDoc = await window.PDFLib.PDFDocument.load(bytesForPdfLib);
-      const pdfJsDoc = needsPdfJs
-        ? await pdfjsLib.getDocument({ data: bytesForPdfJs, enableXfa: true }).promise
-        : null;
-
-      return { pdfLibDoc, pdfJsDoc };
     }
 
     async function exportSelectedPdf() {
@@ -8279,14 +8729,25 @@
       const filename = normalizeExportFilename(elements.exportFilename.value);
       elements.exportFilename.value = filename;
 
+      const uniqueFiles = [...new Set(selectedResults.map(result => result.file))];
+      const exportPerf = beginExportPerformance(selectedResults, uniqueFiles, {
+        addHighlights,
+        addSourceFooter,
+      });
+      state.exportPerformanceRun = null;
+      if (elements.exportPerformanceDownloadBtn) elements.exportPerformanceDownloadBtn.disabled = true;
+
       state.exportBusy = true;
       updateExportUi();
       elements.searchBtn.disabled = true;
       elements.catalogTrigger.disabled = true;
       setProgress(0, true);
-      setExportStatus('PDF生成を開始します。元PDFを読み込んでいます。');
+      startExportProgressTimer();
+      setExportStatus('PDF生成を開始しました。元PDFを準備しています。');
+      setExportProgress('元PDFを準備中', `0 / ${uniqueFiles.length} PDF｜最大${EXPORT_SOURCE_CONCURRENCY}件を並行処理します。`, 2);
 
       const sourceCache = new Map();
+      let exportError = null;
       try {
         const { PDFDocument, rgb } = window.PDFLib;
         const outputDoc = await PDFDocument.create();
@@ -8295,15 +8756,24 @@
         outputDoc.setCreator('Indeed市場レポート');
         outputDoc.setProducer('pdf-lib');
 
-        const uniqueFiles = [...new Set(selectedResults.map(result => result.file))];
-        for (let index = 0; index < uniqueFiles.length; index++) {
-          const file = uniqueFiles[index];
+        const sourceLoadStartedAt = perfNow();
+        let loadedCount = 0;
+        await runWithConcurrency(uniqueFiles, EXPORT_SOURCE_CONCURRENCY, async (file) => {
           const label = selectedResults.find(result => result.file === file)?.label || file;
-          const progress = ((index + 0.2) / Math.max(1, uniqueFiles.length)) * 30;
-          setProgress(progress, true);
-          setExportStatus(`元PDFを読み込んでいます：${label}（${index + 1} / ${uniqueFiles.length}）`);
-          sourceCache.set(file, await loadExportSource(file, addHighlights));
-        }
+          const source = await loadExportSource(file, addHighlights, label);
+          sourceCache.set(file, source);
+          exportPerf.files.push(source.metric);
+          loadedCount += 1;
+          const percent = 2 + (loadedCount / Math.max(1, uniqueFiles.length)) * 33;
+          setExportStatus(`元PDFを準備しています：${loadedCount} / ${uniqueFiles.length} PDF`);
+          setExportProgress(
+            '元PDFを準備中',
+            `${loadedCount} / ${uniqueFiles.length} PDF 完了｜ブラウザキャッシュ利用＋最大${EXPORT_SOURCE_CONCURRENCY}件並行`,
+            percent
+          );
+          return source;
+        });
+        exportPerf.sourceLoadWallMs = roundMs(perfNow() - sourceLoadStartedAt);
 
         const resultsByFile = new Map();
         selectedResults.forEach(result => {
@@ -8311,6 +8781,7 @@
           resultsByFile.get(result.file).push(result);
         });
 
+        const copyStartedAt = perfNow();
         const copiedPageMap = new Map();
         let copiedFileIndex = 0;
         for (const [file, fileResults] of resultsByFile) {
@@ -8323,9 +8794,16 @@
             copiedPageMap.set(resultKey(result), copiedPages[index]);
           });
           copiedFileIndex += 1;
-          setProgress(30 + (copiedFileIndex / resultsByFile.size) * 20, true);
+          const percent = 35 + (copiedFileIndex / Math.max(1, resultsByFile.size)) * 15;
+          setExportProgress(
+            '必要ページをコピー中',
+            `${copiedFileIndex} / ${resultsByFile.size} PDF の対象ページを取り込みました。`,
+            percent
+          );
         }
+        exportPerf.copyPagesMs = roundMs(perfNow() - copyStartedAt);
 
+        const decorateStartedAt = perfNow();
         const footerImageCache = new Map();
         for (let index = 0; index < selectedResults.length; index++) {
           const result = selectedResults[index];
@@ -8333,16 +8811,18 @@
           const source = sourceCache.get(result.file);
 
           setExportStatus(
-            `ページを生成しています：${result.label} ${result.pageNumber}ページ ` +
+            `ページを仕上げています：${result.label} ${result.pageNumber}ページ ` +
             `（${index + 1} / ${selectedResults.length}）`
           );
 
           if (addHighlights && source.pdfJsDoc) {
+            const highlightStartedAt = perfNow();
             const rectangles = await renderExportHighlightRects(
               source.pdfJsDoc,
               result.pageNumber,
               state.searchTerms
             );
+            exportPerf.highlightMs += perfNow() - highlightStartedAt;
             const pageSize = outputPage.getSize();
             for (const rect of rectangles) {
               const x = Math.max(0, Math.min(pageSize.width, rect.x));
@@ -8366,6 +8846,7 @@
           }
 
           if (addSourceFooter) {
+            const footerStartedAt = perfNow();
             const footerText = `元PDF：${result.label}（${result.file}）｜元ページ：${result.pageNumber}`;
             let footerImage = footerImageCache.get(footerText);
             if (!footerImage) {
@@ -8382,14 +8863,28 @@
               height: footerHeight,
               opacity: 0.95,
             });
+            exportPerf.sourceFooterMs += perfNow() - footerStartedAt;
           }
 
-          setProgress(50 + ((index + 1) / selectedResults.length) * 44, true);
+          const percent = 50 + ((index + 1) / Math.max(1, selectedResults.length)) * 43;
+          setExportProgress(
+            'ページを仕上げ中',
+            `${index + 1} / ${selectedResults.length}ページ` +
+              `${addHighlights ? '｜検索語ハイライト' : ''}${addSourceFooter ? '｜出典付記' : ''}`,
+            percent
+          );
         }
+        exportPerf.decoratePagesMs = roundMs(perfNow() - decorateStartedAt);
+        exportPerf.highlightMs = roundMs(exportPerf.highlightMs);
+        exportPerf.sourceFooterMs = roundMs(exportPerf.sourceFooterMs);
 
         setExportStatus('PDFファイルを書き出しています。');
+        setExportProgress('PDFを書き出し中', '最終ファイルを生成しています。', 95);
+        const saveStartedAt = perfNow();
         const outputBytes = await outputDoc.save();
-        setProgress(98, true);
+        exportPerf.saveMs = roundMs(perfNow() - saveStartedAt);
+        exportPerf.outputBytes = outputBytes.length || outputBytes.byteLength || 0;
+        setExportProgress('ダウンロードを開始', 'PDF生成が完了しました。ダウンロードを開始します。', 99);
 
         const blob = new Blob([outputBytes], { type: 'application/pdf' });
         const objectUrl = URL.createObjectURL(blob);
@@ -8401,16 +8896,28 @@
         anchor.remove();
         setTimeout(() => URL.revokeObjectURL(objectUrl), 1500);
 
-        setProgress(100, true);
-        setExportStatus(`${selectedResults.length}ページのPDFをダウンロードしました。`, 'success');
+        stopExportProgressTimer();
+        exportPerf.totalMs = roundMs(perfNow() - exportPerf.startedAtPerf);
+        setExportProgress('完了', `${selectedResults.length}ページを「${filename}」として保存しました。`, 100);
+        setExportStatus(
+          `${selectedResults.length}ページのPDFをダウンロードしました（${formatDuration(exportPerf.totalMs)}）。`,
+          'success'
+        );
         setStatus(`PDF出力完了：${selectedResults.length}ページを「${filename}」として保存しました。`, 'success');
+        notifyExportComplete();
       } catch (error) {
+        exportError = error;
         console.error(error);
+        stopExportProgressTimer();
+        setExportProgress('エラー', 'PDF生成を完了できませんでした。下のメッセージをご確認ください。', 100);
         setExportStatus(`PDF生成に失敗しました：${error.message}`, 'error');
         setStatus(`PDF生成に失敗しました：${error.message}`, 'error');
       } finally {
+        finalizeExportPerformance(exportPerf, exportError);
         for (const source of sourceCache.values()) {
-          if (source.pdfJsDoc) {
+          if (source.pdfJsSharedRecord) {
+            unpinSharedPdfRecord(source.pdfJsSharedRecord);
+          } else if (source.pdfJsOwned && source.pdfJsDoc) {
             try { await source.pdfJsDoc.destroy(); } catch (error) { console.warn(error); }
           }
         }
@@ -8497,6 +9004,9 @@
     elements.exportSelectCurrentBtn.addEventListener('click', selectCurrentExportResult);
     elements.exportClearBtn.addEventListener('click', clearExportSelection);
     elements.exportDownloadBtn.addEventListener('click', exportSelectedPdf);
+    if (elements.exportPerformanceDownloadBtn) {
+      elements.exportPerformanceDownloadBtn.addEventListener('click', downloadExportPerformanceJson);
+    }
     elements.exportModal.addEventListener('click', event => {
       if (event.target === elements.exportModal) closeExportModal();
     });
@@ -8512,6 +9022,7 @@
     document.addEventListener('click', () => {
       toggleSearchHelp(false);
       closeKeywordCopyMenu();
+      closeContinuousKeywordCopyMenus();
     });
     document.addEventListener('keydown', event => {
       if (event.key === 'Escape') {
@@ -8520,6 +9031,7 @@
         closeExportModal();
         closePerformanceModal();
         closeKeywordCopyMenu();
+        closeContinuousKeywordCopyMenus();
       }
     });
 
