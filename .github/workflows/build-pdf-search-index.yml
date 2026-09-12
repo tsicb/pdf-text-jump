@@ -1,4 +1,4 @@
-name: Build PDF search index and previews
+name: Build PDF search assets
 
 on:
   workflow_dispatch:
@@ -9,6 +9,7 @@ on:
       - 'indeedmarketreports/**'
       - 'scripts/build-search-index.mjs'
       - 'scripts/build-page-previews.py'
+      - 'scripts/build-keyword-data.py'
       - '.github/workflows/build-pdf-search-index.yml'
 
 permissions:
@@ -40,8 +41,13 @@ jobs:
       - name: Install PDF.js for the search index builder
         run: npm install --no-save --no-package-lock --ignore-scripts pdfjs-dist@5.6.205
 
-      - name: Install preview builder dependencies
-        run: python -m pip install --disable-pip-version-check pymupdf pillow
+      - name: Install Python PDF / preview dependencies
+        run: python -m pip install --disable-pip-version-check pymupdf pillow numpy
+
+      - name: Install Japanese OCR support for keyword rankings
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y tesseract-ocr tesseract-ocr-jpn
 
       - name: Build search index
         env:
@@ -59,6 +65,13 @@ jobs:
           PAGE_PREVIEW_CONCURRENCY: '2'
         run: python scripts/build-page-previews.py
 
+      - name: Build keyword copy data
+        env:
+          PDF_BASE_DIR: indeedmarketreports/
+          KEYWORD_DATA_DIR: keyword-data
+          KEYWORD_OCR_SCALE: '12'
+        run: python scripts/build-keyword-data.py
+
       - name: Commit generated search assets
         shell: bash
         run: |
@@ -66,10 +79,10 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           # Stage first so newly-created files are included in the change check.
-          git add -A search-index page-previews
+          git add -A search-index page-previews keyword-data
 
-          if git diff --cached --quiet -- search-index page-previews; then
-            echo "Search index and page previews are already up to date."
+          if git diff --cached --quiet -- search-index page-previews keyword-data; then
+            echo "Generated PDF assets are already up to date."
             exit 0
           fi
 
