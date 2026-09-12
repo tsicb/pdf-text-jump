@@ -2041,7 +2041,7 @@
     .export-status[data-kind="warning"] { background: #fffbeb; color: #b45309; }
     .export-status[data-kind="error"] { background: #fef2f2; color: #b91c1c; }
 
-    /* v5.7.5: PDF出力の進捗とデバッグ計測 */
+    /* v5.7.6: PDF出力の進捗とデバッグ計測 */
     .export-progress-detail {
       margin-top: 8px;
       padding: 9px 10px;
@@ -2688,7 +2688,7 @@
       opacity: 0;
     }
 
-    /* ===== v5.7.5：安全なCanvas差し替え ===== */
+    /* ===== v5.7.6：安全なCanvas差し替え ===== */
     #pdf-canvas[hidden],
     #text-layer[hidden],
     .continuous-page-surface canvas[hidden],
@@ -2994,7 +2994,7 @@
       </button>
 
       <div class="brand">
-        <div class="brand-title">Indeed市場レポート <span style="font-size:10px;opacity:.65">v5.7.5</span></div>
+        <div class="brand-title">Indeed市場レポート <span style="font-size:10px;opacity:.65">v5.7.6</span></div>
         <div class="brand-sub">Indeedの市況資料を横断検索・閲覧・PDF出力</div>
       </div>
 
@@ -4215,7 +4215,7 @@
         if (cacheParts.length) messages.push(`INDEX取得元：${cacheParts.join(' / ')}。`);
 
         if (run.totalSearchMs < 3000) {
-          messages.push('<strong>検索待ち時間は十分小さい水準です。</strong> v5.7.5では事前WebPを主表示にして、必要なページだけPDF.jsで高品質化します。');
+          messages.push('<strong>検索待ち時間は十分小さい水準です。</strong> v5.7.6では事前WebPを主表示にして、必要なページだけPDF.jsで高品質化します。');
         } else if (totals.fallbackFiles) {
           messages.push('検索時間がまだ長い場合は、フォールバックしているPDFのINDEX生成状況を優先して確認してください。');
         } else if (totals.indexLoadMs > totals.searchEvalMs * 3) {
@@ -4237,7 +4237,7 @@
 
       if (run.firstViewerAfterSearchMs != null) {
         if (run.firstViewerAfterSearchMs >= 1200) {
-          messages.push(`<strong>検索完了後の初回PDF表示に ${formatDuration(run.firstViewerAfterSearchMs)} かかっています。</strong> v5.7.5ではWebPを主表示にし、画面中央付近の必要ページだけ高品質PDFへ昇格します。`);
+          messages.push(`<strong>検索完了後の初回PDF表示に ${formatDuration(run.firstViewerAfterSearchMs)} かかっています。</strong> v5.7.6ではWebPを主表示にし、画面中央付近の必要ページだけ高品質PDFへ昇格します。`);
         } else {
           messages.push(`検索完了後の初回PDF表示は ${formatDuration(run.firstViewerAfterSearchMs)} です。`);
         }
@@ -4268,7 +4268,7 @@
       }
 
       if (run.sharedPdfLoadMaxMs >= 1000) {
-        messages.push(`<strong>PDF本体の初回読込最大 ${formatDuration(run.sharedPdfLoadMaxMs)} が残っています。</strong> v5.7.5では事前画像を主表示にし、不要なPDF Canvas描画を抑えます。`);
+        messages.push(`<strong>PDF本体の初回読込最大 ${formatDuration(run.sharedPdfLoadMaxMs)} が残っています。</strong> v5.7.6では事前画像を主表示にし、不要なPDF Canvas描画を抑えます。`);
       }
 
       refreshPostSearchObservation(run);
@@ -4398,7 +4398,7 @@
         `事前プレビュー: ${run.staticPreviewLoadCount}種類 / Cache HIT ${run.staticPreviewCacheHits || 0} / 合計 ${formatDuration(run.staticPreviewLoadTotalMs)} / 最大 ${formatDuration(run.staticPreviewLoadMaxMs)} / エラー ${run.staticPreviewErrorCount}`,
         `WebP取得起点: sidebar ${run.staticPreviewLoadStartsBySource?.sidebar || 0} / continuous ${run.staticPreviewLoadStartsBySource?.continuous || 0} / viewer ${run.staticPreviewLoadStartsBySource?.viewer || 0} / prefetch ${run.staticPreviewLoadStartsBySource?.prefetch || 0} / other ${run.staticPreviewLoadStartsBySource?.other || 0}`,
         `検索後5秒観測: ${run.postSearch5s ? `PDF開始 ${run.postSearch5s.pdfLoadStarts} / WebP開始 ${run.postSearch5s.previewLoadStarts} / Canvas開始 ${run.postSearch5s.canvasRenderStarts} / 最終活動 ${formatDuration(run.postSearch5s.lastActivityAfterSearchMs || 0)} / 5秒以降イベント ${run.postSearch5s.afterWindowActivityCount || 0}` : '未計測'}`,
-        `連続表示のPDF昇格: ${run.continuousPromoteCount || 0}回 / WebPへ降格 ${run.continuousDemoteCount || 0}回 / Canvas cancel ${run.continuousRenderCancelledCount || 0}回 / 3秒超WebP退避 ${run.continuousCanvasTimeoutCount || 0}回（v5.7.5）`,
+        `連続表示のPDF昇格: ${run.continuousPromoteCount || 0}回 / WebPへ降格 ${run.continuousDemoteCount || 0}回 / Canvas cancel ${run.continuousRenderCancelledCount || 0}回 / 3秒超WebP退避 ${run.continuousCanvasTimeoutCount || 0}回（v5.7.6）`,
         `初回実PDF表示（検索開始から）: ${run.firstViewerReadyMs == null ? '未計測' : formatDuration(run.firstViewerReadyMs)}`,
         `初回実PDF表示（検索完了後）: ${run.firstViewerAfterSearchMs == null ? '未計測' : formatDuration(run.firstViewerAfterSearchMs)}`,
         `PDF共有文書の新規読込: ${run.sharedPdfLoadCount}回 / 合計 ${formatDuration(run.sharedPdfLoadTotalMs)} / 最大 ${formatDuration(run.sharedPdfLoadMaxMs)}`,
@@ -4456,7 +4456,7 @@
       if (!run) return;
       refreshPostSearchObservation(run);
       const payload = {
-        viewerVersion: '5.7.5',
+        viewerVersion: '5.7.6',
         pdfJsVersion: PDFJS_VERSION,
         userAgent: navigator.userAgent,
         catalogLoadMs: state.catalogLoadMs,
@@ -5379,6 +5379,27 @@
       window.history.replaceState(null, '', url);
     }
 
+    function normalizePdfRenderMode(value) {
+      const mode = String(value || '').trim().toLowerCase();
+      if (['preview', 'webp', 'preview-only', 'preview_only', 'image'].includes(mode)) {
+        return 'preview';
+      }
+      return 'auto';
+    }
+
+    function getCatalogEntry(file) {
+      const key = canonicalFileKey(file);
+      return state.catalog.find(item => canonicalFileKey(item.file) === key) || null;
+    }
+
+    function getPdfRenderMode(file) {
+      return normalizePdfRenderMode(getCatalogEntry(file)?.renderMode || 'auto');
+    }
+
+    function isPreviewOnlyFile(file) {
+      return Boolean(file && getPdfRenderMode(file) === 'preview');
+    }
+
     function normalizeCatalogEntries(rawFiles) {
       const seen = new Set();
       const normalized = [];
@@ -5401,6 +5422,7 @@
               ? thumbnailPageRaw
               : 1,
             selected: entry.selected !== false,
+            renderMode: normalizePdfRenderMode(entry.renderMode ?? entry.render_mode ?? entry.viewMode ?? 'auto'),
           });
         } catch (error) {
           console.warn(error.message);
@@ -5453,6 +5475,7 @@
           description: '',
           thumbnailPage: 1,
           selected: true,
+          renderMode: 'auto',
         }));
 
       if (!entries.length) throw new Error('indeedmarketreportsフォルダ内にPDFがありません。');
@@ -5491,6 +5514,7 @@
           description: '',
           thumbnailPage: 1,
           selected: true,
+          renderMode: 'auto',
         });
         knownFiles.add(key);
         if (!requestedSet.size) state.selectedFiles.add(file);
@@ -5552,6 +5576,7 @@
               description: '',
               thumbnailPage: 1,
               selected: true,
+              renderMode: 'auto',
             });
             catalogFiles.add(file);
           }
@@ -5711,7 +5736,10 @@
 
           const description = document.createElement('div');
           description.className = 'catalog-item-description';
-          description.textContent = item.description || '代表ページのプレビューを確認して検索対象を選択できます。';
+          const descriptionBase = item.description || '代表ページのプレビューを確認して検索対象を選択できます。';
+          description.textContent = item.renderMode === 'preview'
+            ? `${descriptionBase} ／ 高速プレビュー固定`
+            : descriptionBase;
 
           const fileText = document.createElement('div');
           fileText.className = 'catalog-item-file';
@@ -5725,7 +5753,7 @@
       }
 
       elements.catalogFoot.textContent = state.catalogSource
-        ? `一覧取得元：${state.catalogSource} ／ PDF配置先：${state.pdfBaseDir} ／ pdfs.jsonの設定を優先し、未登録PDFは生成済みINDEXから自動追加します。`
+        ? `一覧取得元：${state.catalogSource} ／ PDF配置先：${state.pdfBaseDir} ／ pdfs.jsonを優先し、未登録PDFは生成済みINDEXから自動追加。renderMode: "preview" でWebP固定表示にできます。`
         : 'PDF一覧を取得できていません。';
 
       updateCatalogSummary();
@@ -5879,6 +5907,9 @@
     }
 
     async function createCatalogThumbnail(item) {
+      if (isPreviewOnlyFile(item?.file)) {
+        throw new Error('このPDFはpdfs.jsonの設定により高速プレビュー固定です。');
+      }
       const loadingTask = pdfjsLib.getDocument({
         url: buildPdfPath(item.file),
         enableXfa: true,
@@ -6696,6 +6727,9 @@
     }
 
     async function generateResultThumbnail(result) {
+      if (isPreviewOnlyFile(result?.file)) {
+        throw new Error('このPDFはpdfs.jsonの設定により高速プレビュー固定です。');
+      }
       const thumbnailStartedAt = perfNow();
       let outcome = 'success';
       try {
@@ -6931,7 +6965,7 @@
 
     function beginExportPerformance(selectedResults, uniqueFiles, options = {}) {
       return {
-        viewerVersion: '5.7.5',
+        viewerVersion: '5.7.6',
         pdfJsVersion: PDFJS_VERSION,
         startedAtIso: new Date().toISOString(),
         startedAtPerf: perfNow(),
@@ -7736,7 +7770,7 @@
         const retainable = rect.bottom >= rootRect.top - demotionEdge &&
           rect.top <= rootRect.bottom + demotionEdge;
         const wasDesired = previous.has(item.key);
-        const autoFallback = state.continuousAutoFallbackKeys.has(item.key) || state.safeCanvasFallbackKeys.has(item.key) || isSafeCanvasFallbackFile(item.result.file);
+        const autoFallback = state.continuousAutoFallbackKeys.has(item.key) || state.safeCanvasFallbackKeys.has(item.key) || isSafeCanvasFallbackFile(item.result.file) || isPreviewOnlyFile(item.result.file);
         const recentlyPromoted = Boolean(
           item.lastPromotedAt && now - item.lastPromotedAt < CONTINUOUS_MIN_RETAIN_MS
         );
@@ -7786,7 +7820,7 @@
           .map(candidate => candidate.item.key)
           .filter(key => {
             const item = state.continuousItems.get(key);
-            return item && !state.continuousAutoFallbackKeys.has(key) && !state.safeCanvasFallbackKeys.has(key) && !isSafeCanvasFallbackFile(item.result.file) && item.renderedSignature !== getContinuousRenderSignature(item);
+            return item && !state.continuousAutoFallbackKeys.has(key) && !state.safeCanvasFallbackKeys.has(key) && !isSafeCanvasFallbackFile(item.result.file) && !isPreviewOnlyFile(item.result.file) && item.renderedSignature !== getContinuousRenderSignature(item);
           });
         chosen.forEach(candidate => {
           const item = candidate.item;
@@ -7849,7 +7883,7 @@
 
     function requestContinuousItemRender(item) {
       if (!item || item.generation !== state.continuousGeneration) return Promise.resolve();
-      if (state.continuousAutoFallbackKeys.has(item.key) || state.safeCanvasFallbackKeys.has(item.key) || isSafeCanvasFallbackFile(item.result.file)) return Promise.resolve();
+      if (state.continuousAutoFallbackKeys.has(item.key) || state.safeCanvasFallbackKeys.has(item.key) || isSafeCanvasFallbackFile(item.result.file) || isPreviewOnlyFile(item.result.file)) return Promise.resolve();
       if (!state.continuousPromotionKeys.has(item.key)) {
         state.continuousPromotionKeys.add(item.key);
       }
@@ -7870,7 +7904,7 @@
       while (state.continuousRenderQueue.length && !item) {
         const key = state.continuousRenderQueue.shift();
         const candidate = state.continuousItems.get(key);
-        if (!candidate || !candidate.card.isConnected || !state.continuousPromotionKeys.has(key) || state.continuousAutoFallbackKeys.has(key) || state.safeCanvasFallbackKeys.has(key) || isSafeCanvasFallbackFile(candidate.result.file)) continue;
+        if (!candidate || !candidate.card.isConnected || !state.continuousPromotionKeys.has(key) || state.continuousAutoFallbackKeys.has(key) || state.safeCanvasFallbackKeys.has(key) || isSafeCanvasFallbackFile(candidate.result.file) || isPreviewOnlyFile(candidate.result.file)) continue;
         if (candidate.renderedSignature === getContinuousRenderSignature(candidate)) continue;
         item = candidate;
       }
@@ -7889,7 +7923,7 @@
         if (state.performanceRun) state.performanceRun.continuousPromoteCount += 1;
       }
       item.card.dataset.quality = 'loading';
-      // v5.7.5: 完成するまでWebPを前面に維持し、未完成Canvasを見せない。
+      // v5.7.6: 完成するまでWebPを前面に維持し、未完成Canvasを見せない。
       if (item.preview?.src) item.preview.hidden = false;
       item.canvas.hidden = true;
       item.textLayer.hidden = true;
@@ -7941,6 +7975,9 @@
     }
 
     async function renderContinuousItemSnapshot(item, token, signature) {
+      if (isPreviewOnlyFile(item?.result?.file)) {
+        return { previewOnly: true };
+      }
       const totalStartedAt = perfNow();
       item.status.hidden = Boolean(item.preview && !item.preview.hidden);
       item.status.dataset.kind = '';
@@ -7957,7 +7994,7 @@
         const viewport = page.getViewport({ scale: effectiveScale });
         const outputScale = window.devicePixelRatio || 1;
 
-        // v5.7.5: PDF.jsは非表示の一時Canvasへ描画し、成功後だけ画面Canvasへ反映する。
+        // v5.7.6: PDF.jsは非表示の一時Canvasへ描画し、成功後だけ画面Canvasへ反映する。
         const renderCanvas = document.createElement('canvas');
         renderCanvas.width = Math.max(1, Math.floor(viewport.width * outputScale));
         renderCanvas.height = Math.max(1, Math.floor(viewport.height * outputScale));
@@ -8366,10 +8403,12 @@
         if (openSerial !== state.viewerOpenSerial) return;
 
         if (renderOutcome?.fallback) {
+          const configuredPreviewOnly = isPreviewOnlyFile(result.file);
           setStatus(
-            `${result.label} の${result.pageNumber}ページは高速プレビューで表示しています。` +
-            `高品質PDF表示はこのページでは自動的に見送りました。`,
-            'warning'
+            configuredPreviewOnly
+              ? `${result.label} の${result.pageNumber}ページは高速プレビュー固定で表示しています。`
+              : `${result.label} の${result.pageNumber}ページは高速プレビューで表示しています。高品質PDF表示はこのページでは自動的に見送りました。`,
+            configuredPreviewOnly ? 'success' : 'warning'
           );
         } else if (!renderOutcome?.cancelled) {
           setStatus(
@@ -8431,7 +8470,7 @@
             // 前後ページのWebPだけは先にキャッシュ。PDF本体は現在と同じPDFのときだけ軽くgetPage()する。
             await Promise.allSettled([
               ensureStaticPreviewReady(result.file, result.pageNumber, 'prefetch'),
-              result.file === state.currentFile
+              result.file === state.currentFile && !isPreviewOnlyFile(result.file)
                 ? withSharedPdf(result.file, pdf => pdf.getPage(result.pageNumber), { warm: true })
                 : Promise.resolve(),
             ]);
@@ -8591,6 +8630,13 @@
     function requestViewerRender() {
       if (!state.currentPdf) return Promise.resolve(null);
 
+      if (isPreviewOnlyFile(state.currentFile)) {
+        return Promise.resolve(showViewerSafeFallback(
+          state.currentPage,
+          'pdfs.jsonの設定により、このPDFは高速プレビュー固定で表示します。'
+        ));
+      }
+
       if (isSafeCanvasFallbackFile(state.currentFile)) {
         return Promise.resolve(showViewerSafeFallback(
           state.currentPage,
@@ -8660,6 +8706,13 @@
       const totalStartedAt = perfNow();
       const serial = ++state.renderSerial;
       const fallbackKey = `${state.currentFile}::${pageNumber}`;
+
+      if (isPreviewOnlyFile(state.currentFile)) {
+        return showViewerSafeFallback(
+          pageNumber,
+          'pdfs.jsonの設定により、このPDFは高速プレビュー固定で表示します。'
+        );
+      }
 
       if (isSafeCanvasFallbackFile(state.currentFile)) {
         return showViewerSafeFallback(
