@@ -323,22 +323,6 @@
 
     .catalog-thumbnail-state[data-kind="error"] { color: var(--error); }
 
-    .catalog-page-badge {
-      position: absolute;
-      right: 7px;
-      bottom: 7px;
-      min-height: 21px;
-      display: inline-flex;
-      align-items: center;
-      border-radius: 999px;
-      padding: 0 7px;
-      background: rgba(15,42,86,.84);
-      color: #fff;
-      font-size: 9px;
-      font-weight: 900;
-      backdrop-filter: blur(3px);
-    }
-
     .catalog-card-body {
       min-width: 0;
       position: relative;
@@ -3208,7 +3192,7 @@
       <div class="catalog-dialog-head">
         <div class="catalog-dialog-title-wrap">
           <div id="catalog-dialog-title" class="catalog-dialog-title">検索対象PDFを選択</div>
-          <div class="catalog-dialog-sub">代表ページのサムネイルを見ながら、横断検索するPDFを複数選択できます。</div>
+          <div class="catalog-dialog-sub">PDFのプレビューを見ながら、横断検索するPDFを複数選択できます。</div>
         </div>
         <span id="catalog-selected-count" class="catalog-selected-count">0 / 0件選択</span>
         <button id="catalog-close-btn" class="catalog-close-btn" type="button" title="閉じる">×</button>
@@ -5677,11 +5661,11 @@
           if (cachedThumbnail?.dataUrl) {
             const image = document.createElement('img');
             image.src = cachedThumbnail.dataUrl;
-            image.alt = `${item.label}の代表ページ`;
+            image.alt = `${item.label}のPDFプレビュー`;
             thumbnail.appendChild(image);
           } else if (staticPreviewUrl) {
             const image = document.createElement('img');
-            image.alt = `${item.label}の代表ページ`;
+            image.alt = `${item.label}のPDFプレビュー`;
             image.loading = 'lazy';
             thumbnail.dataset.previewSource = 'static';
             const startedAt = perfNow();
@@ -5709,11 +5693,6 @@
             thumbnail.appendChild(stateLabel);
           }
 
-          const pageBadge = document.createElement('span');
-          pageBadge.className = 'catalog-page-badge';
-          pageBadge.textContent = `代表 ${item.thumbnailPage || 1}ページ`;
-          thumbnail.appendChild(pageBadge);
-
           const body = document.createElement('div');
           body.className = 'catalog-card-body';
 
@@ -5736,7 +5715,7 @@
 
           const description = document.createElement('div');
           description.className = 'catalog-item-description';
-          const descriptionBase = item.description || '代表ページのプレビューを確認して検索対象を選択できます。';
+          const descriptionBase = item.description || 'PDFのプレビューを確認して検索対象を選択できます。';
           description.textContent = item.renderMode === 'preview'
             ? `${descriptionBase} ／ 高速プレビュー固定`
             : descriptionBase;
@@ -5952,22 +5931,20 @@
     }
 
     function applyCatalogThumbnailToSlot(slot, result) {
-      const badge = slot.querySelector('.catalog-page-badge');
       slot.querySelectorAll('img, .catalog-thumbnail-state').forEach(node => node.remove());
 
       if (result?.dataUrl) {
         const image = document.createElement('img');
         const item = state.catalog.find(entry => entry.file === slot.dataset.file);
         image.src = result.dataUrl;
-        image.alt = `${item?.label || slot.dataset.file}の代表ページ`;
-        slot.insertBefore(image, badge || null);
-        if (badge && result.pageNumber) badge.textContent = `代表 ${result.pageNumber}ページ`;
+        image.alt = `${item?.label || slot.dataset.file}のPDFプレビュー`;
+        slot.appendChild(image);
       } else {
         const stateLabel = document.createElement('div');
         stateLabel.className = 'catalog-thumbnail-state';
         stateLabel.dataset.kind = 'error';
         stateLabel.textContent = 'サムネイルを表示できません';
-        slot.insertBefore(stateLabel, badge || null);
+        slot.appendChild(stateLabel);
       }
     }
 
