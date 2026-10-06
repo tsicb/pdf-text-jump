@@ -5678,7 +5678,7 @@
               const stateLabel = document.createElement('div');
               stateLabel.className = 'catalog-thumbnail-state';
               stateLabel.textContent = 'プレビューを準備中…';
-              thumbnail.insertBefore(stateLabel, thumbnail.querySelector('.catalog-page-badge'));
+              thumbnail.appendChild(stateLabel);
               enqueueCatalogThumbnail(thumbnail);
             };
             image.src = staticPreviewUrl;
