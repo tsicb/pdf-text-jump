@@ -1,7 +1,7 @@
 {
   "version": 1,
   "baseDir": "indeedmarketreports/",
-  "generatedAt": "2026-09-12T01:36:35Z",
+  "generatedAt": "2026-10-06T08:17:48Z",
   "width": 800,
   "quality": 50,
   "format": "webp",
@@ -38,6 +38,15 @@
       "sha256": "368c0ca6fad2c528a4657b7918f08b8bcec791a4917cff77a73511a70af589f0",
       "pages": 365,
       "previewBase": "page-previews/files/368c0ca6fad2c528a4657b7918f08b8bcec791a4917cff77a73511a70af589f0",
+      "width": 800,
+      "quality": 50,
+      "format": "webp"
+    },
+    {
+      "file": "Indeed【2026年10月】クライアント様向け情報共有 2.pdf",
+      "sha256": "2fb803e9557757f2d281b746b260899462b892e572ce2ee627ce59e84bcb23ab",
+      "pages": 9,
+      "previewBase": "page-previews/files/2fb803e9557757f2d281b746b260899462b892e572ce2ee627ce59e84bcb23ab",
       "width": 800,
       "quality": 50,
       "format": "webp"

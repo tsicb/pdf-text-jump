@@ -2,7 +2,7 @@
   "version": 1,
   "normalization": "NFKC-remove-whitespace-lower-ja-v1",
   "baseDir": "indeedmarketreports/",
-  "generatedAt": "2026-09-12T01:36:34.382Z",
+  "generatedAt": "2026-10-06T08:17:47.768Z",
   "files": [
     {
       "file": "【2026年9月】パートナー様向け情報共有.pdf",
@@ -43,6 +43,14 @@
       "textChars": 275084,
       "sizeBytes": 47803785,
       "sha256": "368c0ca6fad2c528a4657b7918f08b8bcec791a4917cff77a73511a70af589f0"
+    },
+    {
+      "file": "Indeed【2026年10月】クライアント様向け情報共有 2.pdf",
+      "index": "search-index/files/2fb803e9557757f2d281b746b260899462b892e572ce2ee627ce59e84bcb23ab.json",
+      "pages": 9,
+      "textChars": 1164,
+      "sizeBytes": 1241747,
+      "sha256": "2fb803e9557757f2d281b746b260899462b892e572ce2ee627ce59e84bcb23ab"
     },
     {
       "file": "JP 厚生労働省の有効求人倍率推移レポート.PDF",

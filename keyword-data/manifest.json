@@ -2,7 +2,7 @@
   "version": 1,
   "extractorVersion": 2,
   "baseDir": "indeedmarketreports/",
-  "generatedAt": "2026-09-12T01:36:35Z",
+  "generatedAt": "2026-10-06T08:17:49Z",
   "files": [
     {
       "file": "Indeed PLUS 職種カテゴリー別トレンド.PDF",
@@ -70039,6 +70039,11 @@
           "count": 50
         }
       ]
+    },
+    {
+      "file": "Indeed【2026年10月】クライアント様向け情報共有 2.pdf",
+      "sha256": "2fb803e9557757f2d281b746b260899462b892e572ce2ee627ce59e84bcb23ab",
+      "pages": []
     },
     {
       "file": "JP 厚生労働省の有効求人倍率推移レポート.PDF",
