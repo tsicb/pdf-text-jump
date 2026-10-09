@@ -28,6 +28,12 @@ class KeywordCsvTests(unittest.TestCase):
         self.assertFalse(reason)
         self.assertEqual(value["area"], "東京都")
 
+    def test_nationwide_title(self):
+        value, reason = export.extract_meta(
+            "area_top50", "2026年8月 Top50検索ワードランキング対象エリア：全国")
+        self.assertFalse(reason)
+        self.assertEqual(value["area"], "全国")
+
     def test_formula_escape(self):
         self.assertEqual(export.safe_cell("=HYPERLINK(...)"), "'=HYPERLINK(...)")
         self.assertEqual(export.safe_cell("パート"), "パート")
