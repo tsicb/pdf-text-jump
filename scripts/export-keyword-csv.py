@@ -73,7 +73,7 @@ def extract_meta(kind, title):
             return None, "都道府県／対象年月を解析できません"
         ym = year_month(month.group(1), month.group(2))
         region = area.group(1).strip()
-        if not ym or not re.fullmatch(r"(?:北海道|東京都|京都府|大阪府|.{2,3}県)", region):
+        if not ym or not re.fullmatch(r"(?:全国|北海道|東京都|京都府|大阪府|.{2,3}県)", region):
             return None, "地域表記を確認できません"
         return {"month": ym, "category": "", "job": "", "area": region,
                 "start": "", "end": "", "scope": ""}, ""
