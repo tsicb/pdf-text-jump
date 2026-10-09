@@ -10,6 +10,8 @@ on:
       - 'scripts/build-search-index.mjs'
       - 'scripts/build-page-previews.py'
       - 'scripts/build-keyword-data.py'
+      - 'scripts/export-keyword-csv.py'
+      - 'tests/test_keyword_export.py'
       - '.github/workflows/build-pdf-search-index.yml'
 
 permissions:
@@ -48,6 +50,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y tesseract-ocr tesseract-ocr-jpn
+
+      - name: Test keyword export logic
+        run: python -m unittest discover -s tests -p 'test_keyword_export.py' -v
 
       - name: Build search index
         env:
@@ -88,3 +93,37 @@ jobs:
 
           git commit -m "chore: update PDF search assets [skip ci]"
           git push
+
+      - name: Confirm private CSV repository token
+        env:
+          PRIVATE_TOKEN: ${{ secrets.KEYWORD_CSV_REPO_TOKEN }}
+        run: |
+          if [ -z "$PRIVATE_TOKEN" ]; then
+            echo "::error::KEYWORD_CSV_REPO_TOKEN secret is not configured in pdf-text-jump."
+            exit 1
+          fi
+
+      - name: Checkout private keyword archive
+        uses: actions/checkout@v4
+        with:
+          repository: tsicb/indeed-keyword-csv
+          ref: main
+          token: ${{ secrets.KEYWORD_CSV_REPO_TOKEN }}
+          path: keyword-private
+
+      - name: Build accumulated keyword CSV exports
+        run: python scripts/export-keyword-csv.py --output-repo keyword-private
+
+      - name: Commit private keyword history and CSV exports
+        working-directory: keyword-private
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A keyword-history exports
+          if git diff --cached --quiet -- keyword-history exports; then
+            echo "Private keyword exports are already up to date."
+            exit 0
+          fi
+          git commit -m "chore: archive keyword ranking data"
+          git push origin main
