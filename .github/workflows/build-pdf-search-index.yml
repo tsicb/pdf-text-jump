@@ -10,6 +10,7 @@ on:
       - 'scripts/build-search-index.mjs'
       - 'scripts/build-page-previews.py'
       - 'scripts/build-keyword-data.py'
+      - 'scripts/diagnose-area-ranking.py'
       - 'scripts/export-keyword-csv.py'
       - 'tests/test_keyword_export.py'
       - '.github/workflows/build-pdf-search-index.yml'
@@ -50,6 +51,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y tesseract-ocr tesseract-ocr-jpn
+
+      - name: Diagnose region ranking extraction
+        run: python scripts/diagnose-area-ranking.py
 
       - name: Test keyword export logic
         run: python -m unittest discover -s tests -p 'test_keyword_export.py' -v
