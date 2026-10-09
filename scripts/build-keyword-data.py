@@ -19,7 +19,7 @@ PDF_BASE_DIR = Path(os.environ.get('PDF_BASE_DIR', 'indeedmarketreports'))
 OUTPUT_DIR = Path(os.environ.get('KEYWORD_DATA_DIR', 'keyword-data'))
 MANIFEST_PATH = OUTPUT_DIR / 'manifest.json'
 DATA_VERSION = 1
-EXTRACTOR_VERSION = 2
+EXTRACTOR_VERSION = 3
 OCR_SCALE = max(8, min(16, int(os.environ.get('KEYWORD_OCR_SCALE', '12'))))
 
 
@@ -255,10 +255,10 @@ def extract_rank_keyword_table(page: fitz.Page) -> dict | None:
 def graph_labels(page: fitz.Page) -> list[str]:
     words = [word_tuple(w) for w in page.get_text('words')]
     h = float(page.rect.height)
-    # The x-axis labels are vertical, thin word fragments. Exclude the wide footer sentence.
+    # X-axis labels reach into the rightmost 14% of the page. The old 86%\n    # cutoff silently dropped 1-2 labels in most regional Top50 charts.\n    # Footer text is excluded by the vertical position bounds.
     candidates = [
         w for w in words
-        if 45 <= w['cx'] <= page.rect.width * 0.86
+        if 45 <= w['cx'] <= page.rect.width * 0.95
         and h * 0.72 <= w['y0'] <= h * 0.91
         and (w['x1'] - w['x0']) <= 18
         and len(w['text'].strip()) <= 3
@@ -281,7 +281,7 @@ def graph_labels(page: fitz.Page) -> list[str]:
     labels = []
     for cluster in clusters:
         mean_x = sum(x['cx'] for x in cluster) / len(cluster)
-        if mean_x > page.rect.width * 0.84:
+        if mean_x > page.rect.width * 0.93:
             continue
         text = ''.join(w['text'].strip() for w in sorted(cluster, key=lambda t: (t['cy'], t['x0'])))
         text = clean_keyword(text)
