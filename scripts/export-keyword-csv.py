@@ -316,11 +316,18 @@ def add_missing_area_page_status(pdf_root, manifest, status):
                 txt = compact(page.get_text("text"))
                 if "Top50検索ワードランキング" in txt and "対象エリア" in txt:
                     m = re.search(r"対象エリア:([^\s検索]+)", txt)
+                    area = m.group(1) if m else ""
+                    # A blank template page in the current report has no
+                    # region label or chart. It is not an additional prefecture.
+                    blank_template = not area and "検索ワード1位" not in txt
                     status.append({"元PDFファイル名": filename, "PDFページ": i + 1,
                                    "ランキング種別": "area_top50",
-                                   "対象": m.group(1) if m else "",
-                                   "状態": "not_extracted", "件数": 0,
-                                   "理由": "既存のランキング抽出ロジックでは50件を確定できません",
+                                   "対象": area,
+                                   "状態": "skipped_blank" if blank_template else "not_extracted",
+                                   "件数": 0,
+                                   "理由": ("対象エリア・ランキング情報のない空テンプレート"
+                                          if blank_template else
+                                          "ランキングを50件確定できません"),
                                    "データセットID": ""})
 
 
