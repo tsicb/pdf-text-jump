@@ -179,35 +179,44 @@ def word_tokens(page):
 
 
 def parse_trend_page(page, first_rank):
-    """Read the four 25-row column groups; do not infer missing entries."""
+    """Read four 25-row blocks using their actual rank anchors, not page quarters."""
     tokens = word_tokens(page)
-    width, height = page.rect.width, page.rect.height
-    entries = []
-    diagnostics = []
-    for column in range(4):
-        lower = first_rank + column * 25
-        upper = lower + 24
-        left, right = width * column / 4, width * (column + 1) / 4
-        group = [x for x in tokens if left <= (x["x0"] + x["x1"]) / 2 < right
-                 and height * .06 < x["cy"] < height * .88]
+    height = page.rect.height
+    entries, diagnostics = [], []
+    anchors_by_column = []
+    # PDF layouts have asymmetric margins: the four groups do not span equal
+    # quarters. Search all x positions for the expected 25 ranks per column.
+    candidates = [x for x in tokens if height * .06 < x["cy"] < height * .88]
+    for col in range(4):
+        low = first_rank + col * 25
+        high = low + 24
         anchors = {}
-        for x in group:
+        for x in candidates:
             m = re.fullmatch(r"(\d{1,3})(?:位)?", x["text"])
-            if m and lower <= int(m.group(1)) <= upper:
+            if m and low <= int(m.group(1)) <= high:
                 anchors.setdefault(int(m.group(1)), []).append(x)
         if len(anchors) != 25 or any(len(v) != 1 for v in anchors.values()):
-            diagnostics.append(f"{lower}～{upper}位の順位アンカーが揃いません: {len(anchors)}/25")
+            diagnostics.append(f"{low}～{high}位の順位アンカーが揃いません: {len(anchors)}/25")
+            anchors_by_column.append(None)
+        else:
+            anchors_by_column.append([(i, anchors[i][0]) for i in range(low, high + 1)])
+
+    for col, ordered in enumerate(anchors_by_column):
+        if not ordered:
             continue
-        a = [(i, anchors[i][0]) for i in range(lower, upper + 1)]
-        centers = [x["cy"] for _, x in a]
+        centers = [x["cy"] for _, x in ordered]
         top = centers[0] - (centers[1] - centers[0]) / 2
         bottom = centers[-1] + (centers[-1] - centers[-2]) / 2
-        for idx, (rank, anchor) in enumerate(a):
+        # Take the x coordinate of the next rank column as the cutoff to
+        # prevent adjacent column keywords from leaking into a row.
+        next_group = anchors_by_column[col + 1] if col < 3 else None
+        right = min(x["x0"] for _, x in next_group) - 2 if next_group else page.rect.width
+        for idx, (rank, anchor) in enumerate(ordered):
             y0 = top if idx == 0 else (centers[idx - 1] + centers[idx]) / 2
             y1 = bottom if idx == 24 else (centers[idx] + centers[idx + 1]) / 2
-            # Include tokens of a line-wrapped keyword, but never adjacent ranks.
-            words = [t for t in group if y0 <= t["cy"] < y1
-                     and t is not anchor and t["x0"] >= anchor["x1"] + .5]
+            words = [t for t in candidates if y0 <= t["cy"] < y1
+                     and t is not anchor and t["x0"] >= anchor["x1"] + .5
+                     and t["x0"] < right]
             words.sort(key=lambda t: (round(t["cy"] / 3), t["x0"]))
             keyword = clean_keyword("".join(t["text"] for t in words))
             if not keyword:
@@ -217,6 +226,7 @@ def parse_trend_page(page, first_rank):
     if not valid_ranks(entries, 100, first_rank):
         diagnostics.append(f"{first_rank}～{first_rank+99}位: {len(entries)}/100件")
     return entries, diagnostics
+
 
 
 def trend_period(doc):
