@@ -2,16 +2,8 @@
   "version": 1,
   "normalization": "NFKC-remove-whitespace-lower-ja-v1",
   "baseDir": "indeedmarketreports/",
-  "generatedAt": "2026-10-15T14:49:25.980Z",
+  "generatedAt": "2026-10-15T14:50:51.069Z",
   "files": [
-    {
-      "file": "【2026年9月】パートナー様向け情報共有.pdf",
-      "index": "search-index/files/3b81b04363fd3a0351017a3302229417f772f25003facf98da9b6cc683a3c0bf.json",
-      "pages": 12,
-      "textChars": 1876,
-      "sizeBytes": 1750867,
-      "sha256": "3b81b04363fd3a0351017a3302229417f772f25003facf98da9b6cc683a3c0bf"
-    },
     {
       "file": "Indeed【2026年10月】クライアント様向け情報共有 2.pdf",
       "index": "search-index/files/2fb803e9557757f2d281b746b260899462b892e572ce2ee627ce59e84bcb23ab.json",
