@@ -2,8 +2,40 @@
   "version": 1,
   "normalization": "NFKC-remove-whitespace-lower-ja-v1",
   "baseDir": "indeedmarketreports/",
-  "generatedAt": "2026-10-15T14:50:51.069Z",
+  "generatedAt": "2026-10-15T14:58:09.422Z",
   "files": [
+    {
+      "file": "Indeed PLUS 職種カテゴリー別トレンド.PDF",
+      "index": "search-index/files/e93809fdf34d7377e02934d8b5d40da55a9f47db0508b0439fa2bdeec29c05b9.json",
+      "pages": 578,
+      "textChars": 188751,
+      "sizeBytes": 85157257,
+      "sha256": "e93809fdf34d7377e02934d8b5d40da55a9f47db0508b0439fa2bdeec29c05b9"
+    },
+    {
+      "file": "Indeed PLUS 職種別トレンド.PDF",
+      "index": "search-index/files/f3573e45128f28c4d5bca72560f3fdfc08d92c68dd5ee4d0779c6927433544a7.json",
+      "pages": 378,
+      "textChars": 200843,
+      "sizeBytes": 33258864,
+      "sha256": "f3573e45128f28c4d5bca72560f3fdfc08d92c68dd5ee4d0779c6927433544a7"
+    },
+    {
+      "file": "Indeed PLUS職種カテゴリー別 トレンド考察・需給変化.PDF",
+      "index": "search-index/files/7bb3e2b1e928ed7b3c90e345e136871a3b6e13af890b0f609c5444ed9cf9ca22.json",
+      "pages": 291,
+      "textChars": 195527,
+      "sizeBytes": 24788222,
+      "sha256": "7bb3e2b1e928ed7b3c90e345e136871a3b6e13af890b0f609c5444ed9cf9ca22"
+    },
+    {
+      "file": "Indeed 職種別キーワードレポート.PDF",
+      "index": "search-index/files/c4e595ea12783c9b0d69ef5b2732e239ced5c0d3e9c2307be78f7ee610763bc8.json",
+      "pages": 365,
+      "textChars": 275514,
+      "sizeBytes": 37814004,
+      "sha256": "c4e595ea12783c9b0d69ef5b2732e239ced5c0d3e9c2307be78f7ee610763bc8"
+    },
     {
       "file": "Indeed【2026年10月】クライアント様向け情報共有 2.pdf",
       "index": "search-index/files/2fb803e9557757f2d281b746b260899462b892e572ce2ee627ce59e84bcb23ab.json",
@@ -19,6 +51,22 @@
       "textChars": 46148,
       "sizeBytes": 8671245,
       "sha256": "83211cc73d5ec17a86baf9873eeb5ed32cdd9bc4f0a09b4263256b0bbd3fe57d"
+    },
+    {
+      "file": "求職者検索トレンド.PDF",
+      "index": "search-index/files/eb27acb48fb4581fb1765bfac30862e39ace59ed895a86b59aa2735613fecc82.json",
+      "pages": 205,
+      "textChars": 108780,
+      "sizeBytes": 1868688,
+      "sha256": "eb27acb48fb4581fb1765bfac30862e39ace59ed895a86b59aa2735613fecc82"
+    },
+    {
+      "file": "求職者検索ワードランキング.PDF",
+      "index": "search-index/files/8538bd769e4af4845a06d1f180fe84f99fa721484ba8f7f05529eb0227607cc0.json",
+      "pages": 51,
+      "textChars": 44668,
+      "sizeBytes": 2066241,
+      "sha256": "8538bd769e4af4845a06d1f180fe84f99fa721484ba8f7f05529eb0227607cc0"
     }
   ],
   "errors": []

@@ -1,11 +1,47 @@
 {
   "version": 1,
   "baseDir": "indeedmarketreports/",
-  "generatedAt": "2026-10-15T14:50:51Z",
+  "generatedAt": "2026-10-15T14:58:36Z",
   "width": 800,
   "quality": 50,
   "format": "webp",
   "files": [
+    {
+      "file": "Indeed PLUS 職種カテゴリー別トレンド.PDF",
+      "sha256": "e93809fdf34d7377e02934d8b5d40da55a9f47db0508b0439fa2bdeec29c05b9",
+      "pages": 578,
+      "previewBase": "page-previews/files/e93809fdf34d7377e02934d8b5d40da55a9f47db0508b0439fa2bdeec29c05b9",
+      "width": 800,
+      "quality": 50,
+      "format": "webp"
+    },
+    {
+      "file": "Indeed PLUS 職種別トレンド.PDF",
+      "sha256": "f3573e45128f28c4d5bca72560f3fdfc08d92c68dd5ee4d0779c6927433544a7",
+      "pages": 378,
+      "previewBase": "page-previews/files/f3573e45128f28c4d5bca72560f3fdfc08d92c68dd5ee4d0779c6927433544a7",
+      "width": 800,
+      "quality": 50,
+      "format": "webp"
+    },
+    {
+      "file": "Indeed PLUS職種カテゴリー別 トレンド考察・需給変化.PDF",
+      "sha256": "7bb3e2b1e928ed7b3c90e345e136871a3b6e13af890b0f609c5444ed9cf9ca22",
+      "pages": 291,
+      "previewBase": "page-previews/files/7bb3e2b1e928ed7b3c90e345e136871a3b6e13af890b0f609c5444ed9cf9ca22",
+      "width": 800,
+      "quality": 50,
+      "format": "webp"
+    },
+    {
+      "file": "Indeed 職種別キーワードレポート.PDF",
+      "sha256": "c4e595ea12783c9b0d69ef5b2732e239ced5c0d3e9c2307be78f7ee610763bc8",
+      "pages": 365,
+      "previewBase": "page-previews/files/c4e595ea12783c9b0d69ef5b2732e239ced5c0d3e9c2307be78f7ee610763bc8",
+      "width": 800,
+      "quality": 50,
+      "format": "webp"
+    },
     {
       "file": "Indeed【2026年10月】クライアント様向け情報共有 2.pdf",
       "sha256": "2fb803e9557757f2d281b746b260899462b892e572ce2ee627ce59e84bcb23ab",
@@ -20,6 +56,24 @@
       "sha256": "83211cc73d5ec17a86baf9873eeb5ed32cdd9bc4f0a09b4263256b0bbd3fe57d",
       "pages": 120,
       "previewBase": "page-previews/files/83211cc73d5ec17a86baf9873eeb5ed32cdd9bc4f0a09b4263256b0bbd3fe57d",
+      "width": 800,
+      "quality": 50,
+      "format": "webp"
+    },
+    {
+      "file": "求職者検索トレンド.PDF",
+      "sha256": "eb27acb48fb4581fb1765bfac30862e39ace59ed895a86b59aa2735613fecc82",
+      "pages": 205,
+      "previewBase": "page-previews/files/eb27acb48fb4581fb1765bfac30862e39ace59ed895a86b59aa2735613fecc82",
+      "width": 800,
+      "quality": 50,
+      "format": "webp"
+    },
+    {
+      "file": "求職者検索ワードランキング.PDF",
+      "sha256": "8538bd769e4af4845a06d1f180fe84f99fa721484ba8f7f05529eb0227607cc0",
+      "pages": 51,
+      "previewBase": "page-previews/files/8538bd769e4af4845a06d1f180fe84f99fa721484ba8f7f05529eb0227607cc0",
       "width": 800,
       "quality": 50,
       "format": "webp"
