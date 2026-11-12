@@ -1,43 +1,43 @@
 {
   "version": 1,
   "baseDir": "indeedmarketreports/",
-  "generatedAt": "2026-10-15T14:58:36Z",
+  "generatedAt": "2026-11-12T14:21:10Z",
   "width": 800,
   "quality": 50,
   "format": "webp",
   "files": [
     {
       "file": "Indeed PLUS 職種カテゴリー別トレンド.PDF",
-      "sha256": "e93809fdf34d7377e02934d8b5d40da55a9f47db0508b0439fa2bdeec29c05b9",
+      "sha256": "65aa7ee97222f158638f3d3af9ab2923b85c9775ccc12fa68a118b9b37149aef",
       "pages": 578,
-      "previewBase": "page-previews/files/e93809fdf34d7377e02934d8b5d40da55a9f47db0508b0439fa2bdeec29c05b9",
+      "previewBase": "page-previews/files/65aa7ee97222f158638f3d3af9ab2923b85c9775ccc12fa68a118b9b37149aef",
       "width": 800,
       "quality": 50,
       "format": "webp"
     },
     {
       "file": "Indeed PLUS 職種別トレンド.PDF",
-      "sha256": "f3573e45128f28c4d5bca72560f3fdfc08d92c68dd5ee4d0779c6927433544a7",
+      "sha256": "f6221b3fc831b1b96148f2440b58b297d414a0e05ce953fc746972543c9dbbda",
       "pages": 378,
-      "previewBase": "page-previews/files/f3573e45128f28c4d5bca72560f3fdfc08d92c68dd5ee4d0779c6927433544a7",
+      "previewBase": "page-previews/files/f6221b3fc831b1b96148f2440b58b297d414a0e05ce953fc746972543c9dbbda",
       "width": 800,
       "quality": 50,
       "format": "webp"
     },
     {
       "file": "Indeed PLUS職種カテゴリー別 トレンド考察・需給変化.PDF",
-      "sha256": "7bb3e2b1e928ed7b3c90e345e136871a3b6e13af890b0f609c5444ed9cf9ca22",
+      "sha256": "930f12e8389a299bcfc075d1f031b32fd9d3980f754db0df8868d077111a3d48",
       "pages": 291,
-      "previewBase": "page-previews/files/7bb3e2b1e928ed7b3c90e345e136871a3b6e13af890b0f609c5444ed9cf9ca22",
+      "previewBase": "page-previews/files/930f12e8389a299bcfc075d1f031b32fd9d3980f754db0df8868d077111a3d48",
       "width": 800,
       "quality": 50,
       "format": "webp"
     },
     {
       "file": "Indeed 職種別キーワードレポート.PDF",
-      "sha256": "c4e595ea12783c9b0d69ef5b2732e239ced5c0d3e9c2307be78f7ee610763bc8",
+      "sha256": "fb3e1d7a4974aba35538e4276a8f20fb6903e70b94c5211c3ade8380bfe63838",
       "pages": 365,
-      "previewBase": "page-previews/files/c4e595ea12783c9b0d69ef5b2732e239ced5c0d3e9c2307be78f7ee610763bc8",
+      "previewBase": "page-previews/files/fb3e1d7a4974aba35538e4276a8f20fb6903e70b94c5211c3ade8380bfe63838",
       "width": 800,
       "quality": 50,
       "format": "webp"
@@ -52,28 +52,28 @@
       "format": "webp"
     },
     {
-      "file": "JP 厚生労働省の有効求人倍率推移レポート.PDF",
-      "sha256": "83211cc73d5ec17a86baf9873eeb5ed32cdd9bc4f0a09b4263256b0bbd3fe57d",
+      "file": "厚生労働省の有効求人倍率推移レポート.pdf",
+      "sha256": "503ff0a471b3b5f2cae145e7622140b711be567e8f1269f31b9f5a9f0c7becff",
       "pages": 120,
-      "previewBase": "page-previews/files/83211cc73d5ec17a86baf9873eeb5ed32cdd9bc4f0a09b4263256b0bbd3fe57d",
+      "previewBase": "page-previews/files/503ff0a471b3b5f2cae145e7622140b711be567e8f1269f31b9f5a9f0c7becff",
       "width": 800,
       "quality": 50,
       "format": "webp"
     },
     {
       "file": "求職者検索トレンド.PDF",
-      "sha256": "eb27acb48fb4581fb1765bfac30862e39ace59ed895a86b59aa2735613fecc82",
+      "sha256": "74f06e3079adfa1400737c0cdd7bf1577a096e24dd9c52f904dd2f08f9f6c1b2",
       "pages": 205,
-      "previewBase": "page-previews/files/eb27acb48fb4581fb1765bfac30862e39ace59ed895a86b59aa2735613fecc82",
+      "previewBase": "page-previews/files/74f06e3079adfa1400737c0cdd7bf1577a096e24dd9c52f904dd2f08f9f6c1b2",
       "width": 800,
       "quality": 50,
       "format": "webp"
     },
     {
       "file": "求職者検索ワードランキング.PDF",
-      "sha256": "8538bd769e4af4845a06d1f180fe84f99fa721484ba8f7f05529eb0227607cc0",
-      "pages": 51,
-      "previewBase": "page-previews/files/8538bd769e4af4845a06d1f180fe84f99fa721484ba8f7f05529eb0227607cc0",
+      "sha256": "75ea7c7d8d4d6353e6593fc229c16d3d6c27966e296f315408ec3e3ca57c28ac",
+      "pages": 50,
+      "previewBase": "page-previews/files/75ea7c7d8d4d6353e6593fc229c16d3d6c27966e296f315408ec3e3ca57c28ac",
       "width": 800,
       "quality": 50,
       "format": "webp"

@@ -2,39 +2,39 @@
   "version": 1,
   "normalization": "NFKC-remove-whitespace-lower-ja-v1",
   "baseDir": "indeedmarketreports/",
-  "generatedAt": "2026-10-15T14:58:09.422Z",
+  "generatedAt": "2026-11-12T14:20:41.565Z",
   "files": [
     {
       "file": "Indeed PLUS 職種カテゴリー別トレンド.PDF",
-      "index": "search-index/files/e93809fdf34d7377e02934d8b5d40da55a9f47db0508b0439fa2bdeec29c05b9.json",
+      "index": "search-index/files/65aa7ee97222f158638f3d3af9ab2923b85c9775ccc12fa68a118b9b37149aef.json",
       "pages": 578,
-      "textChars": 188751,
-      "sizeBytes": 85157257,
-      "sha256": "e93809fdf34d7377e02934d8b5d40da55a9f47db0508b0439fa2bdeec29c05b9"
+      "textChars": 189529,
+      "sizeBytes": 85584692,
+      "sha256": "65aa7ee97222f158638f3d3af9ab2923b85c9775ccc12fa68a118b9b37149aef"
     },
     {
       "file": "Indeed PLUS 職種別トレンド.PDF",
-      "index": "search-index/files/f3573e45128f28c4d5bca72560f3fdfc08d92c68dd5ee4d0779c6927433544a7.json",
+      "index": "search-index/files/f6221b3fc831b1b96148f2440b58b297d414a0e05ce953fc746972543c9dbbda.json",
       "pages": 378,
-      "textChars": 200843,
-      "sizeBytes": 33258864,
-      "sha256": "f3573e45128f28c4d5bca72560f3fdfc08d92c68dd5ee4d0779c6927433544a7"
+      "textChars": 201633,
+      "sizeBytes": 33235424,
+      "sha256": "f6221b3fc831b1b96148f2440b58b297d414a0e05ce953fc746972543c9dbbda"
     },
     {
       "file": "Indeed PLUS職種カテゴリー別 トレンド考察・需給変化.PDF",
-      "index": "search-index/files/7bb3e2b1e928ed7b3c90e345e136871a3b6e13af890b0f609c5444ed9cf9ca22.json",
+      "index": "search-index/files/930f12e8389a299bcfc075d1f031b32fd9d3980f754db0df8868d077111a3d48.json",
       "pages": 291,
-      "textChars": 195527,
-      "sizeBytes": 24788222,
-      "sha256": "7bb3e2b1e928ed7b3c90e345e136871a3b6e13af890b0f609c5444ed9cf9ca22"
+      "textChars": 197635,
+      "sizeBytes": 24780253,
+      "sha256": "930f12e8389a299bcfc075d1f031b32fd9d3980f754db0df8868d077111a3d48"
     },
     {
       "file": "Indeed 職種別キーワードレポート.PDF",
-      "index": "search-index/files/c4e595ea12783c9b0d69ef5b2732e239ced5c0d3e9c2307be78f7ee610763bc8.json",
+      "index": "search-index/files/fb3e1d7a4974aba35538e4276a8f20fb6903e70b94c5211c3ade8380bfe63838.json",
       "pages": 365,
-      "textChars": 275514,
-      "sizeBytes": 37814004,
-      "sha256": "c4e595ea12783c9b0d69ef5b2732e239ced5c0d3e9c2307be78f7ee610763bc8"
+      "textChars": 275804,
+      "sizeBytes": 47787986,
+      "sha256": "fb3e1d7a4974aba35538e4276a8f20fb6903e70b94c5211c3ade8380bfe63838"
     },
     {
       "file": "Indeed【2026年10月】クライアント様向け情報共有 2.pdf",
@@ -45,28 +45,28 @@
       "sha256": "2fb803e9557757f2d281b746b260899462b892e572ce2ee627ce59e84bcb23ab"
     },
     {
-      "file": "JP 厚生労働省の有効求人倍率推移レポート.PDF",
-      "index": "search-index/files/83211cc73d5ec17a86baf9873eeb5ed32cdd9bc4f0a09b4263256b0bbd3fe57d.json",
-      "pages": 120,
-      "textChars": 46148,
-      "sizeBytes": 8671245,
-      "sha256": "83211cc73d5ec17a86baf9873eeb5ed32cdd9bc4f0a09b4263256b0bbd3fe57d"
-    },
-    {
       "file": "求職者検索トレンド.PDF",
-      "index": "search-index/files/eb27acb48fb4581fb1765bfac30862e39ace59ed895a86b59aa2735613fecc82.json",
+      "index": "search-index/files/74f06e3079adfa1400737c0cdd7bf1577a096e24dd9c52f904dd2f08f9f6c1b2.json",
       "pages": 205,
       "textChars": 108780,
-      "sizeBytes": 1868688,
-      "sha256": "eb27acb48fb4581fb1765bfac30862e39ace59ed895a86b59aa2735613fecc82"
+      "sizeBytes": 11845159,
+      "sha256": "74f06e3079adfa1400737c0cdd7bf1577a096e24dd9c52f904dd2f08f9f6c1b2"
     },
     {
       "file": "求職者検索ワードランキング.PDF",
-      "index": "search-index/files/8538bd769e4af4845a06d1f180fe84f99fa721484ba8f7f05529eb0227607cc0.json",
-      "pages": 51,
-      "textChars": 44668,
-      "sizeBytes": 2066241,
-      "sha256": "8538bd769e4af4845a06d1f180fe84f99fa721484ba8f7f05529eb0227607cc0"
+      "index": "search-index/files/75ea7c7d8d4d6353e6593fc229c16d3d6c27966e296f315408ec3e3ca57c28ac.json",
+      "pages": 50,
+      "textChars": 44041,
+      "sizeBytes": 2162376,
+      "sha256": "75ea7c7d8d4d6353e6593fc229c16d3d6c27966e296f315408ec3e3ca57c28ac"
+    },
+    {
+      "file": "厚生労働省の有効求人倍率推移レポート.pdf",
+      "index": "search-index/files/503ff0a471b3b5f2cae145e7622140b711be567e8f1269f31b9f5a9f0c7becff.json",
+      "pages": 120,
+      "textChars": 46173,
+      "sizeBytes": 21799351,
+      "sha256": "503ff0a471b3b5f2cae145e7622140b711be567e8f1269f31b9f5a9f0c7becff"
     }
   ],
   "errors": []
