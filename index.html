@@ -3337,6 +3337,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
   <script type="module">
+    import { reconcilePdfCatalog } from './scripts/pdf-catalog.mjs';
     import * as pdfjsLib from
       'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.7.284/build/pdf.min.mjs';
 
@@ -3486,7 +3487,6 @@
       catalog: [],
       selectedFiles: new Set(),
       catalogSource: '',
-      catalogManifestFiles: new Set(),
       catalogDraftSelection: null,
       thumbnailCache: new Map(),
       thumbnailInFlight: new Map(),
@@ -5390,7 +5390,7 @@
 
       for (const raw of rawFiles || []) {
         const entry = typeof raw === 'string' ? { file: raw } : raw;
-        if (!entry || entry.enabled === false) continue;
+        if (!entry) continue;
 
         try {
           const file = sanitizeFileName(entry.file || entry.name || '');
@@ -5400,6 +5400,7 @@
           const thumbnailPageRaw = Number.parseInt(entry.thumbnailPage ?? entry.thumbnail_page ?? 1, 10);
           normalized.push({
             file,
+            enabled: entry.enabled !== false,
             label: String(entry.label || entry.title || file.replace(/\.pdf$/i, '')),
             description: String(entry.description || entry.note || ''),
             thumbnailPage: Number.isFinite(thumbnailPageRaw) && thumbnailPageRaw > 0
@@ -5416,132 +5417,56 @@
       return normalized;
     }
 
+
     async function loadCatalogFromManifest() {
       const response = await fetch(`${MANIFEST_URL}?v=${Date.now()}`, { cache: 'no-store' });
       if (!response.ok) throw new Error(`pdfs.json: HTTP ${response.status}`);
-
       const data = await response.json();
-      const rawFiles = Array.isArray(data) ? data : data.files;
+      const rawFiles = Array.isArray(data) ? data : data?.files;
+      if (!Array.isArray(rawFiles)) throw new Error('pdfs.jsonのfilesが配列ではありません。');
       state.pdfBaseDir = normalizeBaseDir(Array.isArray(data) ? DEFAULT_PDF_BASE_DIR : data.baseDir);
-      state.catalogManifestFiles = new Set();
-      for (const raw of rawFiles || []) {
-        const entry = typeof raw === 'string' ? { file: raw } : raw;
-        if (!entry) continue;
-        try {
-          state.catalogManifestFiles.add(sanitizeFileName(entry.file || entry.name || ''));
-        } catch {}
-      }
-      const entries = normalizeCatalogEntries(rawFiles);
-
-      if (!entries.length) throw new Error('pdfs.jsonに有効なPDFがありません。');
-      return entries;
+      return normalizeCatalogEntries(rawFiles);
     }
 
-    async function loadCatalogFromGitHubApi() {
+    async function listGitHubPdfFiles() {
       const { owner, repo } = inferGitHubRepository();
-      const folder = normalizeBaseDir(DEFAULT_PDF_BASE_DIR).replace(/\/$/, '');
-      const apiUrl = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${encodeURIComponent(folder)}?ref=${encodeURIComponent(GITHUB_BRANCH)}`;
+      const folder = state.pdfBaseDir.replace(/\/$/, '');
+      const apiPath = folder.split('/').map(encodeURIComponent).join('/');
+      const apiUrl = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${apiPath}?ref=${encodeURIComponent(GITHUB_BRANCH)}`;
       const response = await fetch(apiUrl, {
+        cache: 'no-store',
         headers: { Accept: 'application/vnd.github+json' },
       });
-
       if (!response.ok) throw new Error(`GitHub API: HTTP ${response.status}`);
       const data = await response.json();
       if (!Array.isArray(data)) throw new Error('GitHub APIの応答形式が想定外です。');
-
-      state.pdfBaseDir = normalizeBaseDir(DEFAULT_PDF_BASE_DIR);
-      const entries = data
+      return data
         .filter(item => item.type === 'file' && String(item.name).toLowerCase().endsWith('.pdf'))
-        .sort((a, b) => b.name.localeCompare(a.name, 'ja', { numeric: true }))
-        .map(item => ({
-          file: item.name,
-          label: item.name.replace(/\.pdf$/i, ''),
-          description: '',
-          thumbnailPage: 1,
-          selected: true,
-          renderMode: 'auto',
-        }));
-
-      if (!entries.length) throw new Error('indeedmarketreportsフォルダ内にPDFがありません。');
-      return entries;
+        .map(item => sanitizeFileName(item.name));
     }
 
-    function supplementCatalogFromGeneratedAssets(requestedSet) {
-      const knownFiles = new Set(state.catalog.map(item => canonicalFileKey(item.file)));
-      const explicitlyRegistered = state.catalogManifestFiles || new Set();
-      const candidates = new Map();
-
+    function listGeneratedPdfFiles() {
+      const available = new Map();
       for (const meta of state.searchIndexManifest.values()) {
-        if (meta?.file) candidates.set(canonicalFileKey(meta.file), meta.file);
+        if (meta?.file) available.set(canonicalFileKey(meta.file), meta.file);
       }
       for (const meta of state.pagePreviewManifest.values()) {
-        if (meta?.file) candidates.set(canonicalFileKey(meta.file), meta.file);
+        if (meta?.file) available.set(canonicalFileKey(meta.file), meta.file);
       }
-
-      const discovered = [...candidates.values()]
-        .map(file => {
-          try { return sanitizeFileName(file); } catch { return ''; }
-        })
-        .filter(Boolean)
-        .sort((a, b) => b.localeCompare(a, 'ja', { numeric: true }));
-
-      let added = 0;
-      for (const file of discovered) {
-        const key = canonicalFileKey(file);
-        if (knownFiles.has(key)) continue;
-        // pdfs.jsonに明示登録された項目（enabled:falseを含む）は、その設定を優先する。
-        if (explicitlyRegistered.has(file)) continue;
-
-        state.catalog.push({
-          file,
-          label: file.replace(/\.pdf$/i, ''),
-          description: '',
-          thumbnailPage: 1,
-          selected: true,
-          renderMode: 'auto',
-        });
-        knownFiles.add(key);
-        if (!requestedSet.size) state.selectedFiles.add(file);
-        added += 1;
-      }
-
-      if (added) {
-        if (!state.catalogSource.includes('自動生成INDEX')) {
-          state.catalogSource = state.catalogSource
-            ? `${state.catalogSource} + 自動生成INDEX`
-            : '自動生成INDEX';
-        }
-      }
-      return added;
+      return [...available.values()];
     }
 
     async function loadCatalog() {
       const catalogLoadStartedAt = perfNow();
       setStatus('PDF一覧を読み込んでいます。');
-
+      let configuredEntries = [];
       let manifestError = null;
-
       try {
-        state.catalog = await loadCatalogFromManifest();
-        state.catalogSource = 'pdfs.json';
+        configuredEntries = await loadCatalogFromManifest();
       } catch (error) {
         manifestError = error;
-        console.info('pdfs.jsonを使用できないためGitHub APIへ切り替えます。', error);
-
-        try {
-          state.catalog = await loadCatalogFromGitHubApi();
-          state.catalogSource = 'GitHub API';
-        } catch (apiError) {
-          console.error(apiError);
-          state.catalog = [];
-          state.catalogSource = '';
-          renderCatalog();
-          setStatus(
-            `PDF一覧を取得できませんでした。pdfs.json: ${manifestError?.message || '不明'} / ${apiError.message}`,
-            'error'
-          );
-          return;
-        }
+        console.info('pdfs.jsonを読み込めないため、PDF実ファイルから一覧を作成します。', error);
+        state.pdfBaseDir = DEFAULT_PDF_BASE_DIR;
       }
 
       const initial = readUrlState();
@@ -5549,48 +5474,62 @@
       if (initial.mode) setSearchMode(initial.mode, { persist: true });
       else updateSearchModeUi();
 
-      const catalogFiles = new Set(state.catalog.map(item => item.file));
-      for (const requestedFile of initial.files) {
+      // 実ファイル照合と検索アセット取得を並列処理する。
+      const [githubResult, indexedCount, previewCount, keywordPageCount] = await Promise.all([
+        listGitHubPdfFiles()
+          .then(files => ({ files, error: null }))
+          .catch(error => ({ files: null, error })),
+        loadSearchIndexManifest(),
+        loadPagePreviewManifest(),
+        loadKeywordDataManifest(),
+      ]);
+
+      let availableFiles = githubResult.files;
+      if (availableFiles !== null) {
+        state.catalogSource = 'GitHub API（実ファイル）';
+      } else {
+        const generatedFiles = listGeneratedPdfFiles();
+        if (!generatedFiles.length) {
+          console.error('PDF実ファイル一覧を取得できませんでした。', githubResult.error);
+          state.catalog = [];
+          state.selectedFiles.clear();
+          renderCatalog();
+          setStatus(
+            `PDF一覧を確認できませんでした。GitHub API: ${githubResult.error?.message || '不明'} / 検索・プレビューINDEXも利用できません。`,
+            'error'
+          );
+          return;
+        }
+        availableFiles = generatedFiles;
+        state.catalogSource = '自動生成INDEX（GitHub API代替）';
+        console.info('GitHub APIを使用できないため自動生成INDEXで実ファイルを照合します。', githubResult.error);
+      }
+
+      // 実ファイルのみを一覧に採用し、pdfs.jsonは表示設定として利用する。
+      state.catalog = reconcilePdfCatalog(configuredEntries, availableFiles);
+      const availableByKey = new Map(state.catalog.map(item => [canonicalFileKey(item.file), item.file]));
+      const requestedFiles = new Set();
+      for (const file of initial.files) {
         try {
-          const file = sanitizeFileName(requestedFile);
-          if (!catalogFiles.has(file)) {
-            state.catalog.push({
-              file,
-              label: file.replace(/\.pdf$/i, ''),
-              description: '',
-              thumbnailPage: 1,
-              selected: true,
-              renderMode: 'auto',
-            });
-            catalogFiles.add(file);
-          }
+          const available = availableByKey.get(canonicalFileKey(sanitizeFileName(file)));
+          if (available) requestedFiles.add(available);
         } catch (error) {
           console.warn(error.message);
         }
       }
 
-      const requestedSet = new Set(initial.files.map(value => {
-        try { return sanitizeFileName(value); } catch { return ''; }
-      }).filter(Boolean));
-
+      // 古いURLに削除済みファイルがあっても一覧に追加しない。
+      const hasValidRequestedFiles = requestedFiles.size > 0;
       state.selectedFiles.clear();
       for (const item of state.catalog) {
-        if (requestedSet.size ? requestedSet.has(item.file) : item.selected) {
+        if (hasValidRequestedFiles ? requestedFiles.has(item.file) : item.selected) {
           state.selectedFiles.add(item.file);
         }
       }
-
       renderCatalog();
-      const [indexedCount, previewCount, keywordPageCount] = await Promise.all([
-        loadSearchIndexManifest(),
-        loadPagePreviewManifest(),
-        loadKeywordDataManifest(),
-      ]);
-      const supplementedCount = supplementCatalogFromGeneratedAssets(requestedSet);
-      if (supplementedCount) renderCatalog();
       state.catalogLoadMs = perfNow() - catalogLoadStartedAt;
       elements.catalogTrigger.disabled = false;
-      elements.searchBtn.disabled = false;
+      elements.searchBtn.disabled = !state.selectedFiles.size;
 
       const selectedIndexedCount = state.catalog.filter(
         item => state.selectedFiles.has(item.file) && getSearchIndexMeta(item.file)
@@ -5607,19 +5546,12 @@
       const keywordMessage = keywordPageCount
         ? `キーワードコピー：${keywordPageCount}ページ対応。`
         : '';
-
-      const catalogMessage = supplementedCount
-        ? `${state.catalog.length}件のPDFを読み込みました（${state.catalogSource}）。pdfs.json未登録のPDFを${supplementedCount}件自動追加しました。`
-        : `${state.catalog.length}件のPDFを読み込みました（${state.catalogSource}）。`;
-
+      const settingMessage = manifestError ? '表示設定JSONを読込できませんでした。' : '';
       setStatus(
-        `${catalogMessage}${state.selectedFiles.size}件を検索対象にしています。${indexMessage}${previewMessage}${keywordMessage}`,
-        indexedCount ? 'success' : 'warning'
+        `${state.catalog.length}件のPDFを読み込みました（${state.catalogSource}）。${state.selectedFiles.size}件を検索対象にしています。${settingMessage}${indexMessage}${previewMessage}${keywordMessage}`,
+        state.catalog.length && indexedCount ? 'success' : 'warning'
       );
-
-      if (initial.text && state.selectedFiles.size) {
-        await runCrossSearch();
-      }
+      if (initial.text && state.selectedFiles.size) await runCrossSearch();
     }
 
     function getCatalogSelectionSet() {

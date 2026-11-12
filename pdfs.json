@@ -2,9 +2,9 @@
   "baseDir": "indeedmarketreports/",
   "files": [
     {
-      "file": "JP 厚生労働省の有効求人倍率推移レポート.PDF",
-      "label": "JP 厚生労働省の有効求人倍率推移レポート",
-      "description": "JP 厚生労働省の有効求人倍率推移レポート",
+      "file": "厚生労働省の有効求人倍率推移レポート.pdf",
+      "label": "厚生労働省の有効求人倍率推移レポート",
+      "description": "厚生労働省の有効求人倍率推移レポート",
       "thumbnailPage": 25,
       "selected": true
     },
@@ -35,7 +35,7 @@
       "description": "Indeed 職種別キーワードレポート",
       "thumbnailPage": 25,
       "selected": true
-    }, 
+    },
     {
       "file": "求職者検索トレンド.PDF",
       "label": "求職者検索トレンド",
